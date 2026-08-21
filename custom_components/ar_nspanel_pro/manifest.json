@@ -1,0 +1,26 @@
+{
+  "domain": "ar_nspanel_pro",
+  "name": "AR NSPanel Pro",
+  "codeowners": [
+    "@YOUR-GITHUB-USERNAME"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "mqtt",
+    "http",
+    "frontend",
+    "websocket_api",
+    "media_source"
+  ],
+  "documentation": "https://github.com/YOUR-GITHUB-USERNAME/ar-nspanel-pro",
+  "integration_type": "device",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/YOUR-GITHUB-USERNAME/ar-nspanel-pro/issues",
+  "mqtt": [
+    "ar-nspanel-pro/panel/+/avail"
+  ],
+  "requirements": [
+    "adb-shell==0.4.4"
+  ],
+  "version": "1.1.0"
+}
