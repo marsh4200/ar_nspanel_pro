@@ -33,7 +33,7 @@ import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import ADB_KEY_FILE, APP_PACKAGE, GITHUB_OWNER, GITHUB_REPO
+from .const import ADB_KEY_FILE, APP_ACTIVITY, APP_PACKAGE, GITHUB_OWNER, GITHUB_REPO
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -264,7 +264,7 @@ class PanelAdb:
             host,
             port,
             signer,
-            f"cmd package set-home-activity {APP_PACKAGE}/com.domopanel.MainActivity",
+            f"cmd package set-home-activity {APP_PACKAGE}/{APP_ACTIVITY}",
         )
         low = (out or "").lower()
         if "success" not in low and any(

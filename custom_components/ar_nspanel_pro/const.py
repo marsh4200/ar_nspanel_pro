@@ -57,25 +57,22 @@ SERVICE_DISCOVER = "discover"
 STORAGE_SUBDIR = DOMAIN
 
 # --- ADB provisioning (config panel Setup/Update tool) ----------------------
-#: The panel app's Android package == brand.config.json ``applicationId``. Used
-#: to install/update the APK and read its version over ADB.
-#: PLACEHOLDER — set this to the applicationId of whatever app you actually
-#: install on the panel (your own build, or another compatible app you have
-#: the rights to deploy). This fork does not ship or fetch any app binary.
-APP_PACKAGE = "com.arnspanelpro.nspanel"
+#: The panel app's Android package (android/app/build.gradle.kts
+#: ``applicationId``). Used to install/update the APK and read its version over
+#: ADB.
+APP_PACKAGE = "za.co.arsmarthome.nspanel"
+#: Launcher activity of the panel app (``cmd package set-home-activity``).
+APP_ACTIVITY = f"{APP_PACKAGE}.MainActivity"
 #: Default ADB-over-TCP port the NSPanel Pro listens on.
 ADB_DEFAULT_PORT = 5555
 #: Our persisted ADB RSA key (private + a ".pub" sibling), kept under HA's
 #: ``.storage``. The panel shows a one-time "Allow USB debugging?" prompt for
 #: this key's fingerprint on first connect.
 ADB_KEY_FILE = "ar_nspanel_pro_adbkey"
-#: Public GitHub repo whose latest Release ships the app APK the tool installs.
-#: EDIT THIS: point it at your own repo/releases once you have an app APK to
-#: serve (the ADB Setup/Update tool in the config panel fetches from here).
-#: The original DomoDreams app (APP_PACKAGE above) is proprietary and is NOT
-#: bundled with or fetched by this fork — see LICENSE.
-GITHUB_OWNER = "YOUR-GITHUB-USERNAME"
-GITHUB_REPO = "ar-nspanel-pro"
+#: Public GitHub repo whose latest Release ships the app APK the tool installs
+#: (built and attached by .github/workflows/panel-app.yml on every v* tag).
+GITHUB_OWNER = "marsh4200"
+GITHUB_REPO = "ar_nspanel_pro"
 
 
 def base_topic(device_id: str) -> str:

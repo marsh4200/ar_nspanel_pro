@@ -114,6 +114,17 @@
         },
         "camera": {
           "$ref": "#/$defs/cameraPage"
+        },
+        "weather": {
+          "type": "object",
+          "description": "Weather page options. Without `entity` the page shows the first weather.* entity (mirrored on state/weather); with it, that entity (mirrored on state/<slug>). The integration adds a short daily forecast via weather.get_forecasts.",
+          "properties": {
+            "entity": {
+              "type": "string",
+              "pattern": "^weather\\."
+            }
+          },
+          "additionalProperties": true
         }
       },
       "additionalProperties": true,

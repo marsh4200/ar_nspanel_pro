@@ -1,104 +1,127 @@
 # AR NSPanel Pro
 
-A Home Assistant integration for driving a custom control-panel UI on a
-Sonoff NSPanel Pro (or any device running a compatible companion app) over
-MQTT — pages of buttons, dimmers, covers, a clock, weather, camera, music and
-an alarm keypad, laid out from a visual editor in the Home Assistant sidebar.
+A Home Assistant integration **plus its own panel app** for the Sonoff NSPanel Pro. You lay
+out pages of buttons, dimmers, switchers, split buttons, rockers, a clock, weather, cameras,
+music and an alarm keypad in the Home Assistant sidebar. The panel shows them and talks to
+Home Assistant over MQTT.
 
-This is an independent fork of the MIT-licensed **DomoDreams Panel**
-integration (https://github.com/domodreams/home-assistant-nspanel-pro),
-rebranded as **AR NSPanel Pro**. See [LICENSE](LICENSE) for what carried over
-and what didn't — short version: the integration code is MIT and fully
-included here; the original project's proprietary Android app and brand
-assets are **not** part of this fork.
+This is an independent fork of the MIT-licensed **DomoDreams Panel** integration
+(https://github.com/domodreams/home-assistant-nspanel-pro), rebranded as **AR NSPanel Pro**.
+The original project's proprietary Android app is **not** part of this fork. This repo ships
+its own app, written from scratch against the integration's protocol (see
+[PROTOCOL.md](PROTOCOL.md)).
 
-## What's included
+## What's in the repo
 
-- `custom_components/ar_nspanel_pro/` — the Home Assistant integration
-  (config flow, MQTT bridge, entities, services, websocket API for the sidebar
-  editor, and the built sidebar-panel JS bundle).
-- A JSON Schema (`panels.schema.json`) describing the panel-layout config
-  document, validated on load and from the config-flow.
+| Path | What |
+|---|---|
+| `custom_components/ar_nspanel_pro/` | The Home Assistant integration: config flow, MQTT bridge, entities, services, the sidebar editor, and the built panel UI in `www/app/` |
+| `panel/` | Source of the panel UI: plain JavaScript, no framework, one ~80 KB bundle. It renders with the same theme kit and icons as the editor's preview, so the glass matches what you designed |
+| `android/` | A small Kotlin WebView kiosk app around the panel UI. It adds the backlight, light and proximity sensors, screenshots, volume, boot-on-start and licence verification. No third-party libraries |
+| `.github/workflows/panel-app.yml` | Builds the UI and the APK. A `v*` tag attaches the APK to the GitHub Release, where the sidebar's ADB Setup/Update tool picks it up |
 
-## What's NOT included (and why)
+## Install
 
-The upstream project pairs its integration with a closed-source Android
-kiosk app ("DomoDreams NSPanel Pro"), plus screenshots/branding — all
-explicitly proprietary under the upstream LICENSE, with redistribution and
-derivative works disallowed. This fork only rebrands and redistributes the
-MIT-licensed integration.
+1. **MQTT with WebSockets.** The panel connects to your broker over WebSockets. The Mosquitto
+   add-on already listens for WebSockets on port **1884**. Home Assistant's MQTT integration must
+   be set up.
+2. **Integration (HACS).** HACS → ⋮ → Custom repositories → `https://github.com/marsh4200/ar_nspanel_pro`,
+   category **Integration** → install **AR NSPanel Pro** → restart Home Assistant.
+3. **Panel app.** Open **AR NSPanel Pro** in the sidebar → **Setup/Update**, enter the panel's IP
+   (ADB over network must be enabled on the panel), tap *Allow USB debugging* on the panel, then
+   **Install latest**. Optionally **Set as Home** so it replaces the stock launcher.
+   (Or sideload: `adb install ar-nspanel-pro-X.Y.Z.apk`.)
+4. **Panel setup screen** (opens on first start; later, press and hold the top-left corner for 3 s):
+   - Broker: `ws://<home-assistant-ip>:1884`, plus MQTT username and password
+   - Panel ID: e.g. `panel-kitchen`
+   - Optional *Load UI from*: `http://<ha>:8123/ar_nspanel_pro_static/app/index.html`. The panel
+     then takes UI updates straight from the integration, with no new APK needed. It falls back
+     to the built-in copy when Home Assistant is down.
+5. **Add the panel in Home Assistant.** Settings → Devices & Services → Add Integration →
+   AR NSPanel Pro. A panel that is online is discovered automatically; otherwise enter the same
+   Panel ID.
+6. **Design** the pages in the sidebar editor and save. The panel redraws immediately.
 
-To actually put a UI on your panel's screen, you have two options:
+The same UI also runs in any browser (for example
+`http://<ha>:8123/ar_nspanel_pro_static/app/index.html`), which is handy for designing and
+testing. In a browser, the backlight, sensors, screenshots and licence check aren't available.
 
-1. **Build your own companion app.** The integration talks a documented MQTT
-   protocol (see below) and validates configs against
-   `panels.schema.json` — any app that speaks that protocol works. This
-   repo doesn't include app source (there wasn't any MIT-licensed app source
-   to fork), but the protocol is fully specified here if you want to write
-   one (React Native, a web kiosk, ESPHome+LVGL, whatever you like).
-2. **Use the original DomoDreams app** under its own license/terms if you'd
-   rather not build one, and just want your own branded/customized
-   integration behind it.
+## Page types
 
-## Install (HACS)
+- **Grid**: button (toggle, push, or multi-state), dimmer, switcher, split, rocker, status dots, optimistic UI
+- **Clock**: digital or analog, 12/24 h, localised date, alarm-clock indicator. Also used as the screensaver
+- **Weather**: uses the first `weather.*` entity, or set `"weather": {"entity": "weather.home"}` on the page. Shows the current conditions and a 5-day forecast
+- **Alarm**: Alarmo keypad over Alarmo's own MQTT topics. When the alarm is armed, the keypad becomes the screensaver; when it triggers, the siren sounds
+- **Camera**: live MJPEG from Home Assistant with a PTZ D-pad and camera picker
+- **Music**: Music Assistant players, now playing, transport, volume, and favourite radios/playlists
 
-1. **HACS → ⋮ → Custom repositories** → add your fork's GitHub URL,
-   category **Integration**.
-2. Install **AR NSPanel Pro**, then restart Home Assistant.
-3. **Settings → Devices & Services → Add Integration → AR NSPanel Pro**, and
-   add one entry per panel.
-4. Open **AR NSPanel Pro** in the HA sidebar to lay out your pages.
+Also: notifications with action buttons (`ar_nspanel_pro.notify`, where `on_press` runs in
+Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren entity, an
+alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
+remote screenshots, and remote taps.
 
-> Requires the MQTT integration configured in Home Assistant. Each panel
-> connects to the same broker over WebSocket.
+## Licensing (AR Smart Home licence server)
 
-## Configure
+Each panel has a **Server ID** (16 hex characters), shown in the sidebar under
+**Device → Licence** and on the panel's setup screen. Issue a WIQL1 key for product
+`ar_nspanel_pro` bound to that Server ID on `license.arsmarthome.co.za`, then paste it into the
+Licence card. The panel verifies the key offline against the AR Smart Home public key (baked into
+the app in `Licence.kt`). An unlicensed panel works fully but shows a watermark. The Licence
+sensor's `days_remaining` attribute is there to automate renewals.
 
-Everything is edited from the **AR NSPanel Pro** sidebar panel (admin-only) —
-pick entities, arrange tiles, choose page types, set the theme, all with a
-live preview. Per-panel device settings can also be tweaked on the device
-itself, if your companion app exposes that screen.
+## Releasing a new panel app
 
-The layout schema ships with the integration at
-[`custom_components/ar_nspanel_pro/panels.schema.json`](custom_components/ar_nspanel_pro/panels.schema.json)
-and is validated on both sides, so a panel and its config can never silently
-disagree.
+Updates only install over an existing app when they're signed with the **same key**. Do this
+once:
+
+```bash
+keytool -genkeypair -v -keystore ar-nspanel-pro.jks -alias arpanel -keyalg RSA -keysize 4096 -validity 36500
+base64 -w0 ar-nspanel-pro.jks   # → repository secret ANDROID_KEYSTORE_BASE64
+```
+
+Add the repository secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
+`ANDROID_KEY_ALIAS` (`arpanel`) and `ANDROID_KEY_PASSWORD`. Keep the `.jks` safe: losing it
+means uninstalling the app on every panel. Then:
+
+```bash
+git tag v1.2.0 && git push origin v1.2.0
+```
+
+The workflow builds `ar-nspanel-pro-1.2.0.apk` and attaches it to the release. Every panel's
+**Setup/Update → Install latest** installs it.
+
+## Development
+
+```bash
+npm install --prefix panel
+node panel/build.mjs                # → custom_components/ar_nspanel_pro/www/app/
+node panel/scripts/extract-kit.mjs  # re-extract theme kit + icons after an editor-bundle update
+```
+
+The Ed25519/licence code is plain JVM and has an off-device test:
+`android/test/gen_vectors.py` + `LicenceTest.kt` (instructions at the top of that file).
 
 ## How it works
 
 ```
-Panel app          ──MQTT──►  ar-nspanel-pro/panel/{device}/event      (button pressed)
-                   ◄─MQTT───   ar-nspanel-pro/panel/{device}/config     (layout + bindings, retained)
-                   ◄─MQTT───   ar-nspanel-pro/panel/{device}/state/*    (entity state mirror, retained)
-                   ◄─MQTT───   ar-nspanel-pro/panel/{device}/cmd/*      (wake, page, reload, …)
+Panel app   ──►  ar-nspanel-pro/panel/{id}/event          (tile pressed → HA runs the binding)
+            ──►  ar-nspanel-pro/panel/{id}/sys/*          (awake, light, motion, media, info, licence…)
+            ◄──  ar-nspanel-pro/panel/{id}/config/*       (layout, device settings, licence — retained)
+            ◄──  ar-nspanel-pro/panel/{id}/state/*        (entity mirror — retained)
+            ◄──  ar-nspanel-pro/panel/{id}/cmd/*          (wake, page, notify, media, siren, …)
 ```
 
-- The integration owns the HA side end to end: it creates **event
-  entities**, executes **service-call bindings**, and mirrors entity
-  **state** back to the panel.
-- The panel is expected to boot from retained topics + a local cache, so if
-  the broker or HA is down it still shows the last-known UI.
-- Reconnects should use exponential backoff with jitter; state is always
-  reconciled from `state/*`.
-
-## Before you publish this fork
-
-A few placeholders need your own values — grep for them:
-
-- `custom_components/ar_nspanel_pro/manifest.json` — `codeowners`,
-  `documentation`, `issue_tracker` (currently `YOUR-GITHUB-USERNAME`).
-- `custom_components/ar_nspanel_pro/const.py` — `GITHUB_OWNER`, `GITHUB_REPO`
-  (used by the config panel's ADB Setup/Update tool to fetch app releases —
-  point these at wherever *you* publish an app, if you build one) and
-  `APP_PACKAGE` (the Android `applicationId` of whatever app you install on
-  the panel).
+The panel boots from its cache and the retained topics, so it shows the last known UI even
+while Home Assistant or the broker is down, and reconnects with exponential backoff. The full
+contract is in [PROTOCOL.md](PROTOCOL.md).
 
 ## License
 
-MIT for the integration in this repo — see [LICENSE](LICENSE) (it preserves
-the required upstream copyright notice, as the MIT license requires).
+MIT, see [LICENSE](LICENSE). It preserves the upstream copyright notice as the MIT license
+requires. The panel theme kit and icon set are extracted from this repo's own MIT-licensed
+editor bundle.
 
 ---
 
-<p align="center"><sub>Forked from DomoDreams Panel · for the Sonoff NSPanel
-Pro · not affiliated with Sonoff/ITEAD, Home Assistant, or DomoDreams.</sub></p>
+<p align="center"><sub>Forked from DomoDreams Panel · for the Sonoff NSPanel Pro · not affiliated with
+Sonoff/ITEAD, Home Assistant, or DomoDreams.</sub></p>

@@ -21,11 +21,13 @@ import json
 import logging
 import time
 import uuid
+from datetime import timedelta
 from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
 
 from homeassistant.components import mqtt
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -33,6 +35,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import (
     EventStateChangedData,
     async_track_state_change_event,
+    async_track_time_interval,
 )
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
@@ -79,6 +82,23 @@ _LOGGER = logging.getLogger(__name__)
 _STATELESS_DOMAINS = {"scene", "script", "button", "input_button"}
 #: Domains mirrored as ``{"value": <state>}`` (state buttons → input_select).
 _VALUE_DOMAINS = {"input_select", "select"}
+#: State key a weather page reads when it names no entity (first weather.*).
+WEATHER_DEFAULT_KEY = "weather"
+#: How often daily forecasts are re-fetched for weather pages.
+_FORECAST_REFRESH = timedelta(minutes=30)
+#: Weather attributes copied onto the mirror payload.
+_WEATHER_ATTRS = (
+    "temperature",
+    "temperature_unit",
+    "humidity",
+    "pressure",
+    "pressure_unit",
+    "wind_speed",
+    "wind_speed_unit",
+    "wind_bearing",
+    "visibility",
+    "visibility_unit",
+)
 
 
 class PanelBridge:
@@ -109,6 +129,15 @@ class PanelBridge:
         # Their mirror payload carries the live MJPEG URL instead of the plain
         # on/off shape (see _camera_payload).
         self._camera_entities: dict[str, dict[str, Any]] = {}
+        # weather entities shown on a weather page. Their payload carries the
+        # current conditions + a short daily forecast (see _weather_payload).
+        self._weather_entities: set[str] = set()
+        #: a weather page without `weather.entity` uses the first weather.*
+        #: entity, published on the fixed key WEATHER_DEFAULT_KEY.
+        self._weather_auto = False
+        self._forecasts: dict[str, list[dict[str, Any]]] = {}
+        self._weather_timer: Callable[[], None] | None = None
+        self._started_unsub: Callable[[], None] | None = None
 
         # cached sys state (read by entities on add)
         self.available: bool = False
@@ -148,6 +177,7 @@ class PanelBridge:
             self.hass, self.device_id
         )
         self._index_config()
+        self._resolve_auto_weather()
         self._register_device()
 
         base = self.base
@@ -173,6 +203,7 @@ class PanelBridge:
         # panel gets an accurate mirror immediately.
         self._start_state_tracking()
         await self._publish_all_states()
+        self._start_weather()
 
     async def async_unload(self) -> None:
         for unsub in self._unsubs:
@@ -181,6 +212,12 @@ class PanelBridge:
         if self._state_unsub:
             self._state_unsub()
             self._state_unsub = None
+        if self._weather_timer:
+            self._weather_timer()
+            self._weather_timer = None
+        if self._started_unsub:
+            self._started_unsub()
+            self._started_unsub = None
 
     # --- config indexing -----------------------------------------------------
 
@@ -195,9 +232,19 @@ class PanelBridge:
         self._entity_keys = {}
         self._value_entities = set()
         self._camera_entities = {}
+        self._weather_entities = set()
+        self._weather_auto = False
         for page in self.panels.get("pages", []):
             if page.get("type") == "camera":
                 self._index_camera_page(page)
+            if page.get("type") == "weather":
+                wcfg = page.get("weather") if isinstance(page.get("weather"), dict) else {}
+                went = wcfg.get("entity")
+                if isinstance(went, str) and went.startswith("weather."):
+                    self._weather_entities.add(went)
+                    self._entity_keys.setdefault(went, set()).add(slugify_entity_id(went))
+                else:
+                    self._weather_auto = True
             for tile in page.get("tiles", []) or []:
                 tid = tile.get("id")
                 if isinstance(tid, str):
@@ -339,6 +386,105 @@ class PanelBridge:
                     continue
                 bid = ptz_button_id(page_id, entity, direction)
                 self._tiles_by_id[bid] = {"id": bid, "bindings": {"press": binding}}
+
+    # --- weather pages -------------------------------------------------------
+
+    @callback
+    def _resolve_auto_weather(self) -> bool:
+        """Bind WEATHER_DEFAULT_KEY to the first weather entity, if needed.
+
+        Returns True when an entity was (newly) bound. Weather integrations may
+        load after this one, so an unresolved default is retried once Home
+        Assistant has started.
+        """
+        if not self._weather_auto:
+            return False
+        for entity_id, keys in self._entity_keys.items():
+            if WEATHER_DEFAULT_KEY in keys:
+                return False  # already bound
+        candidates = sorted(self.hass.states.async_entity_ids("weather"))
+        if not candidates:
+            if not self.hass.is_running and self._started_unsub is None:
+                self._started_unsub = self.hass.bus.async_listen_once(
+                    EVENT_HOMEASSISTANT_STARTED, self._on_ha_started
+                )
+            return False
+        entity_id = candidates[0]
+        self._weather_entities.add(entity_id)
+        self._entity_keys.setdefault(entity_id, set()).add(WEATHER_DEFAULT_KEY)
+        return True
+
+    @callback
+    def _on_ha_started(self, _event: Event) -> None:
+        self._started_unsub = None  # fired: a once-listener removes itself
+        if self._resolve_auto_weather():
+            if self._state_unsub:
+                self._state_unsub()
+                self._state_unsub = None
+            self._start_state_tracking()
+            self.hass.async_create_task(self._publish_all_states())
+            self._start_weather()
+
+    @callback
+    def _start_weather(self) -> None:
+        """Fetch forecasts now and every _FORECAST_REFRESH."""
+        if not self._weather_entities:
+            return
+        if self._weather_timer is None:
+            self._weather_timer = async_track_time_interval(
+                self.hass, self._refresh_forecasts_cb, _FORECAST_REFRESH
+            )
+        self.hass.async_create_task(self._async_refresh_forecasts())
+
+    @callback
+    def _refresh_forecasts_cb(self, _now: Any) -> None:
+        self.hass.async_create_task(self._async_refresh_forecasts())
+
+    async def _async_refresh_forecasts(self) -> None:
+        for entity_id in list(self._weather_entities):
+            forecast: list[dict[str, Any]] = []
+            for kind in ("daily", "twice_daily", "hourly"):
+                try:
+                    resp = await self.hass.services.async_call(
+                        "weather",
+                        "get_forecasts",
+                        {"entity_id": entity_id, "type": kind},
+                        blocking=True,
+                        return_response=True,
+                    )
+                except Exception:  # noqa: BLE001 - unsupported type / not loaded
+                    continue
+                items = ((resp or {}).get(entity_id) or {}).get("forecast") or []
+                if items:
+                    forecast = [
+                        {
+                            k: f.get(k)
+                            for k in ("datetime", "condition", "temperature", "templow", "precipitation_probability")
+                            if f.get(k) is not None
+                        }
+                        for f in items
+                        if isinstance(f, dict)
+                    ][: 10 if kind != "daily" else 5]
+                    break
+            self._forecasts[entity_id] = forecast
+            self._publish_entity(entity_id, self.hass.states.get(entity_id))
+
+    def _weather_payload(self, entity_id: str, state: Any) -> dict[str, Any]:
+        """Mirror payload for a weather page: conditions + short forecast."""
+        if state is None or state.state in ("unavailable", "unknown"):
+            return {"value": None}
+        payload: dict[str, Any] = {
+            "value": state.state,
+            "name": state.attributes.get("friendly_name") or entity_id,
+        }
+        for attr in _WEATHER_ATTRS:
+            val = state.attributes.get(attr)
+            if val is not None:
+                payload[attr] = val
+        forecast = self._forecasts.get(entity_id)
+        if forecast:
+            payload["forecast"] = forecast
+        return payload
 
     def _register_device(self) -> None:
         reg = dr.async_get(self.hass)
@@ -859,6 +1005,8 @@ class PanelBridge:
             return
         if entity_id in self._camera_entities:
             payload = self._camera_payload(entity_id, state)
+        elif entity_id in self._weather_entities:
+            payload = self._weather_payload(entity_id, state)
         else:
             payload = _state_payload(
                 entity_id, state, include_value=entity_id in self._value_entities

@@ -1,0 +1,15 @@
+{
+  "name": "ar-nspanel-pro-panel",
+  "version": "1.2.0",
+  "private": true,
+  "description": "Panel UI for AR NSPanel Pro (runs on the NSPanel Pro in the Android wrapper, or in any browser)",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "extract-kit": "node scripts/extract-kit.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.1"
+  },
+  "license": "MIT"
+}

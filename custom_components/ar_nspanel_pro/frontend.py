@@ -30,7 +30,7 @@ PANEL_URL_PATH = "ar_nspanel_pro"
 #: Custom element tag defined by the built bundle (see web/src/main.tsx).
 PANEL_ELEMENT = "ar-nspanel-pro-config"
 #: Bumped to bust the frontend cache when the bundle changes materially.
-PANEL_VERSION = "52"
+PANEL_VERSION = "53"
 
 _WWW_DIR = Path(__file__).parent / "www"
 _BUNDLE = "ar-nspanel-pro-config.js"

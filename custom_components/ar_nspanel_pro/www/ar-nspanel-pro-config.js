@@ -8938,6 +8938,12 @@ function gA(e, t) {
         label: "Invalid signature",
         detail: "The panel could not verify this licence against the key in its app build."
       };
+    case "missing":
+      return { tone: "none", label: "No licence", detail: "The panel is running unlicensed — every page is watermarked." };
+    case "wrong_product":
+      return { tone: "bad", label: "Wrong product", detail: "This key was issued for a different AR product. Issue one for ar_nspanel_pro." };
+    case "unavailable":
+      return { tone: "none", label: "Not verifiable", detail: "This panel is not running the AR NSPanel Pro app (e.g. a browser), so it cannot verify a licence." };
     case "malformed":
       return { tone: "bad", label: "Not a licence", detail: "The panel could not parse this token." };
     case "no_serial":
@@ -8987,17 +8993,17 @@ function zA(e) {
           /* @__PURE__ */ a.jsx("div", { className: "lic-detail", children: l.detail })
         ] })
       ] }),
-      /* @__PURE__ */ a.jsx("label", { className: "lic-label", children: "Panel serial" }),
+      /* @__PURE__ */ a.jsx("label", { className: "lic-label", children: "Panel Server ID" }),
       /* @__PURE__ */ a.jsxs("div", { className: "lic-serial-row", children: [
         /* @__PURE__ */ a.jsx("code", { className: "lic-serial", children: n || "—" }),
         !!n && /* @__PURE__ */ a.jsx("button", { type: "button", className: "btn", disabled: d, onClick: b, children: v ? "Copied" : "Copy" })
       ] }),
       /* @__PURE__ */ a.jsxs("div", { className: "lic-hint", children: [
-        "Read from Android (",
-        /* @__PURE__ */ a.jsx("code", { children: "ro.serialno" }),
-        "). Issue a licence for it with",
+        "Licence Server ID for product ",
+        /* @__PURE__ */ a.jsx("code", { children: "ar_nspanel_pro" }),
+        ". Approve it or issue a WIQL1 key for it on",
         " ",
-        /* @__PURE__ */ a.jsx("code", { children: "tools/license-sign" }),
+        /* @__PURE__ */ a.jsx("code", { children: "license.arsmarthome.co.za" }),
         "."
       ] }),
       /* @__PURE__ */ a.jsx("label", { className: "lic-label", htmlFor: "lic-jwt", children: "Paste a new licence" }),
@@ -9008,7 +9014,7 @@ function zA(e) {
           className: "lic-input",
           rows: 4,
           spellCheck: !1,
-          placeholder: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9…",
+          placeholder: "WIQL1.eyJsaWNlbnNlX2lkIjoi…",
           value: i,
           onChange: (h) => s(h.target.value)
         }

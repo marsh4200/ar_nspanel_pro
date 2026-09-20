@@ -9,8 +9,9 @@ Assistant integration from that project.
 It does NOT include, and is not a substitute for, the proprietary "DomoDreams
 NSPanel Pro" Android app or DomoDreams' brand assets/screenshots — those
 remain the exclusive property of their original author under their own
-license and are unaffected by anything below. If you need a panel app, build
-your own (see README) or use DomoDreams' official app under its own terms.
+license and are unaffected by anything below. This repository ships its own,
+independently written panel app (panel/ and android/), covered by the same MIT
+license below.
 
 --------------------------------------------------------------------------------
 MIT License
