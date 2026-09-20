@@ -71,24 +71,16 @@ sensor's `days_remaining` attribute is there to automate renewals.
 
 ## Releasing a new panel app
 
-Updates only install over an existing app when they're signed with the **same key**. Do this
-once:
-
-```bash
-keytool -genkeypair -v -keystore ar-nspanel-pro.jks -alias arpanel -keyalg RSA -keysize 4096 -validity 36500
-base64 -w0 ar-nspanel-pro.jks   # → repository secret ANDROID_KEYSTORE_BASE64
-```
-
-Add the repository secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
-`ANDROID_KEY_ALIAS` (`arpanel`) and `ANDROID_KEY_PASSWORD`. Keep the `.jks` safe: losing it
-means uninstalling the app on every panel. Then:
+Push a version tag:
 
 ```bash
 git tag v1.2.0 && git push origin v1.2.0
 ```
 
-The workflow builds `ar-nspanel-pro-1.2.0.apk` and attaches it to the release. Every panel's
-**Setup/Update → Install latest** installs it.
+GitHub Actions builds `ar-nspanel-pro-1.2.0.apk`, signs it with the key in
+`android/signing/release.jks` (nothing to set up), and attaches it to the release. Every
+panel's **Setup/Update → Install latest** then installs it. Keep that key file: updates only
+install over the app when they're signed with the same key.
 
 ## Development
 

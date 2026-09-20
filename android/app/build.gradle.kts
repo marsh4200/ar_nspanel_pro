@@ -8,7 +8,13 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-val keystoreFile: String? = System.getenv("ANDROID_KEYSTORE_FILE")
+// Release signing: the repo carries its own key (android/signing/release.jks)
+// so every build — CI or local — is signed identically and updates install
+// over the existing app. Env vars override it if you ever move to a private key.
+val keystoreFile: String = System.getenv("ANDROID_KEYSTORE_FILE") ?: rootProject.file("signing/release.jks").path
+val keystorePassword: String = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: "arsmarthome-nspanel-520638ad9142"
+val keyAliasName: String = System.getenv("ANDROID_KEY_ALIAS") ?: "arpanel"
+val keyPasswordValue: String = System.getenv("ANDROID_KEY_PASSWORD") ?: keystorePassword
 
 android {
     namespace = "za.co.arsmarthome.nspanel"
@@ -24,12 +30,10 @@ android {
 
     signingConfigs {
         create("release") {
-            if (keystoreFile != null) {
-                storeFile = file(keystoreFile)
-                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
-                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
-            }
+            storeFile = file(keystoreFile)
+            storePassword = keystorePassword
+            keyAlias = keyAliasName
+            keyPassword = keyPasswordValue
         }
     }
 
@@ -37,7 +41,7 @@ android {
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            if (keystoreFile != null) signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
