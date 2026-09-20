@@ -26,7 +26,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 from typing import Any, Callable
+from urllib.parse import unquote
 
 import aiohttp
 
@@ -372,8 +374,23 @@ class PanelAdb:
         return {"tag": tag, "version": version or None, "asset": name}
 
     async def _fetch_latest_apk_url(self) -> tuple[str, str, str]:
-        """Return (download_url, tag, asset_name) for the latest release APK."""
+        """Return (download_url, tag, asset_name) for the latest release APK.
+
+        Tries GitHub's REST API first, then falls back to the public release
+        pages. The API allows only 60 anonymous requests an hour per public IP,
+        which a shared/CGNAT connection can exhaust on its own (it then answers
+        403); the web pages have no such limit.
+        """
         session = async_get_clientsession(self._hass)
+        try:
+            return await self._latest_from_api(session)
+        except AdbError as err:
+            if err.code == "no_asset":
+                raise
+            _LOGGER.debug("GitHub API lookup failed (%s); trying the release page", err)
+        return await self._latest_from_web(session)
+
+    async def _latest_from_api(self, session: aiohttp.ClientSession) -> tuple[str, str, str]:
         api = (
             f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}"
             "/releases/latest"
@@ -386,18 +403,9 @@ class PanelAdb:
             async with session.get(
                 api, headers=headers, timeout=aiohttp.ClientTimeout(total=30)
             ) as resp:
-                if resp.status in (403, 404):
-                    raise AdbError(
-                        "no_release",
-                        "No public GitHub release found for the app yet. Publish a "
-                        f"release with an .apk asset on {GITHUB_OWNER}/{GITHUB_REPO} "
-                        "(and make the repo public) first.",
-                    )
                 if resp.status != 200:
                     raise AdbError(
-                        "github",
-                        f"GitHub returned HTTP {resp.status} fetching the latest "
-                        "release.",
+                        "github", f"GitHub API returned HTTP {resp.status}."
                     )
                 data = await resp.json()
         except asyncio.TimeoutError as err:
@@ -424,6 +432,51 @@ class PanelAdb:
             str(asset.get("browser_download_url")),
             tag,
             str(asset.get("name") or "app-release.apk"),
+        )
+
+    async def _latest_from_web(self, session: aiohttp.ClientSession) -> tuple[str, str, str]:
+        """No-API lookup: /releases/latest redirects to /releases/tag/<tag>, and
+        the release's asset list is served at /releases/expanded_assets/<tag>."""
+        base = f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}"
+        headers = {"User-Agent": "ar-nspanel-pro-integration"}
+        timeout = aiohttp.ClientTimeout(total=30)
+        try:
+            async with session.get(
+                f"{base}/releases/latest", headers=headers, timeout=timeout
+            ) as resp:
+                final = str(resp.url)
+                status = resp.status
+            if status != 200 or "/releases/tag/" not in final:
+                raise AdbError(
+                    "no_release",
+                    "No public GitHub release found for the app yet. Publish a "
+                    f"release with an .apk asset on {GITHUB_OWNER}/{GITHUB_REPO} "
+                    "(and make the repo public) first.",
+                )
+            tag = unquote(final.rsplit("/releases/tag/", 1)[1].split("?")[0].strip("/"))
+            async with session.get(
+                f"{base}/releases/expanded_assets/{tag}", headers=headers, timeout=timeout
+            ) as resp:
+                html = await resp.text() if resp.status == 200 else ""
+        except asyncio.TimeoutError as err:
+            raise AdbError(
+                "github", "Timed out contacting GitHub for the latest release."
+            ) from err
+        except aiohttp.ClientError as err:
+            raise AdbError("github", f"Couldn't reach GitHub: {err}") from err
+
+        match = re.search(
+            r'href="(/[^"]+/releases/download/[^"]+?\.apk)"', html, re.IGNORECASE
+        )
+        if not match:
+            raise AdbError(
+                "no_asset", f"The latest release ({tag}) has no .apk asset attached."
+            )
+        path = match.group(1)
+        return (
+            "https://github.com" + path,
+            tag,
+            unquote(path.rsplit("/", 1)[-1]),
         )
 
     def _download_blk(self, host: str, port: int, signer: Any, url: str) -> int:
