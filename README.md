@@ -5,11 +5,6 @@ out pages of buttons, dimmers, switchers, split buttons, rockers, a clock, weath
 music and an alarm keypad in the Home Assistant sidebar. The panel shows them and talks to
 Home Assistant over MQTT.
 
-This is an independent fork of the MIT-licensed **DomoDreams Panel** integration
-(https://github.com/domodreams/home-assistant-nspanel-pro), rebranded as **AR NSPanel Pro**.
-The original project's proprietary Android app is **not** part of this fork. This repo ships
-its own app, written from scratch against the integration's protocol (see
-[PROTOCOL.md](PROTOCOL.md)).
 
 ## What's in the repo
 
