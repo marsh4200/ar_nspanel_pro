@@ -68,10 +68,10 @@ sensor's `days_remaining` attribute is there to automate renewals.
 Push a version tag:
 
 ```bash
-git tag v1.2.3 && git push origin v1.2.3
+git tag v1.2.4 && git push origin v1.2.4
 ```
 
-GitHub Actions builds `ar-nspanel-pro-1.2.3.apk`, signs it with the key in
+GitHub Actions builds `ar-nspanel-pro-1.2.4.apk`, signs it with the key in
 `android/signing/release.jks` (nothing to set up), and attaches it to the release. Every
 panel's **Setup/Update → Install latest** then installs it. Keep that key file: updates only
 install over the app when they're signed with the same key.

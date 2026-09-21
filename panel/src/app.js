@@ -102,6 +102,7 @@ function fit() {
   const s = w / 480;
   const stageH = Math.max(320, Math.round(hgt / s));
   window.__arScale = s;
+  window.__arFit = { w: w, h: hgt, scale: Math.round(s * 1000) / 1000, stageH: stageH, dpr: window.devicePixelRatio || 1 };
   stage.style.setProperty("--stage-h", stageH + "px");
   stage.style.height = stageH + "px";
   stage.style.transform = "scale(" + s + ")";
@@ -495,7 +496,15 @@ function info() {
     uptimeS: i.uptimeS,
     freeMemMB: i.freeMemMB,
     webview: i.webview,
+    screen: fitInfo().w + "x" + fitInfo().h,
+    uiSize: "480x" + fitInfo().stageH,
+    scale: fitInfo().scale,
+    dpr: fitInfo().dpr,
   };
+}
+
+function fitInfo() {
+  return window.__arFit || { w: 0, h: 0, stageH: 0, scale: 1, dpr: 1 };
 }
 
 function publishInfo() {
@@ -1048,6 +1057,8 @@ function openSettings() {
       "Licence Server ID " + (i.serverId || "—") + " · " + (licence.valid ? "licensed" : licence.reason || "unlicensed"),
       h("br"),
       "Model " + (i.model || "—") + " · WebView " + (i.webview || "—"),
+      h("br"),
+      "Screen " + fitInfo().w + "x" + fitInfo().h + " · UI 480x" + fitInfo().stageH + " · scale " + fitInfo().scale + " · dpr " + fitInfo().dpr,
     ),
   );
   settingsEl.classList.add("show");
