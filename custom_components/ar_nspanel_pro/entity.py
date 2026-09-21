@@ -10,7 +10,7 @@ from .bridge import PanelBridge
 from .const import signal_avail
 
 
-class DomoPanelEntity(Entity):
+class ARPanelEntity(Entity):
     """Base: links to the panel device and tracks availability."""
 
     _attr_has_entity_name = True

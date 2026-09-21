@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import PanelConfigEntry
 from .bridge import PanelBridge
 from .const import signal_event
-from .entity import DomoPanelEntity
+from .entity import ARPanelEntity
 
 
 async def async_setup_entry(
@@ -25,7 +25,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     bridge = entry.runtime_data
-    entities: list[DomoButtonEvent] = []
+    entities: list[ARButtonEvent] = []
     seen: set[str] = set()
     for page in bridge.panels.get("pages", []):
         for tile in page.get("tiles", []) or []:
@@ -51,7 +51,7 @@ async def async_setup_entry(
                     seen.add(button_id)
                     seg_label = seg.get("label") or seg_id
                     entities.append(
-                        DomoButtonEvent(
+                        ARButtonEvent(
                             bridge,
                             button_id,
                             f"{tile_label} {seg_label}",
@@ -76,14 +76,14 @@ async def async_setup_entry(
                 continue
             seen.add(tid)
             entities.append(
-                DomoButtonEvent(bridge, tid, tile.get("label") or tid, list(events))
+                ARButtonEvent(bridge, tid, tile.get("label") or tid, list(events))
             )
     # The panel always has an alarm that can fire (PLAN.md §3.6).
-    entities.append(DomoButtonEvent(bridge, "alarm", "Alarm", ["alarm_fired"]))
+    entities.append(ARButtonEvent(bridge, "alarm", "Alarm", ["alarm_fired"]))
     async_add_entities(entities)
 
 
-class DomoButtonEvent(DomoPanelEntity, EventEntity):
+class ARButtonEvent(ARPanelEntity, EventEntity):
     """One panel button surfaced as an HA event entity."""
 
     def __init__(

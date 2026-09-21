@@ -14,7 +14,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import PanelConfigEntry
 from .bridge import PanelBridge
 from .const import signal_avail, signal_screenshot
-from .entity import DomoPanelEntity
+from .entity import ARPanelEntity
 
 
 async def async_setup_entry(
@@ -22,16 +22,16 @@ async def async_setup_entry(
     entry: PanelConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    async_add_entities([DomoScreenshotCamera(entry.runtime_data)])
+    async_add_entities([ARScreenshotCamera(entry.runtime_data)])
 
 
-class DomoScreenshotCamera(DomoPanelEntity, Camera):
+class ARScreenshotCamera(ARPanelEntity, Camera):
     """Last screenshot captured from the panel."""
 
     _attr_name = "Screenshot"
 
     def __init__(self, bridge: PanelBridge) -> None:
-        DomoPanelEntity.__init__(self, bridge)
+        ARPanelEntity.__init__(self, bridge)
         Camera.__init__(self)
         self.content_type = "image/png"
         self._attr_unique_id = f"{bridge.device_id}_screenshot"

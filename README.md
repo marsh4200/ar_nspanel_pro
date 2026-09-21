@@ -1,10 +1,9 @@
 # AR NSPanel Pro
 
-A Home Assistant integration **plus its own panel app** for the Sonoff NSPanel Pro. You lay
-out pages of buttons, dimmers, switchers, split buttons, rockers, a clock, weather, cameras,
-music and an alarm keypad in the Home Assistant sidebar. The panel shows them and talks to
-Home Assistant over MQTT.
-
+A Home Assistant integration **and panel app** for the Sonoff NSPanel Pro, by
+[AR Smart Home](https://arsmarthome.co.za). You lay out pages of buttons, dimmers, switchers,
+split buttons, rockers, a clock, weather, cameras, music and an alarm keypad in the Home
+Assistant sidebar. The panel shows them and talks to Home Assistant over MQTT.
 
 ## What's in the repo
 
@@ -12,7 +11,7 @@ Home Assistant over MQTT.
 |---|---|
 | `custom_components/ar_nspanel_pro/` | The Home Assistant integration: config flow, MQTT bridge, entities, services, the sidebar editor, and the built panel UI in `www/app/` |
 | `panel/` | Source of the panel UI: plain JavaScript, no framework, one ~80 KB bundle. It renders with the same theme kit and icons as the editor's preview, so the glass matches what you designed |
-| `android/` | A small Kotlin WebView kiosk app around the panel UI. It adds the backlight, light and proximity sensors, screenshots, volume, boot-on-start and licence verification. No third-party libraries |
+| `android/` | The panel app: a Kotlin WebView kiosk around the panel UI. It adds the backlight, light and proximity sensors, screenshots, volume, boot-on-start and licence verification. No third-party libraries |
 | `.github/workflows/panel-app.yml` | Builds the UI and the APK. A `v*` tag attaches the APK to the GitHub Release, where the sidebar's ADB Setup/Update tool picks it up |
 
 ## Install
@@ -82,7 +81,7 @@ install over the app when they're signed with the same key.
 ```bash
 npm install --prefix panel
 node panel/build.mjs                # → custom_components/ar_nspanel_pro/www/app/
-node panel/scripts/extract-kit.mjs  # re-extract theme kit + icons after an editor-bundle update
+node panel/scripts/extract-kit.mjs  # re-extract the theme kit + icons from the editor bundle
 ```
 
 The Ed25519/licence code is plain JVM and has an off-device test:
@@ -104,11 +103,9 @@ contract is in [PROTOCOL.md](PROTOCOL.md).
 
 ## License
 
-MIT, see [LICENSE](LICENSE). It preserves the upstream copyright notice as the MIT license
-requires. The panel theme kit and icon set are extracted from this repo's own MIT-licensed
-editor bundle.
+MIT — see [LICENSE](LICENSE).
 
 ---
 
-<p align="center"><sub>Forked from DomoDreams Panel · for the Sonoff NSPanel Pro · not affiliated with
-Sonoff/ITEAD, Home Assistant, or DomoDreams.</sub></p>
+<p align="center"><sub>AR Smart Home · for the Sonoff NSPanel Pro · not affiliated with Sonoff/ITEAD
+or Home Assistant.</sub></p>

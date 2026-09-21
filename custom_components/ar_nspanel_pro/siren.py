@@ -20,7 +20,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import PanelConfigEntry
 from .bridge import PanelBridge
-from .entity import DomoPanelEntity
+from .entity import ARPanelEntity
 
 #: Bundled res/raw sounds the app can loop, exposed as selectable tones. The
 #: default (first) is the wailing siren; HA/Alarmo may pick another.
@@ -32,10 +32,10 @@ async def async_setup_entry(
     entry: PanelConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    async_add_entities([DomoSirenEntity(entry.runtime_data)])
+    async_add_entities([ARSirenEntity(entry.runtime_data)])
 
 
-class DomoSirenEntity(DomoPanelEntity, SirenEntity):
+class ARSirenEntity(ARPanelEntity, SirenEntity):
     """Plays a looping sound on the panel (via ``cmd/siren``)."""
 
     _attr_name = "Siren"

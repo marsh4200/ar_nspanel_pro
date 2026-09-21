@@ -49,7 +49,7 @@ from homeassistant.util import dt as dt_util
 from . import PanelConfigEntry
 from .bridge import PanelBridge
 from .const import signal_media
-from .entity import DomoPanelEntity
+from .entity import ARPanelEntity
 
 #: panel ``sys/media.state`` → HA state. Anything unknown reads as idle.
 _STATE_MAP = {
@@ -64,10 +64,10 @@ async def async_setup_entry(
     entry: PanelConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    async_add_entities([DomoMediaPlayerEntity(entry.runtime_data)])
+    async_add_entities([ARMediaPlayerEntity(entry.runtime_data)])
 
 
-class DomoMediaPlayerEntity(DomoPanelEntity, MediaPlayerEntity):
+class ARMediaPlayerEntity(ARPanelEntity, MediaPlayerEntity):
     """Speaker entity backed by the panel's own audio output."""
 
     _attr_name = "Speaker"

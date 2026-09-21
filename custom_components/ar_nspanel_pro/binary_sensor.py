@@ -15,7 +15,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import PanelConfigEntry
 from .bridge import PanelBridge
 from .const import signal_awake, signal_motion
-from .entity import DomoPanelEntity
+from .entity import ARPanelEntity
 
 
 async def async_setup_entry(
@@ -24,11 +24,11 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     async_add_entities(
-        [DomoAwakeSensor(entry.runtime_data), DomoMotionSensor(entry.runtime_data)]
+        [ARAwakeSensor(entry.runtime_data), ARMotionSensor(entry.runtime_data)]
     )
 
 
-class DomoAwakeSensor(DomoPanelEntity, BinarySensorEntity):
+class ARAwakeSensor(ARPanelEntity, BinarySensorEntity):
     """True while the panel screen is awake (not in the screensaver)."""
 
     _attr_name = "Awake"
@@ -66,7 +66,7 @@ class DomoAwakeSensor(DomoPanelEntity, BinarySensorEntity):
         self.async_write_ha_state()
 
 
-class DomoMotionSensor(DomoPanelEntity, BinarySensorEntity):
+class ARMotionSensor(ARPanelEntity, BinarySensorEntity):
     """Near-field presence at the panel, from the proximity sensor (sys/motion).
 
     Usable as an Alarmo trigger sensor. ~30cm range; clears a few seconds after

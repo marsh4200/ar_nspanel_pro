@@ -20,7 +20,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import PanelConfigEntry
 from .bridge import PanelBridge
-from .entity import DomoPanelEntity
+from .entity import ARPanelEntity
 
 
 async def async_setup_entry(
@@ -28,10 +28,10 @@ async def async_setup_entry(
     entry: PanelConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    async_add_entities([DomoNotifyEntity(entry.runtime_data)])
+    async_add_entities([ARNotifyEntity(entry.runtime_data)])
 
 
-class DomoNotifyEntity(DomoPanelEntity, NotifyEntity):
+class ARNotifyEntity(ARPanelEntity, NotifyEntity):
     """Send a message to the panel's screen."""
 
     _attr_name = "Notification"

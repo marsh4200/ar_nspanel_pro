@@ -30,7 +30,7 @@ from homeassistant.util import dt as dt_util
 from . import PanelConfigEntry
 from .bridge import PanelBridge
 from .const import signal_info, signal_license, signal_light
-from .entity import DomoPanelEntity
+from .entity import ARPanelEntity
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -111,12 +111,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     bridge = entry.runtime_data
-    entities: list[SensorEntity] = [DomoIlluminanceSensor(bridge), DomoLicenseSensor(bridge)]
-    entities += [DomoInfoSensor(bridge, desc) for desc in INFO_SENSORS]
+    entities: list[SensorEntity] = [ARIlluminanceSensor(bridge), ARLicenceSensor(bridge)]
+    entities += [ARInfoSensor(bridge, desc) for desc in INFO_SENSORS]
     async_add_entities(entities)
 
 
-class DomoInfoSensor(DomoPanelEntity, SensorEntity):
+class ARInfoSensor(ARPanelEntity, SensorEntity):
     """A sensor whose value comes from the cached ``sys/info`` payload."""
 
     def __init__(self, bridge: PanelBridge, desc: PanelSensor) -> None:
@@ -149,7 +149,7 @@ class DomoInfoSensor(DomoPanelEntity, SensorEntity):
         self.async_write_ha_state()
 
 
-class DomoLicenseSensor(DomoPanelEntity, SensorEntity):
+class ARLicenceSensor(ARPanelEntity, SensorEntity):
     """Licence state as reported by the panel's own verifier (``sys/license``).
 
     State is one of ``valid`` / ``expired`` / ``serial_mismatch`` /
@@ -213,7 +213,7 @@ class DomoLicenseSensor(DomoPanelEntity, SensorEntity):
         self.async_write_ha_state()
 
 
-class DomoIlluminanceSensor(DomoPanelEntity, SensorEntity):
+class ARIlluminanceSensor(ARPanelEntity, SensorEntity):
     """Ambient light (raw sensor counts) from ``sys/light``."""
 
     _attr_name = "Illuminance"
