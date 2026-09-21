@@ -1,6 +1,6 @@
 {
   "name": "ar-nspanel-pro-panel",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "private": true,
   "description": "Panel UI for AR NSPanel Pro (runs on the NSPanel Pro in the Android wrapper, or in any browser)",
   "type": "module",

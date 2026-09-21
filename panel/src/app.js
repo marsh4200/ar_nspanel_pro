@@ -91,15 +91,22 @@ root.appendChild(stage);
 document.body.appendChild(iconSprite());
 document.body.appendChild(root);
 
+// The layout is authored 480 wide (the panel's native width). The screen area a
+// device actually gives the WebView is not always square — status/navigation
+// bars, or a taller panel — so scale to the WIDTH and let the stage be as tall
+// as the screen allows: grid rows, the camera strip and the music list stretch
+// into it instead of leaving black bands top and bottom.
 function fit() {
   const w = window.innerWidth || 480;
   const hgt = window.innerHeight || 480;
-  const s = Math.min(w / 480, hgt / 480);
+  const s = w / 480;
+  const stageH = Math.max(320, Math.round(hgt / s));
   window.__arScale = s;
-  const x = Math.round((w - 480 * s) / 2);
-  const y = Math.round((hgt - 480 * s) / 2);
-  stage.style.transform = "translate(" + x + "px," + y + "px) scale(" + s + ")";
+  stage.style.setProperty("--stage-h", stageH + "px");
+  stage.style.height = stageH + "px";
+  stage.style.transform = "scale(" + s + ")";
   stage.style.webkitTransform = stage.style.transform;
+  pagesEl.style.height = stageH + "px";
 }
 window.addEventListener("resize", fit);
 fit();
