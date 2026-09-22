@@ -75,6 +75,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_app_latest)
     websocket_api.async_register_command(hass, ws_delete_panel)
     websocket_api.async_register_command(hass, ws_set_license)
+    websocket_api.async_register_command(hass, ws_request_license)
     _LOGGER.debug("Registered %s websocket commands", DOMAIN)
 
 
@@ -302,6 +303,45 @@ async def ws_set_license(
     # that up through the normal list refresh rather than blocking here, because
     # an offline panel would otherwise hang the dialog until a timeout.
     connection.send_result(msg["id"], {"saved": True, "device_id": device_id})
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "ar_nspanel_pro/request_license",
+        vol.Required("device_id"): str,
+        #: Who the panel belongs to / how to reach them — passed to the licence
+        #: server so a queued request is recognisable in the approval queue.
+        vol.Optional("client"): str,
+        vol.Optional("email"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_request_license(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Ask the AR Smart Home licence server for this panel's key.
+
+    Home Assistant does the round trip (the panel has no credentials and may
+    have no internet). A queued request is a normal answer — the bridge keeps
+    re-checking and installs the key as soon as it is approved.
+    """
+    bridge = _bridge_for(hass, msg["device_id"])
+    if bridge is None:
+        connection.send_error(
+            msg["id"], "not_loaded", f"panel {msg['device_id']} is not loaded"
+        )
+        return
+    try:
+        result = await bridge.async_request_license(
+            client=msg.get("client"), email=msg.get("email")
+        )
+    except Exception as err:  # noqa: BLE001
+        connection.send_error(msg["id"], "request_failed", str(err))
+        return
+    connection.send_result(msg["id"], result)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "ar_nspanel_pro/get_icons"})

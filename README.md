@@ -59,12 +59,16 @@ remote screenshots, and remote taps.
 Each panel has a **Server ID** (16 hex characters), shown in the sidebar under
 **Device → Licence** and on the panel's setup screen.
 
-**Requesting from the panel:** tap the watermark. The panel shows its Server ID with optional
-site and email fields and a **Request licence** button. Home Assistant posts the request to
-`license.arsmarthome.co.za` (the panel never talks to it directly), and while the request sits in
-the queue HA re-checks every 30 minutes and installs the key the moment you approve it — the
-watermark then disappears on its own. The `ar_nspanel_pro.request_license` service does the same
-thing from an automation.
+**Requesting a licence:** open **AR NSPanel Pro** in the sidebar → **Device** → the **Licence**
+card, and press **Request licence**. Home Assistant posts the panel's Server ID to
+`license.arsmarthome.co.za` (the panel never talks to it directly). Approve it on the portal and
+the key installs itself — while the request sits in the queue HA re-checks every 30 minutes, then
+stores the key and pushes it to the panel, so the watermark disappears on its own with nothing to
+copy by hand. The card shows where the request stands; once a licence is in place the button reads
+**Renew licence**.
+
+The same request can come from the panel (tap the watermark) or from an automation
+(`ar_nspanel_pro.request_license`).
 
 **By hand:** issue a WIQL1 key for product `ar_nspanel_pro` bound to that Server ID and paste it
 into the Licence card. The panel verifies the key offline against the AR Smart Home public key (baked into
@@ -76,10 +80,10 @@ sensor's `days_remaining` attribute is there to automate renewals.
 Push a version tag:
 
 ```bash
-git tag v1.2.5 && git push origin v1.2.5
+git tag v1.2.6 && git push origin v1.2.6
 ```
 
-GitHub Actions builds `ar-nspanel-pro-1.2.5.apk`, signs it with the key in
+GitHub Actions builds `ar-nspanel-pro-1.2.6.apk`, signs it with the key in
 `android/signing/release.jks` (nothing to set up), and attaches it to the release. Every
 panel's **Setup/Update → Install latest** then installs it. Keep that key file: updates only
 install over the app when they're signed with the same key.

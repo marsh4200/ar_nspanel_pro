@@ -5728,6 +5728,19 @@ class Ha {
       jwt: r
     });
   }
+  /**
+   * Ask the AR Smart Home licence server for this panel's key. Home Assistant
+   * does the round trip and keeps re-checking while the request is queued, so
+   * a "pending" answer is success, not failure.
+   */
+  requestLicense(t, r) {
+    return this.hass.callWS({
+      type: "ar_nspanel_pro/request_license",
+      device_id: t,
+      client: (r && r.client) || void 0,
+      email: (r && r.email) || void 0
+    });
+  }
   saveConfig(t, r, n, l) {
     return this.hass.callWS({
       type: "ar_nspanel_pro/save_config",
@@ -8957,7 +8970,21 @@ function gA(e, t) {
   }
 }
 function zA(e) {
-  const { panel: t } = e, r = t.license, n = r?.serial || t.serial || "", l = gA(r, t.online), [i, s] = M.useState(""), [d, o] = M.useState(!1), [u, c] = M.useState(null), [v, p] = M.useState(!1);
+  const { panel: t } = e, r = t.license, n = r?.serial || t.serial || "", l = gA(r, t.online), [i, s] = M.useState(""), [d, o] = M.useState(!1), [u, c] = M.useState(null), [v, p] = M.useState(!1), [arReqBusy, arSetReqBusy] = M.useState(!1), [arReqMsg, arSetReqMsg] = M.useState(null), arRequest = async () => {
+    if (!e.onRequestLicense) return;
+    arSetReqBusy(!0), arSetReqMsg({ tone: "wait", text: "Contacting the licence server…" });
+    try {
+      const h = await e.onRequestLicense({ client: t.name || t.device_id });
+      arSetReqMsg({
+        tone: h && h.status === "issued" ? "ok" : h && h.status === "pending" ? "wait" : "bad",
+        text: (h && h.message) || "Request sent."
+      });
+    } catch (h) {
+      arSetReqMsg({ tone: "bad", text: h instanceof Error ? h.message : String(h) });
+    } finally {
+      arSetReqBusy(!1);
+    }
+  };
   M.useEffect(() => {
     if (!v) return;
     const h = setTimeout(() => p(!1), 1500);
@@ -9031,6 +9058,17 @@ function zA(e) {
             children: d ? "Sending…" : "Apply licence"
           }
         ),
+        !!e.onRequestLicense && /* @__PURE__ */ a.jsx(
+          "button",
+          {
+            type: "button",
+            className: "btn",
+            disabled: arReqBusy || d || !n,
+            title: "Ask the AR Smart Home licence server for a key for this panel. Home Assistant keeps checking until you approve it.",
+            onClick: arRequest,
+            children: arReqBusy ? "Requesting…" : r?.valid ? "Renew licence" : "Request licence"
+          }
+        ),
         !!r?.reason && r.reason !== "unavailable" && /* @__PURE__ */ a.jsx(
           "button",
           {
@@ -9043,6 +9081,7 @@ function zA(e) {
           }
         )
       ] }),
+      !!arReqMsg && /* @__PURE__ */ a.jsx("div", { className: "lic-req lic-req-" + arReqMsg.tone, children: arReqMsg.text }),
       !t.online && /* @__PURE__ */ a.jsx("div", { className: "lic-hint", children: "The panel is offline. The licence is stored and published retained, so it will be picked up as soon as the panel reconnects." })
     ] })
   ] });
@@ -9209,7 +9248,7 @@ function kA(e) {
         ] })
       ] })
     ] }),
-    e.panel && e.onSetLicense && /* @__PURE__ */ a.jsx(zA, { panel: e.panel, onSetLicense: e.onSetLicense }),
+    e.panel && e.onSetLicense && /* @__PURE__ */ a.jsx(zA, { panel: e.panel, onSetLicense: e.onSetLicense, onRequestLicense: e.onRequestLicense }),
     /* @__PURE__ */ a.jsxs("div", { className: "card dev-card", children: [
       /* @__PURE__ */ a.jsxs("h3", { children: [
         /* @__PURE__ */ a.jsx(j, { d: N.infoCircle, size: 20, style: V }),
@@ -10455,6 +10494,13 @@ function wA({ hass: e, narrow: t }) {
   }, I1 = async (R) => {
     const I = Fe();
     !I || !u || (await I.setLicense(u, R), await new Promise((Q) => setTimeout(Q, 1200)), l((await I.list()).panels));
+  }, arRequestLicence = async (R) => {
+    const I = Fe();
+    if (!I || !u) return { status: "error", message: "No panel selected." };
+    const Q = await I.requestLicense(u, R || {});
+    await new Promise((se) => setTimeout(se, 1200));
+    l((await I.list()).panels);
+    return Q;
   }, w1 = "dd" + (e?.themes?.darkMode === !1 ? " light" : "") + (t ? " narrow" : ""), G1 = b?.clockAccent || "#12b0f0", Me = n.find((R) => R.device_id === u);
   return e ? /* @__PURE__ */ a.jsxs("div", { className: w1, children: [
     /* @__PURE__ */ a.jsx(NA, {}),
@@ -10614,7 +10660,8 @@ function wA({ hass: e, narrow: t }) {
             onChangeDevice: q,
             onChangeDoc: p,
             panel: Me,
-            onSetLicense: I1
+            onSetLicense: I1,
+            onRequestLicense: arRequestLicence
           }
         ),
         A === "notify" && /* @__PURE__ */ a.jsx(
@@ -11217,6 +11264,10 @@ textarea.jsonedit:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0
 .lic-actions .btn:not(.primary):hover{background:var(--surface2)}
 .lic-actions .btn:disabled{opacity:.5;cursor:default}
 .lic-err{margin-top:8px;font-size:12px;color:var(--error)}
+.lic-req{margin-top:10px;font-size:12px;line-height:1.5;padding:8px 11px;border-radius:9px;background:var(--surface);border:1px solid var(--divider);color:var(--text2)}
+.lic-req-ok{color:var(--success);border-color:color-mix(in srgb,var(--success) 40%,transparent)}
+.lic-req-wait{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}
+.lic-req-bad{color:var(--error);border-color:color-mix(in srgb,var(--error) 40%,transparent)}
 `, HA = `/* ════════════════════════════════════════════════════════════════════════\r
    ②  REGOLE BASE — copiate IDENTICHE dalla §6 (non modificare)\r
    ════════════════════════════════════════════════════════════════════════ */\r

@@ -23,5 +23,5 @@
     "adb-shell==0.4.4",
     "jsonschema>=4.17"
   ],
-  "version": "1.2.5"
+  "version": "1.2.6"
 }
