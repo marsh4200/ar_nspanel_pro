@@ -85,8 +85,12 @@ const settingsEl = h("div");
 settingsEl.id = "settings";
 const cornerEl = h("div");
 cornerEl.id = "corner";
+const licEl = h("div");
+licEl.id = "licence";
 
-[pagesEl, dotsEl, waitingEl, watermarkEl, saverEl, notifyEl, ringEl, statusEl, cornerEl, settingsEl].forEach((e) => stage.appendChild(e));
+[pagesEl, dotsEl, waitingEl, watermarkEl, saverEl, notifyEl, ringEl, statusEl, cornerEl, settingsEl, licEl].forEach((e) =>
+  stage.appendChild(e),
+);
 root.appendChild(stage);
 document.body.appendChild(iconSprite());
 document.body.appendChild(root);
@@ -840,6 +844,10 @@ function handleCmd(name, p) {
     case "touch":
       remoteTouch(p);
       break;
+    case "license_status":
+      licenceStatus = { status: p.status || "", message: p.message || "", ts: Date.now() };
+      if (licEl.classList.contains("show")) openLicence();
+      break;
     case "ma_auth":
       ma.configure({ url: p.url || (device.musicAssistant || {}).url, username: p.username, password: p.password });
       break;
@@ -1063,6 +1071,80 @@ function openSettings() {
   );
   settingsEl.classList.add("show");
 }
+
+// --- licence request (tap the watermark) ------------------------------------------
+//
+// The panel never talks to the licence server itself — it asks Home Assistant,
+// which posts the Server ID and keeps checking until the key is issued.
+
+let licenceStatus = { status: "", message: "" };
+const licFields = { client: "", email: "" };
+
+function licenceLabel() {
+  if (licence.valid) return ["Licensed", "This panel is licensed. No watermark."];
+  switch (licence.reason) {
+    case "missing":
+      return ["Not licensed", "Request a licence for this panel — the watermark goes away once it is issued."];
+    case "expired":
+      return ["Licence expired", "Request a renewal for this panel."];
+    case "serial_mismatch":
+      return ["Wrong panel", "This key was issued for a different Server ID."];
+    case "wrong_product":
+      return ["Wrong product", "This key was issued for a different AR product."];
+    case "bad_signature":
+      return ["Invalid key", "This key was not signed by AR Smart Home."];
+    case "unavailable":
+      return ["Cannot verify", "Licences are only verified by the AR NSPanel Pro app."];
+    default:
+      return ["Not licensed", licence.reason || ""];
+  }
+}
+
+function openLicence() {
+  const i = info();
+  const serverId = licence.serial || i.serverId || "—";
+  while (licEl.firstChild) licEl.removeChild(licEl.firstChild);
+  const label = licenceLabel();
+  const field = (text, key, placeholder) => {
+    const input = h("input", { type: "text", value: licFields[key], placeholder: placeholder, autocapitalize: "off", spellcheck: "false" });
+    input.addEventListener("input", () => (licFields[key] = input.value));
+    input.addEventListener("pointerdown", (e) => e.stopPropagation());
+    return [h("label", null, text), input];
+  };
+  const client = field("Site / client (optional)", "client", "Kruger Lodge");
+  const email = field("Email (optional)", "email", "you@example.com");
+  const req = h("button.primary", null, licence.valid ? "Renew licence" : "Request licence");
+  const close = h("button", null, "Close");
+  req.addEventListener("click", () => {
+    licenceStatus = { status: "sending", message: "Sending…" };
+    publish("sys/license_request", { action: "request", client: licFields.client, email: licFields.email, ts: Date.now() }, false);
+    openLicence();
+  });
+  close.addEventListener("click", () => {
+    licEl.classList.remove("show");
+    activity();
+  });
+  const statusClass =
+    licenceStatus.status === "issued" ? ".ok" : licenceStatus.status === "error" ? ".bad" : licenceStatus.status ? ".wait" : "";
+  licEl.appendChild(h("h2", null, label[0]));
+  licEl.appendChild(h("div.sub", null, label[1]));
+  licEl.appendChild(h("label", null, "Server ID"));
+  licEl.appendChild(h("div.serial", null, serverId));
+  licEl.appendChild(client[0]);
+  licEl.appendChild(client[1]);
+  licEl.appendChild(email[0]);
+  licEl.appendChild(email[1]);
+  if (licenceStatus.message) licEl.appendChild(h("div.licmsg" + statusClass, null, licenceStatus.message));
+  licEl.appendChild(h("div.row", null, close, req));
+  if (!connected) licEl.appendChild(h("div.licmsg.bad", null, "Not connected to Home Assistant — the request cannot be sent yet."));
+  licEl.classList.add("show");
+  activity();
+}
+
+watermarkEl.addEventListener("click", () => {
+  if (!awake) return;
+  openLicence();
+});
 
 // long-press the top-left corner (3 s) opens setup
 let cornerTimer = null;

@@ -39,8 +39,9 @@ from homeassistant.helpers.event import (
 )
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
-from . import panel_config
+from . import panel_config, licensing
 from .const import (
+    LICENSE_RETRY_MINUTES,
     CONF_DEVICE_ID,
     DOMAIN,
     EVENT_BUS,
@@ -159,6 +160,9 @@ class PanelBridge:
         self._notify_on_press: dict[str, dict[str, Any]] = {}
         self.screenshot_png: bytes | None = None
         self.screenshot_ts: float | None = None
+        #: Pending licence request (set while the licence server has it queued).
+        self._license_retry: Callable[[], None] | None = None
+        self._license_req: dict[str, Any] = {}
         #: Last `sys/license` payload — what the panel's own verifier concluded.
         #: Advisory: shown in the GUI and a diagnostic sensor, never enforced on.
         self.license: dict[str, Any] = {}
@@ -194,6 +198,7 @@ class PanelBridge:
             (topic_sys(self.device_id, "pong"), self._on_pong),
             (topic_sys(self.device_id, "screenshot"), self._on_screenshot),
             (topic_sys(self.device_id, "license"), self._on_license),
+            (topic_sys(self.device_id, "license_request"), self._on_license_request),
         ]
         for topic, cb in subs:
             self._unsubs.append(await mqtt.async_subscribe(self.hass, topic, cb))
@@ -215,6 +220,9 @@ class PanelBridge:
         if self._weather_timer:
             self._weather_timer()
             self._weather_timer = None
+        if self._license_retry:
+            self._license_retry()
+            self._license_retry = None
         if self._started_unsub:
             self._started_unsub()
             self._started_unsub = None
@@ -580,7 +588,94 @@ class PanelBridge:
         """
         data = _parse(msg.payload)
         self.license = data
+        if data.get("valid"):
+            self._stop_license_retry()  # nothing left to wait for
         async_dispatcher_send(self.hass, signal_license(self.device_id), data)
+
+    @callback
+    def _on_license_request(self, msg: mqtt.ReceiveMessage) -> None:
+        """The panel asked for a licence (its watermark was tapped).
+
+        The panel never talks to the licence server itself: it has no
+        credentials, may have no internet, and is asleep half the time. It asks
+        here, Home Assistant does the round trip and pushes the key back.
+        """
+        data = _parse(msg.payload)
+        if data.get("action") == "cancel":
+            self._stop_license_retry()
+            self.hass.async_create_task(
+                self.async_cmd("license_status", {"status": "idle", "message": ""})
+            )
+            return
+        self._license_req = {
+            "client": data.get("client") or "",
+            "email": data.get("email") or "",
+        }
+        self.hass.async_create_task(self.async_request_license(**self._license_req))
+
+    async def async_request_license(
+        self, client: str | None = None, email: str | None = None
+    ) -> dict[str, Any]:
+        """Ask the licence server for this panel's key; retry while pending."""
+        server_id = self.license.get("serial") or self.sys_info.get("serial")
+        await self.async_cmd(
+            "license_status", {"status": "sending", "message": "Contacting the licence server…"}
+        )
+        result = await licensing.async_activate(
+            self.hass,
+            str(server_id or ""),
+            client=client or self._license_req.get("client"),
+            email=email or self._license_req.get("email"),
+            version=self.sys_info.get("version"),
+        )
+        if result["status"] == "issued":
+            self._stop_license_retry()
+            await self.async_store_license(result["key"])
+            await self.async_cmd(
+                "license_status", {"status": "issued", "message": "Licence installed."}
+            )
+        else:
+            if result["status"] == "pending":
+                self._start_license_retry()
+            await self.async_cmd(
+                "license_status",
+                {"status": result["status"], "message": result.get("message") or ""},
+            )
+        return result
+
+    @callback
+    def _start_license_retry(self) -> None:
+        if self._license_retry is not None:
+            return
+        self._license_retry = async_track_time_interval(
+            self.hass, self._license_retry_cb, timedelta(minutes=LICENSE_RETRY_MINUTES)
+        )
+
+    @callback
+    def _stop_license_retry(self) -> None:
+        if self._license_retry:
+            self._license_retry()
+            self._license_retry = None
+
+    @callback
+    def _license_retry_cb(self, _now: Any) -> None:
+        if self.license.get("valid"):
+            self._stop_license_retry()
+            return
+        self.hass.async_create_task(self.async_request_license())
+
+    async def async_store_license(self, jwt: str) -> None:
+        """Keep the key with the panel's device config and publish it."""
+        try:
+            device_cfg = await panel_config.async_read_device(self.hass, self.device_id)
+            if jwt:
+                device_cfg["license"] = jwt
+            else:
+                device_cfg.pop("license", None)
+            await panel_config.async_write_device(self.hass, self.device_id, device_cfg)
+        except Exception:  # noqa: BLE001 - publishing still matters if the file fails
+            _LOGGER.exception("could not store the licence for %s", self.device_id)
+        await self.async_publish_license(jwt)
 
     @callback
     def _on_light(self, msg: mqtt.ReceiveMessage) -> None:

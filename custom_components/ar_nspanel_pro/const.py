@@ -51,6 +51,19 @@ SERVICE_STOP_MEDIA = "stop_media"
 SERVICE_NOTIFY = "notify"
 SERVICE_NOTIFY_CLEAR = "notify_clear"
 SERVICE_DISCOVER = "discover"
+SERVICE_REQUEST_LICENSE = "request_license"
+
+# --- licence activation (AR Smart Home licence server) -----------------------
+#: Product slug the licence server issues keys for.
+LICENSE_PRODUCT = "ar_nspanel_pro"
+#: Where Home Assistant asks for a key on the panel's behalf.
+LICENSE_SERVER_URL = "https://license.arsmarthome.co.za"
+#: Where a pending request is reviewed/approved.
+LICENSE_PORTAL_URL = "https://activatelicense.arsmarthome.co.za"
+#: Activation endpoints, tried in order (the server has used both spellings).
+LICENSE_ACTIVATION_PATHS = ("/api/v1/activate", "/api/activation/activate")
+#: How often a pending request is retried until the key is issued.
+LICENSE_RETRY_MINUTES = 30
 
 # --- storage -----------------------------------------------------------------
 #: Per-device panels JSON: ``/config/ar_nspanel_pro/{device_id}.json``.

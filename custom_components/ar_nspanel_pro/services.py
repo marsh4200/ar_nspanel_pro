@@ -35,6 +35,7 @@ from .const import (
     SERVICE_REFRESH_INFO,
     SERVICE_PLAY_MEDIA,
     SERVICE_PUSH_CONFIG,
+    SERVICE_REQUEST_LICENSE,
     SERVICE_SCREENSHOT,
     SERVICE_SET_ALARM,
     SERVICE_SET_SCREEN,
@@ -163,6 +164,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         for bridge in _bridges(hass, call):
             await bridge.async_cmd("notify_clear", payload)
 
+    async def request_license(call: ServiceCall) -> None:
+        """Ask the licence server for a key for the targeted panel(s)."""
+        for bridge in _bridges(hass, call):
+            await bridge.async_request_license(
+                client=call.data.get("client"), email=call.data.get("email")
+            )
+
     async def discover(call: ServiceCall) -> ServiceResponse:
         timeout = float(call.data.get("timeout", 2.0))
         found = await discovery.async_probe(hass, timeout=timeout)
@@ -266,6 +274,15 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         SERVICE_NOTIFY_CLEAR,
         notify_clear,
         vol.Schema({vol.Optional("id"): cv.string}, extra=vol.ALLOW_EXTRA),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_REQUEST_LICENSE,
+        request_license,
+        vol.Schema(
+            {vol.Optional("client"): cv.string, vol.Optional("email"): cv.string},
+            extra=vol.ALLOW_EXTRA,
+        ),
     )
     hass.services.async_register(
         DOMAIN,

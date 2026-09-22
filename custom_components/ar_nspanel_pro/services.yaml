@@ -255,3 +255,29 @@ discover:
           min: 1
           max: 10
           step: 0.5
+
+request_license:
+  name: Request licence
+  description: >-
+    Ask the AR Smart Home licence server for a key for this panel, using the
+    Server ID it reports. If the request is queued for approval, Home Assistant
+    keeps checking and installs the key as soon as it is issued. The panel's
+    watermark does the same thing when tapped.
+  target:
+    device:
+      integration: ar_nspanel_pro
+  fields:
+    client:
+      name: Site / client
+      description: Who this panel belongs to, shown on the request.
+      required: false
+      example: Kruger Lodge
+      selector:
+        text:
+    email:
+      name: Email
+      description: Contact address for the request.
+      required: false
+      example: someone@example.com
+      selector:
+        text:

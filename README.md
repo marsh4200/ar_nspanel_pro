@@ -57,9 +57,17 @@ remote screenshots, and remote taps.
 ## Licensing (AR Smart Home licence server)
 
 Each panel has a **Server ID** (16 hex characters), shown in the sidebar under
-**Device → Licence** and on the panel's setup screen. Issue a WIQL1 key for product
-`ar_nspanel_pro` bound to that Server ID on `license.arsmarthome.co.za`, then paste it into the
-Licence card. The panel verifies the key offline against the AR Smart Home public key (baked into
+**Device → Licence** and on the panel's setup screen.
+
+**Requesting from the panel:** tap the watermark. The panel shows its Server ID with optional
+site and email fields and a **Request licence** button. Home Assistant posts the request to
+`license.arsmarthome.co.za` (the panel never talks to it directly), and while the request sits in
+the queue HA re-checks every 30 minutes and installs the key the moment you approve it — the
+watermark then disappears on its own. The `ar_nspanel_pro.request_license` service does the same
+thing from an automation.
+
+**By hand:** issue a WIQL1 key for product `ar_nspanel_pro` bound to that Server ID and paste it
+into the Licence card. The panel verifies the key offline against the AR Smart Home public key (baked into
 the app in `Licence.kt`). An unlicensed panel works fully but shows a watermark. The Licence
 sensor's `days_remaining` attribute is there to automate renewals.
 
@@ -68,10 +76,10 @@ sensor's `days_remaining` attribute is there to automate renewals.
 Push a version tag:
 
 ```bash
-git tag v1.2.4 && git push origin v1.2.4
+git tag v1.2.5 && git push origin v1.2.5
 ```
 
-GitHub Actions builds `ar-nspanel-pro-1.2.4.apk`, signs it with the key in
+GitHub Actions builds `ar-nspanel-pro-1.2.5.apk`, signs it with the key in
 `android/signing/release.jks` (nothing to set up), and attaches it to the release. Every
 panel's **Setup/Update → Install latest** then installs it. Keep that key file: updates only
 install over the app when they're signed with the same key.
