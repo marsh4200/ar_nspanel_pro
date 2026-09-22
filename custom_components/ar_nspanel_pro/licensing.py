@@ -26,7 +26,6 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     LICENSE_ACTIVATION_PATHS,
-    LICENSE_PORTAL_URL,
     LICENSE_PRODUCT,
     LICENSE_SERVER_URL,
 )
@@ -131,8 +130,9 @@ async def async_activate(
                     return {
                         "status": "pending",
                         "message": (
-                            "Request received — waiting for approval. "
-                            f"Approve {server_id} on {LICENSE_PORTAL_URL} and it will arrive here."
+                            f"Request received — waiting for approval. Approve {server_id} "
+                            "on the licence server and the key installs itself; "
+                            "nothing to copy back."
                         ),
                     }
                 if resp.status in (401, 403):

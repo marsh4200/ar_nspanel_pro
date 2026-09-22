@@ -61,11 +61,13 @@ Each panel has a **Server ID** (16 hex characters), shown in the sidebar under
 
 **Requesting a licence:** open **AR NSPanel Pro** in the sidebar → **Device** → the **Licence**
 card, and press **Request licence**. Home Assistant posts the panel's Server ID to
-`license.arsmarthome.co.za` (the panel never talks to it directly). Approve it on the portal and
-the key installs itself — while the request sits in the queue HA re-checks every 30 minutes, then
-stores the key and pushes it to the panel, so the watermark disappears on its own with nothing to
-copy by hand. The card shows where the request stands; once a licence is in place the button reads
-**Renew licence**.
+`license.arsmarthome.co.za` (the panel never talks to it directly). Approve it on the licence
+server and the key installs itself — HA polls the queued request every 20 s for the first ten
+minutes, so the panel is licensed within about twenty seconds of you clicking approve, and the
+watermark clears on its own with nothing to copy back. The poll then eases off (2 min for the
+next hour, 15 min after that) and gives up after a day, so a request you never approve isn't
+hammering the server. The card shows where the request stands; once a licence is in place the
+button reads **Renew licence**.
 
 The same request can come from the panel (tap the watermark) or from an automation
 (`ar_nspanel_pro.request_license`).
@@ -80,10 +82,10 @@ sensor's `days_remaining` attribute is there to automate renewals.
 Push a version tag:
 
 ```bash
-git tag v1.2.6 && git push origin v1.2.6
+git tag v1.2.7 && git push origin v1.2.7
 ```
 
-GitHub Actions builds `ar-nspanel-pro-1.2.6.apk`, signs it with the key in
+GitHub Actions builds `ar-nspanel-pro-1.2.7.apk`, signs it with the key in
 `android/signing/release.jks` (nothing to set up), and attaches it to the release. Every
 panel's **Setup/Update → Install latest** then installs it. Keep that key file: updates only
 install over the app when they're signed with the same key.

@@ -62,8 +62,14 @@ LICENSE_SERVER_URL = "https://license.arsmarthome.co.za"
 LICENSE_PORTAL_URL = "https://activatelicense.arsmarthome.co.za"
 #: Activation endpoints, tried in order (the server has used both spellings).
 LICENSE_ACTIVATION_PATHS = ("/api/v1/activate", "/api/activation/activate")
-#: How often a pending request is retried until the key is issued.
-LICENSE_RETRY_MINUTES = 30
+#: How often a queued request is re-checked, as ``(within N seconds, poll every M)``.
+#: Approval happens on the licence server while the request is in front of you, so
+#: the first minutes are polled hard — the key reaches the panel within ~20 s of you
+#: approving it — and the tail backs off to a heartbeat for a request left overnight.
+LICENSE_RETRY_SCHEDULE = ((600, 20), (3600, 120), (86400, 900))
+#: Give up on a request nobody approved within this long (seconds); the panel keeps
+#: working, watermarked, and the button can always ask again.
+LICENSE_RETRY_GIVE_UP = 86400
 
 # --- storage -----------------------------------------------------------------
 #: Per-device panels JSON: ``/config/ar_nspanel_pro/{device_id}.json``.

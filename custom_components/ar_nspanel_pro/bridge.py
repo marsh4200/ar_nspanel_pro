@@ -34,6 +34,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import (
     EventStateChangedData,
+    async_call_later,
     async_track_state_change_event,
     async_track_time_interval,
 )
@@ -41,7 +42,8 @@ from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from . import panel_config, licensing
 from .const import (
-    LICENSE_RETRY_MINUTES,
+    LICENSE_RETRY_GIVE_UP,
+    LICENSE_RETRY_SCHEDULE,
     CONF_DEVICE_ID,
     DOMAIN,
     EVENT_BUS,
@@ -162,6 +164,8 @@ class PanelBridge:
         self.screenshot_ts: float | None = None
         #: Pending licence request (set while the licence server has it queued).
         self._license_retry: Callable[[], None] | None = None
+        #: When the queued request was first sent — drives the escalating poll.
+        self._license_retry_since: float | None = None
         self._license_req: dict[str, Any] = {}
         #: Last `sys/license` payload — what the panel's own verifier concluded.
         #: Advisory: shown in the GUI and a diagnostic sensor, never enforced on.
@@ -220,9 +224,7 @@ class PanelBridge:
         if self._weather_timer:
             self._weather_timer()
             self._weather_timer = None
-        if self._license_retry:
-            self._license_retry()
-            self._license_retry = None
+        self._stop_license_retry()
         if self._started_unsub:
             self._started_unsub()
             self._started_unsub = None
@@ -645,10 +647,38 @@ class PanelBridge:
 
     @callback
     def _start_license_retry(self) -> None:
-        if self._license_retry is not None:
+        """Begin (or continue) polling a queued request.
+
+        The poll escalates: hard for the first ten minutes, because approval
+        normally happens while the request is in front of you and the panel
+        should light up within seconds of it, then slower so a request left
+        overnight is a heartbeat rather than a hammer.
+        """
+        if self._license_retry_since is None:
+            self._license_retry_since = time.monotonic()
+        self._schedule_license_retry()
+
+    @callback
+    def _schedule_license_retry(self) -> None:
+        if self._license_retry is not None:  # one timer in flight at a time
             return
-        self._license_retry = async_track_time_interval(
-            self.hass, self._license_retry_cb, timedelta(minutes=LICENSE_RETRY_MINUTES)
+        elapsed = time.monotonic() - (self._license_retry_since or time.monotonic())
+        if elapsed >= LICENSE_RETRY_GIVE_UP:
+            _LOGGER.info(
+                "Licence request for %s is still unapproved after %.0f h — giving up "
+                "(press Request licence again to retry)",
+                self.device_id,
+                elapsed / 3600,
+            )
+            self._stop_license_retry()
+            return
+        delay = LICENSE_RETRY_SCHEDULE[-1][1]
+        for within, every in LICENSE_RETRY_SCHEDULE:
+            if elapsed < within:
+                delay = every
+                break
+        self._license_retry = async_call_later(
+            self.hass, delay, self._license_retry_cb
         )
 
     @callback
@@ -656,9 +686,13 @@ class PanelBridge:
         if self._license_retry:
             self._license_retry()
             self._license_retry = None
+        self._license_retry_since = None
 
     @callback
     def _license_retry_cb(self, _now: Any) -> None:
+        # async_call_later is one-shot: it has already fired, so drop the handle
+        # before re-arming or the next schedule would be skipped as "in flight".
+        self._license_retry = None
         if self.license.get("valid"):
             self._stop_license_retry()
             return
