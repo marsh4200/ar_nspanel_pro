@@ -117,7 +117,7 @@ contract is in [PROTOCOL.md](PROTOCOL.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+
 
 ---
 
