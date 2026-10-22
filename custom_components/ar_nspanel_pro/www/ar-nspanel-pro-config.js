@@ -9198,7 +9198,9 @@ function elRooms(cfg) {
 function ElRtsp({ list: L, entityCams: nE, onChange: set }) {
   const [mode, setMode] = M.useState("hik"), [nm, setNm] = M.useState(""), [ip, setIp] = M.useState(""), [us, setUs] = M.useState("admin"), [pw, setPw] = M.useState(""), [ch, setCh] = M.useState("102"), [url, setUrl] = M.useState("");
   const room = 4 - nE - L.length;
-  const built = mode === "hik" ? (ip.trim() ? `rtsp://${encodeURIComponent(us.trim())}:${encodeURIComponent(pw)}@${ip.trim()}:554/Streaming/Channels/${ch.trim() || "102"}` : "") : url.trim();
+  // the IP box takes just the address: typed http:// / rtsp://, ports, slashes and spaces are dropped
+  const ipc = ip.replace(/\s+/g, "").replace(/^[a-z]+:\/\//i, "").split("/")[0].split(":")[0];
+  const built = mode === "hik" ? (ipc ? `rtsp://${encodeURIComponent(us.trim())}:${encodeURIComponent(pw)}@${ipc}:554/Streaming/Channels/${ch.replace(/\D/g, "") || "102"}` : "") : url.trim();
   const ok = room > 0 && /^rtsps?:\/\/.+/i.test(built);
   const hide = (u) => u.replace(/\/\/([^:@/]+):([^@/]*)@/, "//$1:••••@");
   const add = () => {
@@ -9231,6 +9233,7 @@ function ElRtsp({ list: L, entityCams: nE, onChange: set }) {
         ] }) : /* @__PURE__ */ a.jsx("input", { className: "inp", style: { flex: "3 1 260px" }, placeholder: "rtsp://user:password@192.168.1.50:554/stream", value: url, onChange: (m) => setUrl(m.target.value) }),
         /* @__PURE__ */ a.jsx("button", { className: "btn primary", disabled: !ok, onClick: add, children: "Add camera" })
       ] }),
+      built && /* @__PURE__ */ a.jsxs("div", { className: "hint", style: { marginTop: 6 }, children: ["Will use: ", /* @__PURE__ */ a.jsx("code", { children: hide(built) })] }),
       mode === "hik" && /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 6 }, children: "Channel 102 is the sub-stream: light and smooth, best for the panel. On an NVR use 202, 302… for cameras 2, 3…" })
     ] }) : /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 8 }, children: "4 cameras already — remove one to add another." })
   ] });

@@ -54,15 +54,28 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
             val scheme = m.groupValues[1].lowercase()
             val rest = m.groupValues[2]
             val at = rest.lastIndexOf('@')
-            if (at < 0) return scheme + rest
-            val info = rest.substring(0, at)
-            val hostPath = rest.substring(at + 1)
+            val info = if (at < 0) "" else rest.substring(0, at)
+            val hostPath = cleanHost(if (at < 0) rest else rest.substring(at + 1))
+            if (at < 0) return scheme + hostPath
             val colon = info.indexOf(':')
             val user = if (colon < 0) info else info.substring(0, colon)
             val pass = if (colon < 0) "" else info.substring(colon + 1)
             // decode first, so an already-encoded password isn't encoded twice
             val auth = Uri.encode(Uri.decode(user)) + (if (colon < 0) "" else ":" + Uri.encode(Uri.decode(pass)))
             return "$scheme$auth@$hostPath"
+        }
+
+        /** "http://192.168.88.50:554:554 /x" -> "192.168.88.50:554/x": no spaces, no
+         *  scheme typed into the IP box, one port only. */
+        private fun cleanHost(hp: String): String {
+            var s = hp.replace(" ", "")
+            s = s.replace(Regex("^(https?|rtsps?)://", RegexOption.IGNORE_CASE), "")
+            val slash = s.indexOf('/')
+            val host = if (slash < 0) s else s.substring(0, slash)
+            val path = if (slash < 0) "" else s.substring(slash)
+            val parts = host.split(':').filter { it.isNotEmpty() }
+            val h = if (parts.size > 2) parts[0] + ":" + parts[1] else parts.joinToString(":")
+            return h + path
         }
 
         fun host(url: String): String = try {
@@ -159,12 +172,19 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
 
             override fun onPlayerError(error: PlaybackException) {
                 // say what went wrong, so a bad URL / login / address is visible on the panel
-                var cause: Throwable? = error
-                while (cause?.cause != null && cause.cause !== cause) cause = cause.cause
+                // the useful exception can sit anywhere in the cause chain
+                val chain = ArrayList<Throwable>()
+                var t: Throwable? = error
+                while (t != null && chain.size < 8 && t !in chain) {
+                    chain.add(t)
+                    t = t.cause
+                }
+                val msgs = chain.joinToString(" ") { it.message ?: "" }
                 c.status.text = when {
-                    cause is java.net.UnknownHostException -> "Can't find the camera at \"${host(c.url)}\" — check the address in the URL"
-                    cause is java.net.ConnectException || cause is java.net.SocketTimeoutException -> "No answer from ${host(c.url)} — check the IP / port (554)"
-                    (cause?.message ?: "").contains("401") -> "The camera refused the login — check user / password"
+                    chain.any { it is java.net.UnknownHostException } -> "Can't find the camera at \"${host(c.url)}\" — check the IP"
+                    chain.any { it is java.net.ConnectException || it is java.net.SocketTimeoutException } -> "No answer from ${host(c.url)} — check the IP / port (554)"
+                    msgs.contains("401") -> "The camera refused the login — check user / password"
+                    msgs.contains("404") -> "The camera doesn't know that stream — check the channel (102)"
                     else -> "Can't play this camera (${error.errorCodeName}) — retrying…"
                 }
                 c.status.visibility = View.VISIBLE
