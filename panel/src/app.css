@@ -662,3 +662,12 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.lite .el-sheetpanel{background:#1b1d22}
 .el-root.lite .el-page{opacity:1}
 .el-root.lite .el-page:not(.show){visibility:hidden}
+
+/* lights: pendant lamp hanging from the card's top edge, light cone below it */
+.el-card:not(.cover){position:relative;overflow:hidden}
+.el-card:not(.cover) .el-bulb{position:absolute;top:0;right:12px;width:60px;height:72px;margin:0;border-radius:0;background:none!important;box-shadow:none!important;display:block;z-index:1}
+.el-card:not(.cover) .el-meta{padding-right:64px}
+.el-card:not(.cover) .el-bulb .el-lamp{position:absolute;left:3px;top:0;width:54px;height:70px}
+.el-lrim{opacity:.12;-webkit-transition:opacity .3s;transition:opacity .3s}
+.el-card:not(.cover) .el-bulb .el-lcone{position:absolute;left:-80px;top:52px;width:220px;height:170px;pointer-events:none;opacity:0;-webkit-transition:opacity .3s;transition:opacity .3s}
+.el-card.on:not(.cover) .el-slider{position:relative;z-index:2}

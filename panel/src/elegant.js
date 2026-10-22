@@ -359,6 +359,8 @@ export function buildElegant(cfg, ctx) {
     return typeof s.brightness === "number" ? s.brightness : 1;
   }
 
+  const CONE_SVG = '<svg class="el-lcone" viewBox="0 0 220 170" aria-hidden="true"><defs><linearGradient id="elCone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6de" stop-opacity=".95"/><stop offset=".45" stop-color="#ffe6b8" stop-opacity=".45"/><stop offset="1" stop-color="#ffdca8" stop-opacity="0"/></linearGradient><filter id="elConeBlur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="7"/></filter></defs><path d="M94 2H126L214 170H6Z" fill="url(#elCone)" filter="url(#elConeBlur)"/><ellipse cx="110" cy="6" rx="26" ry="7" fill="#fff8e6" opacity=".85" filter="url(#elConeBlur)"/></svg>';
+  const LAMP_SVG = '<svg class="el-lamp" viewBox="0 0 46 60" aria-hidden="true"><defs><linearGradient id="elBrass" x1="0" x2="1"><stop offset="0" stop-color="#b8892e"/><stop offset=".45" stop-color="#f4d27c"/><stop offset="1" stop-color="#a87a24"/></linearGradient><linearGradient id="elShade" x1="0" x2="1"><stop offset="0" stop-color="#9da1a6"/><stop offset=".35" stop-color="#f6f6f3"/><stop offset=".6" stop-color="#dfe1e3"/><stop offset="1" stop-color="#8f9399"/></linearGradient></defs><line x1="23" y1="0" x2="23" y2="21" stroke="#e7e4dd" stroke-width="2"/><path d="M19 20h8l2 10H17z" fill="url(#elBrass)"/><rect x="19.5" y="30" width="7" height="3" rx="1" fill="#d6d8db"/><path d="M10 45c0-7 5-12 13-12s13 5 13 12l2 4H8z" fill="url(#elShade)"/><ellipse class="el-lrim" cx="23" cy="49" rx="15" ry="2.6" fill="#fff6dc"/></svg>';
   function levelCard(e, i, kind) {
     const s = get(e);
     const dom = e.split(".")[0];
@@ -367,7 +369,9 @@ export function buildElegant(cfg, ctx) {
     const dimmable = kind === "cover" ? dom === "cover" : dom === "light" && s.dim !== false;
     const sel = kind === "cover" ? selShade === i : selLight === i;
     const c = el("div", "el-glass el-card" + (levelOf(e, kind) > 0 ? " on" : "") + (sel ? " sel" : "") + (kind === "cover" ? " cover" : ""));
-    c.innerHTML = '<div class="el-row"><span class="el-bulb">' + (kind === "cover" ? "" : '<i class="el-bglow"></i>') + svg(kind === "cover" ? "shades" : "lights") + '</span><div class="el-meta"><div class="el-nm"></div><div class="el-pc"></div></div></div>' + (dimmable ? '<div class="el-slider"><div class="el-fill"></div><div class="el-line"></div></div>' : "");
+    // lights: a pendant lamp hanging from the card's top edge; its light cone
+    // and shade rim glow with the brightness (HDL-panel style). Shades keep their icon.
+    c.innerHTML = '<div class="el-row"><span class="el-bulb">' + (kind === "cover" ? svg("shades") : CONE_SVG + LAMP_SVG) + '</span><div class="el-meta"><div class="el-nm"></div><div class="el-pc"></div></div></div>' + (dimmable ? '<div class="el-slider"><div class="el-fill"></div><div class="el-line"></div></div>' : "");
     c.querySelector(".el-nm").textContent = whole && kind !== "cover" && lightRoom[e] ? nameOf(e) + " · " + lightRoom[e] : nameOf(e);
     paintCard(c, e, kind);
     c.addEventListener("pointerdown", () => {
@@ -429,13 +433,14 @@ export function buildElegant(cfg, ctx) {
     if (kind === "cover" && e.split(".")[0] === "cover") pc.textContent = v > 0 ? Math.round(v * 100) + "% open" : "Closed";
     else pc.textContent = v > 0 ? (c.querySelector(".el-slider") ? Math.round(v * 100) + "%" : "On") : "Off";
     if (kind !== "cover") {
-      // the bulb glows with the dimmer: faint at 5 %, full at 100 %
+      // the lamp's light follows the dimmer: a faint glow at 5 %, a full cone at 100 %
       const lv = Math.max(0, Math.min(1, v));
-      const g = c.querySelector(".el-bglow");
-      if (g) g.style.opacity = v > 0 ? String(0.18 + 0.82 * lv) : "0";
-      const bulb = c.querySelector(".el-bulb");
-      if (bulb) bulb.style.boxShadow = v > 0 && !LITE ? "0 0 " + Math.round(6 + 30 * lv) + "px rgba(242,184,102," + (0.12 + 0.5 * lv).toFixed(2) + ")" : "";
-      c.classList.toggle("lo", v > 0 && v < 0.45);
+      const cone = c.querySelector(".el-lcone");
+      if (cone) cone.style.opacity = v > 0 ? (0.12 + 0.88 * lv).toFixed(2) : "0";
+      const rim = c.querySelector(".el-lrim");
+      if (rim) rim.style.opacity = v > 0 ? (0.45 + 0.55 * lv).toFixed(2) : "0.12";
+      const lamp = c.querySelector(".el-lamp");
+      if (lamp) lamp.style.filter = v > 0 && !LITE ? "drop-shadow(0 4px " + Math.round(4 + 10 * lv) + "px rgba(255,236,190," + (0.25 + 0.6 * lv).toFixed(2) + "))" : "";
     }
     const f = c.querySelector(".el-fill");
     if (f) {
