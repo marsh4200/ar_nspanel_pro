@@ -79,6 +79,21 @@ class NativeBridge(private val activity: MainActivity) {
         activity.runOnUiThread { activity.rtsp.hideAll() }
     }
 
+    // --- kiosk recovery (setup screen, locked panels only) ---------------------
+
+    @JavascriptInterface
+    fun kioskState(): String =
+        "{\"owner\":${Kiosk.isOwner(activity)},\"locked\":${Kiosk.isLocked(activity)}}"
+
+    @JavascriptInterface
+    fun kioskUnlock() {
+        activity.runOnUiThread { Kiosk.unlock(activity, activity) }
+    }
+
+    /** Wipe the panel to factory state. Device owner (locked Source 7) only. */
+    @JavascriptInterface
+    fun factoryReset(): Boolean = Kiosk.wipe(activity)
+
     // --- other apps (the music page's "Spotify app" button) -----------------
 
     @JavascriptInterface

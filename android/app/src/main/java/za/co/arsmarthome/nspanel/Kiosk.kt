@@ -68,6 +68,23 @@ object Kiosk {
         }
     }
 
+    /**
+     * Factory reset (the setup screen's recovery button on a locked panel that
+     * has no reset button of its own). Device owner only. False if not allowed
+     * -- e.g. the app was made device owner before it declared wipe-data:
+     * reinstall or reboot once and it works.
+     */
+    fun wipe(c: Context): Boolean {
+        if (!isOwner(c)) return false
+        return try {
+            dpm(c).wipeData(0)
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "wipe failed", e)
+            false
+        }
+    }
+
     /** Release the lock and give up device ownership (HA does this before uninstall / reset). */
     fun unlock(c: Context, activity: Activity?) {
         try {

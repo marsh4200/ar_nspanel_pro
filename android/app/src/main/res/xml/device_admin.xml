@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Device owner for kiosk (lock task) mode: no policies beyond that. -->
+<!-- Device owner for kiosk (lock task) mode, plus the panel's own
+     "Factory reset" (setup screen) for a locked panel with no reset button. -->
 <device-admin>
-    <uses-policies />
+    <uses-policies>
+        <wipe-data />
+    </uses-policies>
 </device-admin>

@@ -210,3 +210,18 @@ export function rtspRetain(ids) {
 export function rtspHideAll() {
   call("rtspHideAll");
 }
+
+// --- kiosk recovery (locked panels) ---------------------------------------------------
+export function kioskState() {
+  try {
+    return JSON.parse(call("kioskState") || "{}");
+  } catch (e) {
+    return {};
+  }
+}
+export function kioskUnlock() {
+  call("kioskUnlock");
+}
+export function factoryReset() {
+  return call("factoryReset") === true;
+}

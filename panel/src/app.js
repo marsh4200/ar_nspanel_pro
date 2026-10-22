@@ -1205,6 +1205,41 @@ function openSettings() {
     settingsEl.appendChild(adbInfo);
     settingsEl.appendChild(h("div.row", null, findBtn, onBtn, openBtn));
     scan();
+    // Recovery: only on a panel the app has locked (kiosk = device owner, the
+    // HDL Source 7). It has no reset button, so these are the way out when
+    // Home Assistant / ADB can't reach it. Other panels don't show this.
+    const ks = native.kioskState();
+    if (ks.owner) {
+      const recInfo = h("div.kv", null, "This panel is locked for wall use. If Home Assistant or ADB can't reach it any more, unlock it here, or wipe it back to factory state.");
+      const unlockBtn = h("button", null, "Unlock panel");
+      const wipeBtn = h("button.danger", null, "Factory reset");
+      let armed = 0;
+      unlockBtn.addEventListener("click", () => {
+        native.kioskUnlock();
+        recInfo.textContent = "Unlocked. Install again from Home Assistant's Device Setup to lock it again.";
+      });
+      wipeBtn.addEventListener("click", () => {
+        if (Date.now() - armed > 5000) {
+          armed = Date.now();
+          wipeBtn.textContent = "Tap again to erase EVERYTHING";
+          wipeBtn.classList.add("armed");
+          recInfo.textContent = "Factory reset erases the whole panel: this app, its settings and everything else on it. It restarts as it came from the factory. Tap the red button again within 5 seconds to go ahead.";
+          setTimeout(() => {
+            if (Date.now() - armed >= 5000) {
+              wipeBtn.textContent = "Factory reset";
+              wipeBtn.classList.remove("armed");
+            }
+          }, 5100);
+          return;
+        }
+        recInfo.textContent = "Erasing the panel… it restarts by itself.";
+        if (!native.factoryReset())
+          recInfo.textContent = "Android didn't allow the reset yet. Restart the panel once (or reinstall the app from Device Setup) and try again.";
+      });
+      settingsEl.appendChild(h("label", null, "Panel recovery"));
+      settingsEl.appendChild(recInfo);
+      settingsEl.appendChild(h("div.row", null, unlockBtn, wipeBtn));
+    }
   }
   settingsEl.appendChild(
     h(
