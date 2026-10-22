@@ -1,0 +1,147 @@
+# AR NSPanel Pro
+
+A Home Assistant integration **and panel app** for the Sonoff NSPanel Pro, by
+[AR Smart Home](https://arsmarthome.co.za). You lay out pages of buttons, dimmers, switchers,
+split buttons, rockers, a clock, weather, cameras, music and an alarm keypad in the Home
+Assistant sidebar. The panel shows them and talks to Home Assistant over MQTT.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/home.png" width="260" alt="Grid page with buttons, a dimmer and a scene switcher"><br><sub><b>Grid</b>: buttons, dimmer, switcher, status dot</sub></td>
+    <td align="center"><img src="docs/screenshots/controls.png" width="260" alt="Grid page with a split button, rocker, round button and horizontal and vertical dimmers"><br><sub><b>Grid</b>: split, rocker, round button, dimmers</sub></td>
+    <td align="center"><img src="docs/screenshots/clock.png" width="260" alt="Analog clock page"><br><sub><b>Clock</b>: also the screensaver</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/weather.png" width="260" alt="Weather page with current conditions and a 5-day forecast"><br><sub><b>Weather</b>: now + 5-day forecast</sub></td>
+    <td align="center"><img src="docs/screenshots/alarm.png" width="260" alt="Alarmo keypad page, armed away"><br><sub><b>Alarm</b>: Alarmo keypad</sub></td>
+    <td align="center"><img src="docs/screenshots/music.png" width="260" alt="Music Assistant now-playing page"><br><sub><b>Music</b>: Music Assistant</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/notification.png" width="260" alt="Full-screen notification with action buttons"><br><sub><b>Notification</b> with action buttons</sub></td>
+    <td align="center" colspan="2"><img src="docs/screenshots/themes.png" width="530" alt="The same page in six themes"><br><sub><b>Themes</b>: the same page in Tech Loft, Warm Minimal, Gallery White, Walnut Brass, Neon Pill and Cyberpunk (28 in the kit)</sub></td>
+  </tr>
+</table>
+
+<p align="center"><img src="docs/screenshots/portrait.png" width="220" alt="The home page stretched to fill a tall portrait panel"><br>
+<sub>On a taller portrait panel the grid stretches to fill the screen.</sub></p>
+
+## What's in the repo
+
+| Path | What |
+|---|---|
+| `custom_components/ar_nspanel_pro/` | The Home Assistant integration: config flow, MQTT bridge, entities, services, the sidebar editor, and the built panel UI in `www/app/` |
+| `panel/` | Source of the panel UI: plain JavaScript, no framework, one ~80 KB bundle. It renders with the same theme kit and icons as the editor's preview, so the glass matches what you designed |
+| `android/` | The panel app: a Kotlin WebView kiosk around the panel UI. It adds the backlight, light and proximity sensors, screenshots, volume, boot-on-start and licence verification. No third-party libraries |
+| `.github/workflows/panel-app.yml` | Builds the UI and the APK. A `v*` tag attaches the APK to the GitHub Release, where the sidebar's ADB Setup/Update tool picks it up |
+
+## Install
+
+1. **MQTT with WebSockets.** The panel connects to your broker over WebSockets. The Mosquitto
+   add-on already listens for WebSockets on port **1884**. Home Assistant's MQTT integration must
+   be set up.
+2. **Integration (HACS).** HACS → ⋮ → Custom repositories → `https://github.com/marsh4200/ar_nspanel_pro`,
+   category **Integration** → install **AR NSPanel Pro** → restart Home Assistant.
+3. **Panel app.** Open **AR NSPanel Pro** in the sidebar → **Setup/Update**, enter the panel's IP
+   (ADB over network must be enabled on the panel), tap *Allow USB debugging* on the panel, then
+   **Install latest**. Optionally **Set as Home** so it replaces the stock launcher.
+   (Or sideload: `adb install ar-nspanel-pro-X.Y.Z.apk`.)
+4. **Panel setup screen** (opens on first start; later, press and hold the top-left corner for 3 s):
+   - Broker: `ws://<home-assistant-ip>:1884`, plus MQTT username and password
+   - Panel ID: e.g. `panel-kitchen`
+   - Optional *Load UI from*: `http://<ha>:8123/ar_nspanel_pro_static/app/index.html`. The panel
+     then takes UI updates straight from the integration, with no new APK needed. It falls back
+     to the built-in copy when Home Assistant is down.
+5. **Add the panel in Home Assistant.** Settings → Devices & Services → Add Integration →
+   AR NSPanel Pro. A panel that is online is discovered automatically; otherwise enter the same
+   Panel ID.
+6. **Design** the pages in the sidebar editor and save. The panel redraws immediately.
+
+The same UI also runs in any browser (for example
+`http://<ha>:8123/ar_nspanel_pro_static/app/index.html`), which is handy for designing and
+testing. In a browser, the backlight, sensors, screenshots and licence check aren't available.
+
+## Page types
+
+- **Grid**: button (toggle, push, or multi-state), dimmer, switcher, split, rocker, status dots, optimistic UI
+- **Clock**: digital or analog, 12/24 h, localised date, alarm-clock indicator. Also used as the screensaver
+- **Weather**: uses the first `weather.*` entity, or set `"weather": {"entity": "weather.home"}` on the page. Shows the current conditions and a 5-day forecast
+- **Alarm**: Alarmo keypad over Alarmo's own MQTT topics. When the alarm is armed, the keypad becomes the screensaver; when it triggers, the siren sounds
+- **Camera**: live MJPEG from Home Assistant with a PTZ D-pad and camera picker
+- **Music**: Music Assistant players, now playing, transport, volume, and favourite radios/playlists
+
+Also: notifications with action buttons (`ar_nspanel_pro.notify`, where `on_press` runs in
+Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren entity, an
+alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
+remote screenshots, and remote taps.
+
+## Licensing (AR Smart Home licence server)
+
+Each panel has a **Server ID** (16 hex characters), shown in the sidebar under
+**Device → Licence** and on the panel's setup screen.
+
+**Requesting a licence:** open **AR NSPanel Pro** in the sidebar → **Device** → the **Licence**
+card, and press **Request licence**. Home Assistant posts the panel's Server ID to
+`license.arsmarthome.co.za` (the panel never talks to it directly). Approve it on the licence
+server and the key installs itself — HA polls the queued request every 20 s for the first ten
+minutes, so the panel is licensed within about twenty seconds of you clicking approve, and the
+watermark clears on its own with nothing to copy back. The poll then eases off (2 min for the
+next hour, 15 min after that) and gives up after a day, so a request you never approve isn't
+hammering the server. The card shows where the request stands; once a licence is in place the
+button reads **Renew licence**.
+
+The same request can come from the panel (tap the watermark) or from an automation
+(`ar_nspanel_pro.request_license`).
+
+**By hand:** issue a WIQL1 key for product `ar_nspanel_pro` bound to that Server ID and paste it
+into the Licence card. The panel verifies the key offline against the AR Smart Home public key (baked into
+the app in `Licence.kt`). An unlicensed panel works fully but shows a watermark. The Licence
+sensor's `days_remaining` attribute is there to automate renewals.
+
+## Releasing a new panel app
+
+Push a version tag:
+
+```bash
+git tag v1.2.7 && git push origin v1.2.7
+```
+
+GitHub Actions builds `ar-nspanel-pro-1.2.7.apk`, signs it with the key in
+`android/signing/release.jks` (nothing to set up), and attaches it to the release. Every
+panel's **Setup/Update → Install latest** then installs it. Keep that key file: updates only
+install over the app when they're signed with the same key.
+
+## Development
+
+```bash
+npm install --prefix panel
+node panel/build.mjs                # → custom_components/ar_nspanel_pro/www/app/
+node panel/scripts/extract-kit.mjs  # re-extract the theme kit + icons from the editor bundle
+```
+
+The Ed25519/licence code is plain JVM and has an off-device test:
+`android/test/gen_vectors.py` + `LicenceTest.kt` (instructions at the top of that file).
+
+## How it works
+
+```
+Panel app   ──►  ar-nspanel-pro/panel/{id}/event          (tile pressed → HA runs the binding)
+            ──►  ar-nspanel-pro/panel/{id}/sys/*          (awake, light, motion, media, info, licence…)
+            ◄──  ar-nspanel-pro/panel/{id}/config/*       (layout, device settings, licence — retained)
+            ◄──  ar-nspanel-pro/panel/{id}/state/*        (entity mirror — retained)
+            ◄──  ar-nspanel-pro/panel/{id}/cmd/*          (wake, page, notify, media, siren, …)
+```
+
+The panel boots from its cache and the retained topics, so it shows the last known UI even
+while Home Assistant or the broker is down, and reconnects with exponential backoff. The full
+contract is in [PROTOCOL.md](PROTOCOL.md).
+
+## License
+
+
+
+---
+
+<p align="center"><sub>AR Smart Home · for the Sonoff NSPanel Pro · not affiliated with Sonoff/ITEAD
+or Home Assistant.</sub></p>
