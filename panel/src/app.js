@@ -17,6 +17,7 @@ import { Spotify } from "./spotify.js";
 import * as sound from "./sound.js";
 import { initKnob } from "./knob.js";
 import { buildElegant } from "./elegant.js";
+import { wifiSection } from "./wifi.js";
 
 const VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev";
 const PREFIX = "ar-nspanel-pro/panel";
@@ -1239,6 +1240,7 @@ function openSettings() {
       settingsEl.appendChild(h("label", null, "Panel recovery"));
       settingsEl.appendChild(recInfo);
       settingsEl.appendChild(h("div.row", null, unlockBtn, wipeBtn));
+      wifiSection(settingsEl, native);
     }
   }
   settingsEl.appendChild(

@@ -360,6 +360,9 @@ export function buildElegant(cfg, ctx) {
   }
 
   const CONE_SVG = '<svg class="el-lcone" viewBox="0 0 220 170" aria-hidden="true"><defs><linearGradient id="elCone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6de" stop-opacity=".95"/><stop offset=".45" stop-color="#ffe6b8" stop-opacity=".45"/><stop offset="1" stop-color="#ffdca8" stop-opacity="0"/></linearGradient><filter id="elConeBlur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="7"/></filter></defs><path d="M94 2H126L214 170H6Z" fill="url(#elCone)" filter="url(#elConeBlur)"/><ellipse cx="110" cy="6" rx="26" ry="7" fill="#fff8e6" opacity=".85" filter="url(#elConeBlur)"/></svg>';
+  // light card icon (Device Setup > Elegant): "lamp" = pendant lamp with a light
+  // cone (default), "bulb" = the round bulb that glows with the dimmer
+  const LIGHT_ICON = cfg.lightIcon === "bulb" ? "bulb" : "lamp";
   const LAMP_SVG = '<svg class="el-lamp" viewBox="0 0 46 60" aria-hidden="true"><defs><linearGradient id="elBrass" x1="0" x2="1"><stop offset="0" stop-color="#b8892e"/><stop offset=".45" stop-color="#f4d27c"/><stop offset="1" stop-color="#a87a24"/></linearGradient><linearGradient id="elShade" x1="0" x2="1"><stop offset="0" stop-color="#9da1a6"/><stop offset=".35" stop-color="#f6f6f3"/><stop offset=".6" stop-color="#dfe1e3"/><stop offset="1" stop-color="#8f9399"/></linearGradient></defs><line x1="23" y1="0" x2="23" y2="21" stroke="#e7e4dd" stroke-width="2"/><path d="M19 20h8l2 10H17z" fill="url(#elBrass)"/><rect x="19.5" y="30" width="7" height="3" rx="1" fill="#d6d8db"/><path d="M10 45c0-7 5-12 13-12s13 5 13 12l2 4H8z" fill="url(#elShade)"/><ellipse class="el-lrim" cx="23" cy="49" rx="15" ry="2.6" fill="#fff6dc"/></svg>';
   function levelCard(e, i, kind) {
     const s = get(e);
@@ -368,23 +371,37 @@ export function buildElegant(cfg, ctx) {
     // report none); a switch in the shades list is plain on/off
     const dimmable = kind === "cover" ? dom === "cover" : dom === "light" && s.dim !== false;
     const sel = kind === "cover" ? selShade === i : selLight === i;
-    const c = el("div", "el-glass el-card" + (levelOf(e, kind) > 0 ? " on" : "") + (sel ? " sel" : "") + (kind === "cover" ? " cover" : ""));
-    // lights: a pendant lamp hanging from the card's top edge; its light cone
-    // and shade rim glow with the brightness (HDL-panel style). Shades keep their icon.
-    c.innerHTML = '<div class="el-row"><span class="el-bulb">' + (kind === "cover" ? svg("shades") : CONE_SVG + LAMP_SVG) + '</span><div class="el-meta"><div class="el-nm"></div><div class="el-pc"></div></div></div>' + (dimmable ? '<div class="el-slider"><div class="el-fill"></div><div class="el-line"></div></div>' : "");
+    const c = el("div", "el-glass el-card" + (levelOf(e, kind) > 0 ? " on" : "") + (sel ? " sel" : "") + (kind === "cover" ? " cover" : " " + LIGHT_ICON));
+    // lights: a pendant lamp hanging from the card's top edge (its light cone and
+    // shade rim glow with the brightness), or the round bulb. Shades keep their icon.
+    const icon = kind === "cover" ? svg("shades") : LIGHT_ICON === "lamp" ? CONE_SVG + LAMP_SVG : '<i class="el-bglow"></i>' + svg("lights");
+    c.innerHTML = '<div class="el-row"><span class="el-bulb">' + icon + '</span><div class="el-meta"><div class="el-nm"></div><div class="el-pc"></div></div></div>' + (dimmable ? '<div class="el-slider"><div class="el-fill"></div><div class="el-line"></div></div>' : "");
     c.querySelector(".el-nm").textContent = whole && kind !== "cover" && lightRoom[e] ? nameOf(e) + " · " + lightRoom[e] : nameOf(e);
     paintCard(c, e, kind);
-    c.addEventListener("pointerdown", () => {
-      if (kind === "cover") selShade = i;
-      else selLight = i;
-      Array.prototype.forEach.call(c.parentNode.children, (x, n) => x.classList.toggle("sel", n === i));
-    });
-    c.querySelector(".el-bulb").addEventListener("click", () => {
+    const toggle = () => {
       const now = levelOf(e, kind) > 0;
       if (kind === "cover") patch(e, { on: !now, pos: now ? 0 : 100 });
       else patch(e, { on: !now });
       send("toggle", { entity: e });
       paintCard(c, e, kind);
+    };
+    // first tap selects the card (the knob then controls it); a light that is
+    // already selected switches on / off when tapped anywhere on its card
+    let wasSel = false;
+    c.addEventListener("pointerdown", () => {
+      wasSel = c.classList.contains("sel");
+      if (kind === "cover") selShade = i;
+      else selLight = i;
+      Array.prototype.forEach.call(c.parentNode.children, (x, n) => x.classList.toggle("sel", n === i));
+    });
+    c.addEventListener("click", (ev) => {
+      if (kind === "cover" || !wasSel) return;
+      if (ev.target.closest && (ev.target.closest(".el-slider") || ev.target.closest(".el-bulb"))) return;
+      toggle();
+    });
+    c.querySelector(".el-bulb").addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      toggle();
     });
     const sl = c.querySelector(".el-slider");
     if (sl) {
@@ -432,7 +449,15 @@ export function buildElegant(cfg, ctx) {
     const pc = c.querySelector(".el-pc");
     if (kind === "cover" && e.split(".")[0] === "cover") pc.textContent = v > 0 ? Math.round(v * 100) + "% open" : "Closed";
     else pc.textContent = v > 0 ? (c.querySelector(".el-slider") ? Math.round(v * 100) + "%" : "On") : "Off";
-    if (kind !== "cover") {
+    if (kind !== "cover" && LIGHT_ICON === "bulb") {
+      // the bulb glows with the dimmer: faint at 5 %, full at 100 %
+      const lv = Math.max(0, Math.min(1, v));
+      const g = c.querySelector(".el-bglow");
+      if (g) g.style.opacity = v > 0 ? String(0.18 + 0.82 * lv) : "0";
+      const bulb = c.querySelector(".el-bulb");
+      if (bulb) bulb.style.boxShadow = v > 0 && !LITE ? "0 0 " + Math.round(6 + 30 * lv) + "px rgba(242,184,102," + (0.12 + 0.5 * lv).toFixed(2) + ")" : "";
+      c.classList.toggle("lo", v > 0 && v < 0.45);
+    } else if (kind !== "cover") {
       // the lamp's light follows the dimmer: a faint glow at 5 %, a full cone at 100 %
       const lv = Math.max(0, Math.min(1, v));
       const cone = c.querySelector(".el-lcone");

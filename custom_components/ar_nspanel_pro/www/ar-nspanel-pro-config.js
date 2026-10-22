@@ -9345,6 +9345,10 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
       ] }, i)),
       /* @__PURE__ */ a.jsx("div", { style: { marginTop: 10 }, children: /* @__PURE__ */ a.jsx("button", { className: "btn ghost", onClick: () => (save({ rooms: rooms.concat([{ name: "", icon: "star" }]) }), setOpen(rooms.length)), children: "+ Add room" }) }),
       /* @__PURE__ */ a.jsx(et, { title: "Whole House", sub: "Adds a room card listing every light in the house, labelled with its room.", on: cfg.wholeHouse !== !1, onChange: (m) => save({ wholeHouse: m }) }),
+      /* @__PURE__ */ a.jsx(X, { label: "Light icon", hint: "How each light card shows its light. Both glow with the brightness.", children: /* @__PURE__ */ a.jsxs("select", { className: "inp", value: cfg.lightIcon === "bulb" ? "bulb" : "lamp", onChange: (m) => save({ lightIcon: m.target.value === "bulb" ? "bulb" : void 0 }), children: [
+        /* @__PURE__ */ a.jsx("option", { value: "lamp", children: "Pendant lamp" }),
+        /* @__PURE__ */ a.jsx("option", { value: "bulb", children: "Bulb" })
+      ] }) }),
       /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Whole house (same in every room)" }),
       EL_HOUSE_CATS.map((c) => field(c, elList(cfg[c.key]), (v) => save({ [c.key]: v.length ? (c.max === 1 ? v[0] : v) : void 0 }), -1)),
       /* @__PURE__ */ a.jsx(ElRtsp, { list: Array.isArray(cfg.rtsp) ? cfg.rtsp : [], entityCams: elList(cfg.cameras).length, onChange: (v) => save({ rtsp: v.length ? v : void 0 }) }),

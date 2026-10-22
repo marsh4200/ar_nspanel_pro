@@ -348,6 +348,20 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 
 /* setup screen: ADB finder */
 #settings .kv.adb{margin-top:4px;font-size:14px;color:#e8eaed}
+/* setup screen Wi-Fi (locked panels) */
+#settings .wf-list{margin-top:10px}
+#settings .wf-net{display:flex;align-items:center;height:48px;padding:0 14px;margin-top:6px;border-radius:12px;background:#151a20;border:1px solid #2a313a}
+#settings .wf-net.cur{border-color:#12b0f0}
+#settings .wf-name{flex:1;min-width:0;font-size:16px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#settings .wf-tag{font-size:12px;color:#8b95a1;margin:0 12px}
+#settings .wf-net.cur .wf-tag{color:#12b0f0}
+#settings .wf-bars{display:flex;align-items:flex-end;height:16px}
+#settings .wf-bars i{display:block;width:4px;margin-left:2px;border-radius:1px;background:#2a313a}
+#settings .wf-bars i.on{background:#e8eaed}
+#settings .wf-form{margin-top:4px}
+#settings .wf-pw{display:flex;align-items:center}
+#settings .wf-pw input{flex:1}
+#settings .wf-pw button{flex:none;width:76px;height:42px;margin-left:8px}
 #settings .row button{font-size:14px}
 
 /* ===== Elegant dashboard (device.dashboardStyle = "elegant") ==========================
@@ -664,10 +678,10 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.lite .el-page:not(.show){visibility:hidden}
 
 /* lights: pendant lamp hanging from the card's top edge, light cone below it */
-.el-card:not(.cover){position:relative;overflow:hidden}
-.el-card:not(.cover) .el-bulb{position:absolute;top:0;right:12px;width:60px;height:72px;margin:0;border-radius:0;background:none!important;box-shadow:none!important;display:block;z-index:1}
-.el-card:not(.cover) .el-meta{padding-right:64px}
-.el-card:not(.cover) .el-bulb .el-lamp{position:absolute;left:3px;top:0;width:54px;height:70px}
+.el-card.lamp{position:relative;overflow:hidden}
+.el-card.lamp .el-bulb{position:absolute;top:0;right:12px;width:60px;height:72px;margin:0;border-radius:0;background:none!important;box-shadow:none!important;display:block;z-index:1}
+.el-card.lamp .el-meta{padding-right:64px}
+.el-card.lamp .el-bulb .el-lamp{position:absolute;left:3px;top:0;width:54px;height:70px}
 .el-lrim{opacity:.12;-webkit-transition:opacity .3s;transition:opacity .3s}
-.el-card:not(.cover) .el-bulb .el-lcone{position:absolute;left:-80px;top:52px;width:220px;height:170px;pointer-events:none;opacity:0;-webkit-transition:opacity .3s;transition:opacity .3s}
-.el-card.on:not(.cover) .el-slider{position:relative;z-index:2}
+.el-card.lamp .el-bulb .el-lcone{position:absolute;left:-80px;top:52px;width:220px;height:170px;pointer-events:none;opacity:0;-webkit-transition:opacity .3s;transition:opacity .3s}
+.el-card.lamp.on .el-slider{position:relative;z-index:2}

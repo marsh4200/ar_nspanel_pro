@@ -225,3 +225,20 @@ export function kioskUnlock() {
 export function factoryReset() {
   return call("factoryReset") === true;
 }
+
+// --- Wi-Fi (setup screen recovery, locked panels) --------------------------------------
+export function wifiInfo() {
+  return parse(call("wifiInfo"), {});
+}
+export function wifiScan() {
+  return call("wifiScan") === true;
+}
+export function wifiList() {
+  return parse(call("wifiList"), []);
+}
+export function wifiConnect(ssid, pass) {
+  return call("wifiConnect", ssid, pass || "") === true;
+}
+export function wifiKeepOnly(ssid) {
+  call("wifiKeepOnly", ssid);
+}

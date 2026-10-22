@@ -94,6 +94,23 @@ class NativeBridge(private val activity: MainActivity) {
     @JavascriptInterface
     fun factoryReset(): Boolean = Kiosk.wipe(activity)
 
+    // --- Wi-Fi (setup screen recovery section, locked panels only) ------------
+
+    @JavascriptInterface
+    fun wifiInfo(): String = Wifi.info(activity)
+
+    @JavascriptInterface
+    fun wifiScan(): Boolean = Wifi.scan(activity)
+
+    @JavascriptInterface
+    fun wifiList(): String = Wifi.list(activity)
+
+    @JavascriptInterface
+    fun wifiConnect(ssid: String, pass: String): Boolean = Wifi.connect(activity, ssid, pass)
+
+    @JavascriptInterface
+    fun wifiKeepOnly(ssid: String) = Wifi.keepOnly(activity, ssid)
+
     // --- other apps (the music page's "Spotify app" button) -----------------
 
     @JavascriptInterface
