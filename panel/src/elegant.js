@@ -384,8 +384,23 @@ export function buildElegant(cfg, ctx) {
   const CONE_SVG = '<svg class="el-lcone" viewBox="0 0 220 170" aria-hidden="true"><defs><linearGradient id="elCone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6de" stop-opacity=".95"/><stop offset=".45" stop-color="#ffe6b8" stop-opacity=".45"/><stop offset="1" stop-color="#ffdca8" stop-opacity="0"/></linearGradient><filter id="elConeBlur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="7"/></filter></defs><path d="M94 2H126L214 170H6Z" fill="url(#elCone)" filter="url(#elConeBlur)"/><ellipse cx="110" cy="6" rx="26" ry="7" fill="#fff8e6" opacity=".85" filter="url(#elConeBlur)"/></svg>';
   // light card icon (Device Setup > Elegant): "lamp" = pendant lamp with a light
   // cone (default), "bulb" = the round bulb that glows with the dimmer
-  const LIGHT_ICON = cfg.lightIcon === "bulb" ? "bulb" : "lamp";
+  // "edison" = filament bulb on a cord, "downlight" = recessed ceiling light
+  const LIGHT_ICON = ["bulb", "edison", "downlight"].indexOf(cfg.lightIcon) >= 0 ? cfg.lightIcon : "lamp";
   const LAMP_SVG = '<svg class="el-lamp" viewBox="0 0 46 60" aria-hidden="true"><defs><linearGradient id="elBrass" x1="0" x2="1"><stop offset="0" stop-color="#b8892e"/><stop offset=".45" stop-color="#f4d27c"/><stop offset="1" stop-color="#a87a24"/></linearGradient><linearGradient id="elShade" x1="0" x2="1"><stop offset="0" stop-color="#9da1a6"/><stop offset=".35" stop-color="#f6f6f3"/><stop offset=".6" stop-color="#dfe1e3"/><stop offset="1" stop-color="#8f9399"/></linearGradient></defs><line x1="23" y1="0" x2="23" y2="21" stroke="#e7e4dd" stroke-width="2"/><path d="M19 20h8l2 10H17z" fill="url(#elBrass)"/><rect x="19.5" y="30" width="7" height="3" rx="1" fill="#d6d8db"/><path d="M10 45c0-7 5-12 13-12s13 5 13 12l2 4H8z" fill="url(#elShade)"/><ellipse class="el-lrim" cx="23" cy="49" rx="15" ry="2.6" fill="#fff6dc"/></svg>';
+  // filament bulb: cord, brass cap, clear glass; the filament runs from a dull
+  // ember at 5 % to warm white at 100 %, with a halo around the glass
+  const EDISON_SVG = '<svg class="el-lamp" viewBox="0 0 46 74" aria-hidden="true"><defs><radialGradient id="elHalo"><stop offset="0" stop-color="#ffe2a8" stop-opacity=".95"/><stop offset=".45" stop-color="#ffc469" stop-opacity=".35"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient><linearGradient id="elCap" x1="0" x2="1"><stop offset="0" stop-color="#8a6a2a"/><stop offset=".45" stop-color="#e9c977"/><stop offset="1" stop-color="#7d5f22"/></linearGradient></defs><circle class="el-halo" cx="23" cy="50" r="23" fill="url(#elHalo)" opacity="0"/><line x1="23" y1="0" x2="23" y2="15" stroke="#26231f" stroke-width="2.4"/><rect x="17" y="14" width="12" height="4" rx="1.2" fill="#2e2b27"/><path d="M18 18h10v9H18z" fill="url(#elCap)"/><path d="M18 20.5h10M18 23h10M18 25.5h10" stroke="#6b5220" stroke-width=".7"/><path class="el-glassb" d="M18.5 27C18.5 33 10 37.5 10 50c0 9.5 6 17 13 17s13-7.5 13-17c0-12.5-8.5-17-8.5-23z" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.38)" stroke-width=".8"/><path d="M21.5 28.5l-2.5 15M24.5 28.5l2.5 15" stroke="#9a948a" stroke-width=".6"/><path class="el-fil" d="M19 44q1 9 2 0q1 9 2 0q1 9 2 0q1 9 2 0" fill="none" stroke="#5a4636" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 45c0-5 2.5-9 5-11" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1.2" stroke-linecap="round"/></svg>';
+  // downlight: a recessed ceiling light set into the card's top edge, a narrow
+  // beam and a pool of light below
+  const DOWN_SVG = '<svg class="el-lamp" viewBox="0 0 46 16" aria-hidden="true"><defs><linearGradient id="elTrim" x1="0" x2="1"><stop offset="0" stop-color="#8f9399"/><stop offset=".4" stop-color="#f3f3f0"/><stop offset="1" stop-color="#9da1a6"/></linearGradient></defs><ellipse cx="23" cy="5" rx="20" ry="6" fill="url(#elTrim)"/><ellipse cx="23" cy="5.5" rx="14" ry="4" fill="#2f3237"/><ellipse class="el-lens" cx="23" cy="6" rx="10" ry="2.8" fill="#fff8e6" opacity=".15"/></svg>';
+  const DOWN_CONE_SVG = '<svg class="el-lcone" viewBox="0 0 220 170" aria-hidden="true"><defs><linearGradient id="elBeam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6de" stop-opacity=".9"/><stop offset=".6" stop-color="#ffe6b8" stop-opacity=".3"/><stop offset="1" stop-color="#ffdca8" stop-opacity=".05"/></linearGradient><radialGradient id="elPool"><stop offset="0" stop-color="#ffe9c2" stop-opacity=".55"/><stop offset="1" stop-color="#ffe0b0" stop-opacity="0"/></radialGradient><filter id="elBeamBlur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"/></filter></defs><path d="M98 2H122L178 160H42Z" fill="url(#elBeam)" filter="url(#elBeamBlur)"/><ellipse cx="110" cy="158" rx="78" ry="12" fill="url(#elPool)"/></svg>';
+  // a bare bulb lights the whole card softly (no beam edges)
+  const WASH_SVG = '<svg class="el-lcone" viewBox="0 0 220 170" aria-hidden="true"><defs><radialGradient id="elWash" cx="50%" cy="34%" r="50%"><stop offset="0" stop-color="#ffd59a" stop-opacity=".55"/><stop offset=".5" stop-color="#ffc77e" stop-opacity=".18"/><stop offset="1" stop-color="#ffc070" stop-opacity="0"/></radialGradient></defs><rect width="220" height="170" fill="url(#elWash)"/></svg>';
+  const lightArt = () => (LIGHT_ICON === "edison" ? WASH_SVG + EDISON_SVG : LIGHT_ICON === "downlight" ? DOWN_CONE_SVG + DOWN_SVG : CONE_SVG + LAMP_SVG);
+  const mixHex = (a, b, t) => {
+    const p = (h, i) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
+    return "rgb(" + [0, 1, 2].map((i) => Math.round(p(a, i) + (p(b, i) - p(a, i)) * t)).join(",") + ")";
+  };
   function levelCard(e, i, kind) {
     const s = get(e);
     const dom = e.split(".")[0];
@@ -393,10 +408,10 @@ export function buildElegant(cfg, ctx) {
     // report none); a switch in the shades list is plain on/off
     const dimmable = kind === "cover" ? dom === "cover" : dom === "light" && s.dim !== false;
     const sel = kind === "cover" ? selShade === i : selLight === i;
-    const c = el("div", "el-glass el-card" + (levelOf(e, kind) > 0 ? " on" : "") + (sel ? " sel" : "") + (kind === "cover" ? " cover" : " " + LIGHT_ICON));
+    const c = el("div", "el-glass el-card" + (levelOf(e, kind) > 0 ? " on" : "") + (sel ? " sel" : "") + (kind === "cover" ? " cover" : LIGHT_ICON === "bulb" ? " bulb" : " lamp " + LIGHT_ICON));
     // lights: a pendant lamp hanging from the card's top edge (its light cone and
     // shade rim glow with the brightness), or the round bulb. Shades keep their icon.
-    const icon = kind === "cover" ? svg("shades") : LIGHT_ICON === "lamp" ? CONE_SVG + LAMP_SVG : '<i class="el-bglow"></i>' + svg("lights");
+    const icon = kind === "cover" ? svg("shades") : LIGHT_ICON === "bulb" ? '<i class="el-bglow"></i>' + svg("lights") : lightArt();
     c.innerHTML = '<div class="el-row"><span class="el-bulb">' + icon + '</span><div class="el-meta"><div class="el-nm"></div><div class="el-pc"></div></div></div>' + (dimmable ? '<div class="el-slider"><div class="el-fill"></div><div class="el-line"></div></div>' : "");
     c.querySelector(".el-nm").textContent = whole && kind !== "cover" && lightRoom[e] ? nameOf(e) + " · " + lightRoom[e] : nameOf(e);
     paintCard(c, e, kind);
@@ -488,6 +503,24 @@ export function buildElegant(cfg, ctx) {
       if (rim) rim.style.opacity = v > 0 ? (0.45 + 0.55 * lv).toFixed(2) : "0.12";
       const lamp = c.querySelector(".el-lamp");
       if (lamp) lamp.style.filter = v > 0 && !LITE ? "drop-shadow(0 4px " + Math.round(4 + 10 * lv) + "px rgba(255,236,190," + (0.25 + 0.6 * lv).toFixed(2) + "))" : "";
+      if (LIGHT_ICON === "edison") {
+        // softer wash under a bare bulb; the filament itself carries the dimming
+        if (cone) cone.style.opacity = v > 0 ? (0.1 + 0.9 * lv).toFixed(2) : "0";
+        const halo = c.querySelector(".el-halo");
+        if (halo) halo.style.opacity = v > 0 ? (0.15 + 0.85 * lv).toFixed(2) : "0";
+        const fil = c.querySelector(".el-fil");
+        if (fil) {
+          fil.style.stroke = v > 0 ? (lv < 0.5 ? mixHex("#a8481a", "#ffb547", lv / 0.5) : mixHex("#ffb547", "#fff3d6", (lv - 0.5) / 0.5)) : "#5a4636";
+          fil.style.strokeWidth = String(v > 0 ? 1.1 + 0.6 * lv : 1.1);
+        }
+        const gl = c.querySelector(".el-glassb");
+        if (gl) gl.style.fill = v > 0 ? "rgba(255,196,120," + (0.1 + 0.3 * lv).toFixed(2) + ")" : "rgba(255,255,255,.07)";
+        if (lamp) lamp.style.filter = v > 0 && !LITE ? "drop-shadow(0 0 " + Math.round(3 + 9 * lv) + "px rgba(255,190,100," + (0.3 + 0.6 * lv).toFixed(2) + "))" : "";
+      } else if (LIGHT_ICON === "downlight") {
+        const lens = c.querySelector(".el-lens");
+        if (lens) lens.style.opacity = v > 0 ? (0.55 + 0.45 * lv).toFixed(2) : "0.15";
+        if (lamp) lamp.style.filter = v > 0 && !LITE ? "drop-shadow(0 2px " + Math.round(3 + 8 * lv) + "px rgba(255,236,190," + (0.3 + 0.6 * lv).toFixed(2) + "))" : "";
+      }
     }
     const f = c.querySelector(".el-fill");
     if (f) {
