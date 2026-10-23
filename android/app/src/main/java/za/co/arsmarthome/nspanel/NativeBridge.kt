@@ -164,8 +164,11 @@ class NativeBridge(private val activity: MainActivity) {
 
     private fun ip(): String? {
         return try {
-            NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()
+            // the address of the network in use: the cable's when LAN is in use
+            val ifs = NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()
                 .filter { it.isUp && !it.isLoopback }
+            val lan = LanFirst.via == "lan"
+            ifs.sortedBy { if (it.name.startsWith(if (lan) "eth" else "wlan")) 0 else 1 }
                 .flatMap { it.inetAddresses.toList() }
                 .firstOrNull { it is Inet4Address }
                 ?.hostAddress
@@ -201,6 +204,7 @@ class NativeBridge(private val activity: MainActivity) {
             "serial" to hardwareSerial(),
             "serverId" to serverId(),
             "ip" to ip(),
+            "net" to LanFirst.via,
             "rssi" to rssi(),
             "uptimeS" to SystemClock.elapsedRealtime() / 1000,
             "freeMemMB" to mi.availMem / (1024 * 1024),

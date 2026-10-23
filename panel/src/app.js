@@ -548,6 +548,7 @@ function info() {
     serial: i.serial,
     serverId: i.serverId,
     ip: i.ip,
+    net: i.net,
     rssi: i.rssi,
     uptimeS: i.uptimeS,
     freeMemMB: i.freeMemMB,
@@ -1074,6 +1075,11 @@ function connect() {
 window.addEventListener("online", () => {
   if (mqtt) mqtt.kick();
 });
+// LAN cable plugged in or pulled out: the app now talks over the other network
+native.on("network", (d) => {
+  log("network: now using " + (d && d.via === "lan" ? "the LAN cable" : "Wi-Fi"));
+  if (mqtt) mqtt.reconnectNow();
+});
 
 // --- settings / setup screen ------------------------------------------------------
 
@@ -1254,7 +1260,7 @@ function openSettings() {
     h(
       "div.kv",
       null,
-      "IP " + (i.ip || "—"),
+      "IP " + (i.ip || "—") + (i.net ? " · " + (i.net === "lan" ? "LAN cable" : "Wi-Fi") : ""),
       h("br"),
       "Licence Server ID " + (i.serverId || "—") + " · " + (licence.valid ? "licensed" : licence.reason || "unlicensed"),
       h("br"),

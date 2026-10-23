@@ -128,6 +128,15 @@ export class MqttClient {
     this.connected = false;
   }
 
+  /** The panel moved to another network (LAN cable in / out): drop the old
+   *  connection, which still runs over the previous network, and reconnect now. */
+  reconnectNow() {
+    if (this.stopped) return;
+    this.backoff = 1000;
+    if (this.ws) this._drop();
+    else this.kick();
+  }
+
   /** The network came back (Android says so): don't sit out the backoff. */
   kick() {
     if (this.stopped || this.connected || this.ws) return;

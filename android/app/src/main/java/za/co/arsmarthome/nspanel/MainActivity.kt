@@ -144,6 +144,8 @@ class MainActivity : Activity(), SensorEventListener {
 
         bridge = NativeBridge(this)
         webView.addJavascriptInterface(bridge, "ARNative")
+        // LAN cable first: with a cable in, everything goes over it, not Wi-Fi
+        LanFirst.start(this) { via -> emit("network", "{\"via\":\"$via\"}") }
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(m: ConsoleMessage): Boolean {
                 android.util.Log.i("ARPanel", "${m.message()} (${m.sourceId()}:${m.lineNumber()})")
@@ -216,6 +218,7 @@ class MainActivity : Activity(), SensorEventListener {
         if (current === this) current = null
         hideReturnButton()
         sensors?.unregisterListener(this)
+        LanFirst.stop(this)
         webView.destroy()
         super.onDestroy()
     }
