@@ -176,7 +176,11 @@ export function buildElegant(cfg, ctx) {
   const cv = /Chrome\/(\d+)/.exec(navigator.userAgent || "");
   const scr = window.screen || {};
   const LITE = !!(cv && Number(cv[1]) < 76) && Math.max(scr.width || 0, scr.height || 0) === 1280 && Math.min(scr.width || 0, scr.height || 0) === 720;
-  const root = el("div", "el-root" + (LITE ? " lite" : ""));
+  // Rockchip RK3566 (HDL Source 10): its Mali GPU driver can fault on the
+  // frosted-glass blur and take the whole panel down (kernel panic, reboot).
+  // There the glass is drawn without the blur and lamps without glow filters.
+  const GSAFE = !LITE && /RK356[68]/i.test(navigator.userAgent || "");
+  const root = el("div", "el-root" + (LITE ? " lite" : "") + (GSAFE ? " gsafe" : ""));
   page.appendChild(root);
   const room = el("div", "el-room");
   root.appendChild(room);
@@ -582,7 +586,7 @@ export function buildElegant(cfg, ctx) {
       const rim = c.querySelector(".el-lrim");
       if (rim) rim.style.opacity = v > 0 ? (0.45 + 0.55 * lv).toFixed(2) : "0.12";
       const lamp = c.querySelector(".el-lamp");
-      if (lamp) lamp.style.filter = v > 0 && !LITE ? "drop-shadow(0 4px " + Math.round(4 + 10 * lv) + "px rgba(255,236,190," + (0.25 + 0.6 * lv).toFixed(2) + "))" : "";
+      if (lamp) lamp.style.filter = v > 0 && !LITE && !GSAFE ? "drop-shadow(0 4px " + Math.round(4 + 10 * lv) + "px rgba(255,236,190," + (0.25 + 0.6 * lv).toFixed(2) + "))" : "";
       if (LIGHT_ICON === "edison") {
         // softer wash under a bare bulb; the filament itself carries the dimming
         if (cone) cone.style.opacity = v > 0 ? (0.1 + 0.9 * lv).toFixed(2) : "0";
@@ -595,11 +599,11 @@ export function buildElegant(cfg, ctx) {
         }
         const gl = c.querySelector(".el-glassb");
         if (gl) gl.style.fill = v > 0 ? "rgba(255,196,120," + (0.1 + 0.3 * lv).toFixed(2) + ")" : "rgba(255,255,255,.07)";
-        if (lamp) lamp.style.filter = v > 0 && !LITE ? "drop-shadow(0 0 " + Math.round(3 + 9 * lv) + "px rgba(255,190,100," + (0.3 + 0.6 * lv).toFixed(2) + "))" : "";
+        if (lamp) lamp.style.filter = v > 0 && !LITE && !GSAFE ? "drop-shadow(0 0 " + Math.round(3 + 9 * lv) + "px rgba(255,190,100," + (0.3 + 0.6 * lv).toFixed(2) + "))" : "";
       } else if (LIGHT_ICON === "downlight") {
         const lens = c.querySelector(".el-lens");
         if (lens) lens.style.opacity = v > 0 ? (0.55 + 0.45 * lv).toFixed(2) : "0.15";
-        if (lamp) lamp.style.filter = v > 0 && !LITE ? "drop-shadow(0 2px " + Math.round(3 + 8 * lv) + "px rgba(255,236,190," + (0.3 + 0.6 * lv).toFixed(2) + "))" : "";
+        if (lamp) lamp.style.filter = v > 0 && !LITE && !GSAFE ? "drop-shadow(0 2px " + Math.round(3 + 8 * lv) + "px rgba(255,236,190," + (0.3 + 0.6 * lv).toFixed(2) + "))" : "";
       }
     }
     const f = c.querySelector(".el-fill");

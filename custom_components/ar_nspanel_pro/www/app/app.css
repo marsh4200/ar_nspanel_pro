@@ -757,3 +757,8 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-sgr.off{opacity:.45;cursor:default}
 .el-sgx{display:inline-block;margin-top:6px}
 
+/* RK3566 (HDL Source 10): no blur behind the glass, so the Mali GPU driver can't fault on it */
+.el-root.gsafe .el-glass,.el-root.gsafe .el-dock,.el-root.gsafe .el-sheetpanel{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+.el-root.gsafe .el-dock{background:rgba(14,15,19,.86)}
+.el-root.gsafe .el-room{-webkit-transition:none;transition:none}
+
