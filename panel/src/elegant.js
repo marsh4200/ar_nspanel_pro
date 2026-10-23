@@ -1704,6 +1704,7 @@ export function buildElegant(cfg, ctx) {
       ["playlists", "Playlists"],
       ["liked", "Liked songs"],
       ["search", "Search"],
+      ["group", "Group"],
     ].forEach((t) => {
       const b = txt("div", "el-tab" + (spTab === t[0] ? " on" : ""), t[1]);
       b.addEventListener("click", () => {
@@ -1719,6 +1720,7 @@ export function buildElegant(cfg, ctx) {
     right.appendChild(tabs);
     if (spOpen) right.appendChild(spOpenView(playingUri));
     else if (spTab === "search") right.appendChild(spSearchPanel(playingUri));
+    else if (spTab === "group") right.appendChild(spGroupPanel());
     else {
       const items = spLib[spTab];
       if (spTab === "liked") {
@@ -1754,6 +1756,75 @@ export function buildElegant(cfg, ctx) {
     }
     wrap.appendChild(right);
     p.appendChild(wrap);
+  }
+
+  // --- Spotify: play on several speakers at once ---------------------------------
+  // Spotify plays to ONE speaker. The others join it through the speakers' own
+  // multi-room (Sonos with Sonos, LinkPlay/Arylic with LinkPlay) via Home
+  // Assistant's media_player.join. Google speakers group in the Google Home app.
+  const FAM = { sonos: "Sonos", linkplay: "LinkPlay", cast: "Google", bluesound: "Bluesound", heos: "HEOS", yamaha_musiccast: "MusicCast", squeezebox: "Squeezebox" };
+  const normName = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  function spMainEntity() {
+    const d = sp.activeDevice();
+    if (!d) return null;
+    const n = normName(d.name);
+    const all = union.music || [];
+    return all.filter((e) => normName(nameOf(e)) === n)[0] || all.filter((e) => n && (normName(nameOf(e)).indexOf(n) >= 0 || n.indexOf(normName(nameOf(e))) >= 0))[0] || null;
+  }
+  function spGroupPanel() {
+    const box = el("div", "el-glass el-sg");
+    const d = sp.activeDevice();
+    const lead = spMainEntity();
+    const all = (union.music || []).filter((e) => e !== lead);
+    if (!d) {
+      box.appendChild(txt("div", "el-libmsg", "Pick a speaker above first: Spotify plays there, the others join it."));
+      return box;
+    }
+    const L = lead ? get(lead) : null;
+    const head = el("div", "el-sgh", '<b></b><span></span>');
+    head.querySelector("b").textContent = "Playing on " + d.name;
+    head.querySelector("span").textContent = L && L.grp ? "Tick speakers to play along in sync" : lead ? (L.fam === "cast" ? "A Google speaker: make a speaker group in the Google Home app, it shows up as a speaker above" : "This speaker can't group with others") : "Not a speaker Home Assistant can group";
+    box.appendChild(head);
+    if (!all.length) box.appendChild(txt("div", "el-libmsg", "Add your speakers to the rooms (Speaker) in Device Setup to group them here."));
+    const members = (L && L.members) || [];
+    all.forEach((e) => {
+      const s = get(e);
+      const inGroup = members.indexOf(e) >= 0;
+      const can = !!(L && L.grp && s.grp && s.fam && s.fam === L.fam);
+      const why = !lead || !L.grp ? "" : !s.grp ? (s.fam === "cast" ? "Google speaker: group it in Google Home" : "Can't group") : s.fam !== L.fam ? "Different brand (" + (FAM[s.fam] || s.fam || "?") + "): can't sync with " + (FAM[L.fam] || L.fam) : "";
+      const row = el("div", "el-sgr" + (inGroup ? " on" : "") + (can ? "" : " off"), '<i class="el-sgb"></i><div class="el-sgt"><span></span><small></small></div>');
+      row.querySelector("span").textContent = nameOf(e);
+      row.querySelector("small").textContent = can ? (inGroup ? "Playing along" : FAM[s.fam] || "") : why;
+      if (can)
+        row.addEventListener("click", () => {
+          const next = inGroup ? members.filter((x) => x !== e) : members.concat([e]);
+          patch(lead, { members: next });
+          if (inGroup) {
+            patch(e, { members: [] });
+            send("unjoin", { entity: e });
+            toast(nameOf(e) + " left the group");
+          } else {
+            send("join", { entity: lead, members: [e] });
+            toast(nameOf(e) + " joins " + nameOf(lead));
+          }
+          pages.music.render();
+        });
+      box.appendChild(row);
+    });
+    if (members.length) {
+      const all2 = txt("div", "el-act el-sgx", "Stop grouping");
+      all2.addEventListener("click", () => {
+        members.forEach((m) => {
+          patch(m, { members: [] });
+          send("unjoin", { entity: m });
+        });
+        patch(lead, { members: [] });
+        toast("Only " + d.name + " plays now");
+        pages.music.render();
+      });
+      box.appendChild(all2);
+    }
+    return box;
   }
 
   if (spOn) {

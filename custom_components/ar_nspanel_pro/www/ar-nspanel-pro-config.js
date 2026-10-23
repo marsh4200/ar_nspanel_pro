@@ -9467,7 +9467,7 @@ function kA(e) {
     const x = e.themes.slice();
     return m && m !== "custom" && m !== "match-app" && !x.includes(m) && x.unshift(m), x;
   }, h = /* @__PURE__ */ new Date(), y = t.clockFormat24h ? h.getHours() : h.getHours() % 12 || 12, A = `${String(y).padStart(2, "0")}:${String(h.getMinutes()).padStart(2, "0")}`, f = `${t.clockFace === "analog" ? "Analog" : "Digital"} · ${t.clockFormat24h ? "24-hour" : "12-hour"}`, V = { color: "var(--accent)" };
-  return /* @__PURE__ */ a.jsxs("div", { className: "dev-cols", children: [
+  return /* @__PURE__ */ a.jsx(ArDevTabs, { children: [
     /* @__PURE__ */ a.jsxs("div", { className: "card dev-card", children: [
       /* @__PURE__ */ a.jsxs("h3", { children: [
         /* @__PURE__ */ a.jsx(j, { d: N.clock, size: 20, style: V }),
@@ -9916,6 +9916,37 @@ function kA(e) {
         ] })
       ] });
     })()
+  ] });
+}
+// Device page sections. The cards above come in this order:
+// 0 Screensaver, 1 Presence, 2 Licence, 3 Diagnostics, 4 Clock face,
+// 5 Auto-brightness, 6 Dashboard (Elegant), 7 Music Assistant, 8 Spotify
+const AR_DEV_TABS = [
+  { key: "dash", title: "Dashboard", cards: [6] },
+  { key: "screen", title: "Screen", cards: [4, 0, 5] },
+  { key: "music", title: "Music", cards: [7, 8] },
+  { key: "sensors", title: "Sensors", cards: [1] },
+  { key: "about", title: "Licence & info", cards: [2, 3] }
+];
+function ArDevTabs({ children: c }) {
+  const [tab, setTab] = M.useState(() => {
+    try {
+      return localStorage.getItem("dd.dev.tab") || "dash";
+    } catch {
+      return "dash";
+    }
+  });
+  const cur = AR_DEV_TABS.find((x) => x.key === tab) || AR_DEV_TABS[0];
+  const pick = (k) => {
+    setTab(k);
+    try {
+      localStorage.setItem("dd.dev.tab", k);
+    } catch {
+    }
+  };
+  return /* @__PURE__ */ a.jsxs("div", { className: "dev-wrap", children: [
+    /* @__PURE__ */ a.jsx("div", { className: "dev-tabs", role: "tablist", children: AR_DEV_TABS.map((x) => /* @__PURE__ */ a.jsx("button", { role: "tab", "aria-selected": x.key === cur.key, className: "dev-tab" + (x.key === cur.key ? " on" : ""), onClick: () => pick(x.key), children: x.title }, x.key)) }),
+    /* @__PURE__ */ a.jsx("div", { className: "dev-stack", children: cur.cards.map((i) => c[i]).filter(Boolean) })
   ] });
 }
 const ZA = {
@@ -11643,6 +11674,12 @@ textarea.inp{resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monos
 .errsum .ei:hover{background:var(--hover)}
 .errsum .ei .ic{color:var(--error);flex:none}
 .dev-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;align-items:start}
+.dev-wrap{max-width:880px}
+.dev-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 16px;padding:4px;border-radius:12px;background:var(--surface2,rgba(127,127,127,.08));border:1px solid var(--divider,rgba(127,127,127,.2));width:fit-content;max-width:100%}
+.dev-tab{border:0;background:transparent;color:var(--text2);font:600 13px/1 inherit;padding:9px 16px;border-radius:9px;cursor:pointer}
+.dev-tab:hover{color:var(--text)}
+.dev-tab.on{background:var(--accent);color:#001018}
+.dev-stack{display:flex;flex-direction:column;gap:18px}
 .dev-card{padding:18px}
 .ar-pin-spot{position:absolute;top:0;right:0;width:56px;height:48px;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 .dev-card h3{margin:0 0 4px;font-size:15px;font-weight:800;display:flex;align-items:center;gap:9px}

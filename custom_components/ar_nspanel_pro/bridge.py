@@ -32,6 +32,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import (
@@ -1198,6 +1199,15 @@ class PanelBridge:
                         await self._svc("cover", "close_cover", entity, {})
             elif action == "knob" and isinstance(v, int):
                 await self._knob_step(entity, v, {})
+            elif action == "join" and domain == "media_player":
+                # Spotify > Group: the speakers join the one Spotify plays on
+                members = [m for m in (value.get("members") or [])
+                           if isinstance(m, str) and m != entity and m in self._elegant_entities
+                           and m.startswith("media_player.")]
+                if members:
+                    await self._svc("media_player", "join", entity, {"group_members": members})
+            elif action == "unjoin" and domain == "media_player":
+                await self._svc("media_player", "unjoin", entity, {})
             elif action == "arm" and value.get("mode") in ("away", "home", "night", "disarm"):
                 svc = "alarm_disarm" if value["mode"] == "disarm" else f"alarm_arm_{value['mode']}"
                 data = {"code": str(value["code"])} if value.get("code") else {}
@@ -1473,6 +1483,10 @@ class PanelBridge:
             payload = self._weather_payload(entity_id, state)
         elif entity_id in self._elegant_entities:
             payload = _elegant_payload(entity_id, state, self._ha_base_url())
+            if entity_id.startswith("media_player."):
+                ent = er.async_get(self.hass).async_get(entity_id)
+                if ent is not None:
+                    payload["fam"] = ent.platform  # Spotify > Group: only same brand syncs
         else:
             payload = _state_payload(
                 entity_id, state, include_value=entity_id in self._value_entities
@@ -1879,6 +1893,10 @@ def _elegant_payload(entity_id: str, state: Any, base_url: str | None) -> dict[s
         pic = a.get("entity_picture")
         if isinstance(pic, str) and pic:
             p["pic"] = pic if pic.startswith("http") or not base_url else base_url.rstrip("/") + pic
+        # Spotify > Group: can it group (MediaPlayerEntityFeature.GROUPING), and with whom
+        p["grp"] = bool(int(a.get("supported_features") or 0) & 524288)
+        gm = a.get("group_members")
+        p["members"] = [m for m in gm if isinstance(m, str) and m != entity_id] if isinstance(gm, list) else []
     elif domain == "cover":
         p["on"] = st in ("open", "opening")
         # every cover gets a slider: the real position when HA reports one,

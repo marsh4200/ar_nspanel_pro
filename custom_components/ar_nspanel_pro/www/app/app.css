@@ -743,3 +743,17 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-page.pres .el-cards{top:78px}
 .el-root.lite .el-pres.on i{-webkit-animation:none;animation:none}
 
+/* Spotify > Group: speakers that play along with the one Spotify plays on */
+.el-sg{flex:1;min-height:0;overflow-y:auto;padding:12px 14px;border-radius:18px}
+.el-sgh b{display:block;font-size:15px;color:#f3f1ec}
+.el-sgh span{display:block;font-size:12.5px;color:rgba(243,241,236,.55);margin:2px 0 10px}
+.el-sgr{display:flex;align-items:center;padding:9px 10px;border-radius:12px;margin-bottom:6px;background:rgba(255,255,255,.04);cursor:pointer}
+.el-sgb{width:22px;height:22px;border-radius:7px;border:2px solid rgba(243,241,236,.35);margin-right:12px;flex:none;position:relative}
+.el-sgr.on .el-sgb{background:#1db954;border-color:#1db954}
+.el-sgr.on .el-sgb::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #06140b;border-width:0 2.5px 2.5px 0;-webkit-transform:rotate(45deg);transform:rotate(45deg)}
+.el-sgt span{display:block;font-size:14px;font-weight:700;color:#f3f1ec}
+.el-sgt small{display:block;font-size:12px;color:rgba(243,241,236,.5)}
+.el-sgr.on .el-sgt small{color:#7ee2a2}
+.el-sgr.off{opacity:.45;cursor:default}
+.el-sgx{display:inline-block;margin-top:6px}
+
