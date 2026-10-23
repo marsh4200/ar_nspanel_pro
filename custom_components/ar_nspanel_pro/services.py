@@ -28,6 +28,8 @@ from .const import (
     DOMAIN,
     EVENT_DISCOVERY,
     SERVICE_DISCOVER,
+    SERVICE_LIST_PANELS,
+    SERVICE_SET_SCENES,
     SERVICE_NOTIFY,
     SERVICE_NOTIFY_CLEAR,
     SERVICE_PAGE,
@@ -289,6 +291,61 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         SERVICE_DISCOVER,
         discover,
         vol.Schema({vol.Optional("timeout"): vol.Coerce(float)}),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+
+    # --- for the separate AR Lighting Scenes integration ----------------------
+    async def list_panels(call: ServiceCall) -> ServiceResponse:
+        """Every panel set up here: who it is, whether it's online, and whether
+        it runs the Elegant dashboard (the one that shows customer scenes)."""
+        reg = dr.async_get(hass)
+        out = []
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            bridge = getattr(entry, "runtime_data", None)
+            if bridge is None or not hasattr(bridge, "client_scenes"):
+                continue
+            dev = reg.async_get(bridge.ha_device_id) if bridge.ha_device_id else None
+            name = (dev.name_by_user or dev.name) if dev else None
+            out.append(
+                {
+                    "device_id": bridge.ha_device_id,
+                    "panel_id": bridge.device_id,
+                    "name": name or entry.title or bridge.device_id,
+                    "model": (bridge.sys_info or {}).get("model") or "",
+                    "online": bool(bridge.available),
+                    "elegant": bridge.device_cfg.get("dashboardStyle") == "elegant",
+                    "scenes": list(bridge.client_scenes),
+                }
+            )
+        out.sort(key=lambda p: str(p["name"]).lower())
+        return {"panels": out}
+
+    async def set_scenes(call: ServiceCall) -> ServiceResponse:
+        shown = {}
+        for bridge in _bridges(hass, call):
+            shown[bridge.device_id] = await bridge.async_set_client_scenes(call.data.get("scenes") or [])
+        return {"panels": shown}
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_LIST_PANELS,
+        list_panels,
+        vol.Schema({}),
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SET_SCENES,
+        set_scenes,
+        vol.Schema(
+            {
+                vol.Optional("scenes", default=list): vol.All(
+                    cv.ensure_list,
+                    [vol.Schema({vol.Required("entity"): cv.entity_id, vol.Optional("name"): cv.string}, extra=vol.ALLOW_EXTRA)],
+                )
+            },
+            extra=vol.ALLOW_EXTRA,
+        ),
         supports_response=SupportsResponse.OPTIONAL,
     )
     _LOGGER.debug("Registered %s services", DOMAIN)

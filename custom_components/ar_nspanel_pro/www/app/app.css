@@ -432,6 +432,8 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-tab.on{background:rgba(255,255,255,.16);color:#f3f1ec}
 .el-act{padding:8px 16px;border-radius:999px;font-size:13px;font-weight:700;background:rgba(240,122,106,.16);border:1px solid rgba(240,122,106,.4);color:#ffd2cb}
 .el-act.on{background:rgba(242,184,102,.16);border-color:rgba(242,184,102,.5);color:#ffe2b8;margin-right:10px}
+.el-act.sc{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.16);color:rgba(243,241,236,.88);margin-right:8px;max-width:118px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.el-act.sc.hit,.el-scene.hit{background:rgba(242,184,102,.32);border-color:rgba(242,184,102,.6);color:#fff}
 .el-cards{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:150px;grid-gap:14px;position:absolute;left:26px;right:26px;top:58px;bottom:0;overflow-y:auto;padding-bottom:10px}
 .el-cards.top{top:6px}
 .el-card{padding:14px 16px;display:flex;flex-direction:column;min-width:0}

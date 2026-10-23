@@ -138,6 +138,19 @@ export function buildElegant(cfg, ctx) {
   const keys = ["weather"];
   Object.keys(ents).forEach((k) => ents[k].forEach((e) => keys.push(slugify(e))));
   union.scenes.forEach((e) => keys.push(slugify(e)));
+  // lighting scenes the customer made in the AR Lighting Scenes card and pushed
+  // to this panel: [{entity: "scene.ar_movie_night", name: "Movie night"}], 4 at most
+  keys.push("client_scenes");
+  const clientScenes = () => {
+    const c = ctx.get("client_scenes");
+    return (c && Array.isArray(c.scenes) ? c.scenes : []).filter((s) => s && typeof s.entity === "string").slice(0, 4);
+  };
+  const runScene = (b, entity, name) => {
+    send("toggle", { entity: entity });
+    b.classList.add("hit");
+    setTimeout(() => b.classList.remove("hit"), 600);
+    toast(name);
+  };
   function curCats() {
     return CATS.filter((c) => (ents[c.key] && ents[c.key].length) || (c.key === "music" && (maOn || spOn)));
   }
@@ -237,14 +250,16 @@ export function buildElegant(cfg, ctx) {
       wx.querySelector(".el-wxd").textContent = (WX[w.value] || cap(w.value)) + (f && typeof f.temperature === "number" ? " · High " + Math.round(f.temperature) + "°" + (typeof f.templow === "number" ? " · Low " + Math.round(f.templow) + "°" : "") : "");
       hero.appendChild(wx);
     }
-    if (scenes.length) {
+    // the customer's own lighting scenes first, then the room's scenes from Device Setup
+    const homeScenes = clientScenes()
+      .map((s) => ({ e: s.entity, n: s.name || nameOf(s.entity) }))
+      .concat(scenes.map((s) => ({ e: s, n: nameOf(s) })))
+      .slice(0, 4);
+    if (homeScenes.length) {
       const row = el("div", "el-scenes");
-      scenes.forEach((s) => {
-        const b = txt("div", "el-scene", nameOf(s));
-        b.addEventListener("click", () => {
-          send("toggle", { entity: s });
-          toast(nameOf(s));
-        });
+      homeScenes.forEach((s) => {
+        const b = txt("div", "el-scene", s.n);
+        b.addEventListener("click", () => runScene(b, s.e, s.n));
         row.appendChild(b);
       });
       hero.appendChild(row);
@@ -307,6 +322,13 @@ export function buildElegant(cfg, ctx) {
       const p = lp.el;
       p.innerHTML = "";
       const bar = el("div", "el-subbar");
+      // the customer's lighting scenes, left of All on / All off
+      clientScenes().forEach((s) => {
+        const nm = s.name || nameOf(s.entity);
+        const b = txt("div", "el-act sc", nm);
+        b.addEventListener("click", () => runScene(b, s.entity, nm));
+        bar.appendChild(b);
+      });
       bar.appendChild(el("div", "el-sp"));
       const off = txt("div", "el-act", "All off");
       off.addEventListener("click", () => {

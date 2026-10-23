@@ -37,6 +37,12 @@
     }
   },
   "services": {
+    "list_panels": { "name": "List panels", "description": "Every AR NSPanel Pro panel set up in Home Assistant, whether it is online, and the lighting scenes it shows." },
+    "set_scenes": {
+      "name": "Set lighting scenes",
+      "description": "Show these lighting scenes on the panel's Elegant dashboard (up to 4).",
+      "fields": { "scenes": { "name": "Scenes", "description": "List of scenes, each with entity and name. An empty list clears them." } }
+    },
     "push_config": {
       "name": "Push config",
       "description": "Validate and publish the panel's config so it re-renders."

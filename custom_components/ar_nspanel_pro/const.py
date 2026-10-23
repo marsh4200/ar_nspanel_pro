@@ -36,6 +36,14 @@ EVENT_PONG = "ar_nspanel_pro_pong"
 #: Fired when a notification is shown on a panel and again when it ends —
 #: ``{device_id, id, action: shown|dismissed|expired|action, action_id?}``.
 EVENT_NOTIFICATION = "ar_nspanel_pro_notification"
+#: Fired when a panel's bridge is ready and whenever it goes online / offline —
+#: ``{device_id (HA device), panel_id, online}``. Other integrations (AR
+#: Lighting Scenes) listen to re-send what the panel should show.
+EVENT_PANEL_STATUS = "ar_nspanel_pro_panel_status"
+#: State key the customer's lighting scenes are published on (Elegant dashboard).
+CLIENT_SCENES_KEY = "client_scenes"
+#: Most customer scenes one panel shows (home screen row / Lights page row).
+MAX_CLIENT_SCENES = 4
 
 # --- service names -----------------------------------------------------------
 SERVICE_PUSH_CONFIG = "push_config"
@@ -52,6 +60,8 @@ SERVICE_NOTIFY = "notify"
 SERVICE_NOTIFY_CLEAR = "notify_clear"
 SERVICE_DISCOVER = "discover"
 SERVICE_REQUEST_LICENSE = "request_license"
+SERVICE_LIST_PANELS = "list_panels"
+SERVICE_SET_SCENES = "set_scenes"
 
 # --- licence activation (AR Smart Home licence server) -----------------------
 #: Product slug the licence server issues keys for.

@@ -77,6 +77,9 @@ from .const import (
     topic_event,
     topic_state,
     topic_sys,
+    CLIENT_SCENES_KEY,
+    EVENT_PANEL_STATUS,
+    MAX_CLIENT_SCENES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -191,6 +194,11 @@ class PanelBridge:
         self._state_unsub: Callable[[], None] | None = None
         self._pending_pings: dict[str, float] = {}
         self._reg_device_id: str | None = None
+        #: Lighting scenes the customer pushed to this panel from the separate
+        #: AR Lighting Scenes integration: [{"entity": "scene.x", "name": "X"}].
+        #: In memory only — that integration re-sends them when this bridge is
+        #: ready (EVENT_PANEL_STATUS); the panel keeps the retained copy.
+        self.client_scenes: list[dict[str, str]] = []
 
     # --- lifecycle -----------------------------------------------------------
 
@@ -229,6 +237,7 @@ class PanelBridge:
         self._start_state_tracking()
         await self._publish_all_states()
         self._start_weather()
+        self._fire_status()
 
     async def async_unload(self) -> None:
         for unsub in self._unsubs:
@@ -316,7 +325,7 @@ class PanelBridge:
         """Elegant dashboard (device.dashboardStyle == "elegant"): mirror every
         entity it lists, with the richer :func:`_elegant_payload`, and allow the
         panel's "el" events to act on exactly those entities."""
-        self._elegant_entities = set()
+        self._elegant_entities = {s["entity"] for s in self.client_scenes}
         cfg = self.device_cfg.get("elegant") if isinstance(self.device_cfg, dict) else None
         if self.device_cfg.get("dashboardStyle") != "elegant" or not isinstance(cfg, dict):
             return
@@ -588,6 +597,41 @@ class PanelBridge:
         # is gone. Re-push on every online transition.
         if self.available and not was_available:
             self.hass.async_create_task(self._async_push_ma_auth())
+        if self.available != was_available:
+            self._fire_status()
+
+    @callback
+    def _fire_status(self) -> None:
+        """Tell other integrations this panel is ready / went on- or offline."""
+        self.hass.bus.async_fire(
+            EVENT_PANEL_STATUS,
+            {"device_id": self._reg_device_id, "panel_id": self.device_id, "online": self.available},
+        )
+
+    async def async_set_client_scenes(self, scenes: list[dict[str, Any]]) -> list[dict[str, str]]:
+        """Show these lighting scenes on the panel (Elegant home screen row and
+        Lights page). The panel may run exactly these scene entities."""
+        clean: list[dict[str, str]] = []
+        for s in scenes or []:
+            if not isinstance(s, dict):
+                continue
+            entity = s.get("entity")
+            if not isinstance(entity, str) or not entity.startswith("scene.") or any(c["entity"] == entity for c in clean):
+                continue
+            name = s.get("name")
+            clean.append({"entity": entity, "name": str(name)[:24] if name else entity.split(".", 1)[1].replace("_", " ")})
+        clean = clean[:MAX_CLIENT_SCENES]
+        old = {c["entity"] for c in self.client_scenes}
+        self.client_scenes = clean
+        self._elegant_entities -= old
+        self._elegant_entities |= {c["entity"] for c in clean}
+        await mqtt.async_publish(
+            self.hass,
+            topic_state(self.device_id, CLIENT_SCENES_KEY),
+            json.dumps({"scenes": clean}),
+            retain=True,
+        )
+        return clean
 
     async def _async_push_ma_auth(self) -> None:
         """Send the MA credentials to a panel that just came online."""

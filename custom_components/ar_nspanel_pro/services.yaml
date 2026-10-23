@@ -281,3 +281,27 @@ request_license:
       example: someone@example.com
       selector:
         text:
+
+list_panels:
+  name: List panels
+  description: >-
+    Every AR NSPanel Pro panel set up in Home Assistant, whether it is online,
+    and the lighting scenes it shows. Used by AR Lighting Scenes.
+
+set_scenes:
+  name: Set lighting scenes
+  description: >-
+    Show these lighting scenes on the panel's Elegant dashboard (home screen
+    under the weather, and next to All on / All off on the Lights page). Up to
+    4. Normally done by AR Lighting Scenes.
+  target:
+    device:
+      integration: ar_nspanel_pro
+  fields:
+    scenes:
+      name: Scenes
+      description: List of scenes, each with entity and name. An empty list clears them.
+      required: true
+      example: '[{"entity": "scene.ar_movie_night", "name": "Movie night"}]'
+      selector:
+        object:
