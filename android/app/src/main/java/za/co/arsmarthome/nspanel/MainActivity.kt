@@ -198,9 +198,15 @@ class MainActivity : Activity(), SensorEventListener {
         webView.onResume()
         sensors?.let { sm ->
             sm.getDefaultSensor(Sensor.TYPE_LIGHT)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
-            sm.getDefaultSensor(Sensor.TYPE_PROXIMITY)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
+            if (proximityOk) sm.getDefaultSensor(Sensor.TYPE_PROXIMITY)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
         }
     }
+
+    /** HDL Source 10 (RK3566): while the proximity sensor is on, its driver writes
+     *  ~30 kernel log lines a second, and the kernel's log reader then crashes
+     *  the whole panel (kernel panic, reboot). So it stays off there. */
+    private val proximityOk: Boolean
+        get() = !(Build.MODEL ?: "").contains("RK3566", ignoreCase = true)
     override fun onStop() {
         // nothing plays behind another app or a switched-off screen; the page
         // asks for its cameras again when it comes back ("resume")
@@ -312,7 +318,8 @@ class MainActivity : Activity(), SensorEventListener {
         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
-    fun hasSensor(type: Int): Boolean = sensors?.getDefaultSensor(type) != null
+    fun hasSensor(type: Int): Boolean =
+        (type != Sensor.TYPE_PROXIMITY || proximityOk) && sensors?.getDefaultSensor(type) != null
 
     /** Deliver an event to the page: window.__arNative.emit(type, json). */
     fun emit(type: String, json: String) {
