@@ -23,6 +23,7 @@ from .const import DOMAIN
 from .frontend import async_register_frontend
 from .padded_audio import async_register_clip_view
 from .services import async_setup_services
+from .timesync import async_setup_timesync
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     websocket_api.async_register(hass)
     async_register_clip_view(hass)  # serves TTS clips padded for the panel
     await async_register_frontend(hass)
+    await async_setup_timesync(hass)  # nightly panel clock check
     return True
 
 

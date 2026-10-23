@@ -2149,10 +2149,11 @@ export function buildElegant(cfg, ctx) {
     clock.textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
     const w = ctx.get("weather");
     wxChip.innerHTML = w && typeof w.temperature === "number" ? svg("sun") + "<span>" + Math.round(w.temperature) + "°</span>" : "";
-    if (ents.security) {
+    // the alarm chip only when an alarm is set up (it used to say "Unknown" without one)
+    if (ents.security && ents.security.length) {
       secChip.innerHTML = svg("security") + "<span></span>";
       secChip.lastChild.textContent = alarmName(get(ents.security[0]).value);
-    }
+    } else secChip.innerHTML = "";
     const anyOn = (ents.lights || []).some((e) => get(e).on);
     room.classList.toggle("dim", !!ents.lights && !anyOn);
   }

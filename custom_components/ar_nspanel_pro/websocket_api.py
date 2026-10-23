@@ -25,6 +25,9 @@ bypasses the check deliberately (still admin-only).
 
 from __future__ import annotations
 
+from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 import asyncio
 import base64
 import logging
@@ -38,6 +41,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from . import panel_config
+from .timesync import get_timesync
 from .adb import AdbError, get_adb
 from .const import (
     ADB_DEFAULT_PORT,
@@ -646,6 +650,8 @@ async def ws_notify(
                 "reset_app",
                 "kiosk_lock",
                 "kiosk_unlock",
+                "time_status",
+                "set_time",
             )
         ),
         #: The panel's ADB endpoint. This tool runs BEFORE a panel is configured
@@ -659,6 +665,13 @@ async def ws_notify(
         vol.Optional("code"): vol.All(vol.Coerce(int), vol.Range(min=0, max=999)),
         #: text — string to type via ``input text``.
         vol.Optional("text"): str,
+        #: set_time — time zone (IANA), a local date-time "YYYY-MM-DDTHH:MM[:SS]"
+        #: in that zone (absent = Home Assistant's clock), internet time on/off,
+        #: and the nightly 03:00 check on/off.
+        vol.Optional("tz"): str,
+        vol.Optional("when"): str,
+        vol.Optional("auto"): bool,
+        vol.Optional("daily"): bool,
     }
 )
 @websocket_api.async_response
@@ -707,6 +720,25 @@ async def ws_adb(
             res = await adb.async_reset_app(host, port)
         elif action in ("kiosk_lock", "kiosk_unlock"):
             res = await adb.async_kiosk(host, port, action == "kiosk_lock")
+        elif action == "time_status":
+            res = await adb.async_time_status(host, port)
+            res["daily"] = get_timesync(hass).is_on(host)
+            res["ha_tz"] = hass.config.time_zone
+        elif action == "set_time":
+            tz = msg.get("tz") or hass.config.time_zone
+            epoch = None
+            if msg.get("when"):
+                try:
+                    local = datetime.fromisoformat(msg["when"]).replace(tzinfo=ZoneInfo(tz))
+                except (ValueError, KeyError, ZoneInfoNotFoundError) as err:
+                    connection.send_error(msg["id"], "bad_request", f"Can't read that date/time: {err}")
+                    return
+                epoch = local.timestamp()
+            res = await adb.async_set_time(host, port, tz, epoch, msg.get("auto"))
+            if "daily" in msg:
+                await get_timesync(hass).async_set(host, port, tz, bool(msg["daily"]))
+            res["daily"] = get_timesync(hass).is_on(host)
+            res["ha_tz"] = hass.config.time_zone
         else:  # reboot
             res = await adb.async_reboot(host, port)
     except AdbError as err:

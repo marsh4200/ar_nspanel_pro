@@ -28,6 +28,7 @@ import base64
 import logging
 import os
 import re
+import time
 from typing import Any, Callable
 from urllib.parse import unquote
 
@@ -558,6 +559,29 @@ class PanelAdb:
 
         return await self._hass.async_add_executor_job(self._run, host, port, signer, fn)
 
+    # --- panel time (Device Setup / Update > Panel time) -----------------------
+    async def async_time_status(self, host: str, port: int) -> dict[str, Any]:
+        """The panel's own clock, time zone and automatic-time setting."""
+        signer = await self._get_signer()
+
+        def fn(d: Any) -> dict[str, Any]:
+            return _time_status(d)
+
+        return await self._hass.async_add_executor_job(self._run, host, port, signer, fn)
+
+    async def async_set_time(
+        self, host: str, port: int, tz: str | None, epoch: float | None, auto: bool | None
+    ) -> dict[str, Any]:
+        """Set the panel's Android clock and time zone. ``epoch`` None = Home
+        Assistant's clock at the moment it is set. Needs root (``su``), the same
+        as the HDL takeover."""
+        signer = await self._get_signer()
+
+        def fn(d: Any) -> dict[str, Any]:
+            return _set_time(d, tz, epoch, auto)
+
+        return await self._hass.async_add_executor_job(self._run, host, port, signer, fn)
+
     async def async_reset_app(self, host: str, port: int) -> dict[str, Any]:
         """Wipe the app's data (broker, login, panel ID, cached pages, licence
         key) and reopen it on its setup screen — for a panel moving to another
@@ -1022,3 +1046,67 @@ class PanelAdb:
             return version
 
         return self._run(host, port, signer, fn, xfer=True)
+
+
+# --- panel time ---------------------------------------------------------------
+_TZ_RE = re.compile(r"^[A-Za-z0-9_+\-]+(/[A-Za-z0-9_+\-]+){0,2}$")
+
+
+def _time_status(d: Any) -> dict[str, Any]:
+    raw = (d.shell("date +%s") or "").strip()
+    try:
+        epoch = int(raw)
+    except ValueError:
+        epoch = None
+    tz = (d.shell("getprop persist.sys.timezone") or "").strip()
+    auto = (d.shell("settings get global auto_time") or "").strip() == "1"
+    return {"epoch": epoch, "tz": tz, "auto": auto, "ha_epoch": int(time.time())}
+
+
+def _set_time(d: Any, tz: str | None, epoch: float | None, auto: bool | None) -> dict[str, Any]:
+    log: list[str] = []
+    if auto is not None:
+        d.shell(f"settings put global auto_time {1 if auto else 0}")
+        log.append("Internet time: " + ("on" if auto else "off"))
+    if tz:
+        if not _TZ_RE.match(tz):
+            raise AdbError("bad_request", f"Not a time zone: {tz}")
+        d.shell("settings put global auto_time_zone 0")
+        d.shell(f"su 0 setprop persist.sys.timezone {tz}")
+        d.shell(f"su 0 service call alarm 3 s16 {tz}")  # AlarmManager.setTimeZone: takes effect now
+        got = (d.shell("getprop persist.sys.timezone") or "").strip()
+        if got != tz:
+            raise AdbError(
+                "time_failed",
+                f"The panel didn't take the time zone (it says '{got or 'nothing'}'). "
+                "Setting the time needs root on the panel (su), which this panel doesn't allow.",
+            )
+        log.append(f"Time zone → {tz}")
+    target = epoch if epoch is not None else time.time()
+    if epoch is not None or tz is not None:
+        # AlarmManager.setTime (also updates the hardware clock); `date` as a fallback
+        d.shell(f"su 0 service call alarm 2 i64 {int((target if epoch is not None else time.time()) * 1000)}")
+        now = _panel_epoch(d)
+        want = target if epoch is not None else time.time()
+        if now is None or abs(now - want) > 5:
+            stamp = time.strftime("%m%d%H%M%Y.%S", time.gmtime(want if epoch is not None else time.time()))
+            d.shell(f"su 0 date -u {stamp}")
+            now = _panel_epoch(d)
+            want = target if epoch is not None else time.time()
+        if now is None or abs(now - want) > 5:
+            raise AdbError(
+                "time_failed",
+                "The panel's clock didn't change. Setting the time needs root on the panel (su), "
+                "which this panel doesn't allow.",
+            )
+        log.append("Clock → " + time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(now)))
+    st = _time_status(d)
+    return {"output": "\n".join(log), **st}
+
+
+def _panel_epoch(d: Any) -> int | None:
+    try:
+        return int((d.shell("date +%s") or "").strip())
+    except ValueError:
+        return None
+
