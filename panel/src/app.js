@@ -18,6 +18,7 @@ import * as sound from "./sound.js";
 import { initKnob } from "./knob.js";
 import { buildElegant } from "./elegant.js";
 import { wifiSection } from "./wifi.js";
+import { askPin, pinSet } from "./pin.js";
 
 const VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev";
 const PREFIX = "ar-nspanel-pro/panel";
@@ -1334,11 +1335,16 @@ watermarkEl.addEventListener("click", () => {
   openLicence();
 });
 
-// long-press the top-left corner (3 s) opens setup
+// long-press the top-left corner (3 s) opens setup — after the setup password,
+// when the installer set one (Device Setup > Licence > ⋮)
 let cornerTimer = null;
+function holdOpensSetup() {
+  if (pinSet(device.setupPin)) askPin(stage, device.setupPin, openSettings);
+  else openSettings();
+}
 cornerEl.addEventListener("pointerdown", () => {
   clearTimeout(cornerTimer);
-  cornerTimer = setTimeout(openSettings, 3000);
+  cornerTimer = setTimeout(holdOpensSetup, 3000);
 });
 ["pointerup", "pointercancel", "pointerleave"].forEach((e) => cornerEl.addEventListener(e, () => clearTimeout(cornerTimer)));
 

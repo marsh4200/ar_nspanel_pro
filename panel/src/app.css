@@ -687,3 +687,24 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-lrim{opacity:.12;-webkit-transition:opacity .3s;transition:opacity .3s}
 .el-card.lamp .el-bulb .el-lcone{position:absolute;left:-80px;top:52px;width:220px;height:170px;pointer-events:none;opacity:0;-webkit-transition:opacity .3s;transition:opacity .3s}
 .el-card.lamp.on .el-slider{position:relative;z-index:2}
+
+/* setup-screen password (holding the corner, when one is set) */
+.pinpad{position:absolute;top:0;left:0;right:0;bottom:0;z-index:75;display:flex;align-items:center;justify-content:center;background:#0b0d10;color:#e8eaed;font-family:Roboto,"Segoe UI",sans-serif}
+.pp-side{display:flex;flex-direction:column;align-items:flex-start;width:170px;margin-right:22px}
+.pp-title{font-size:20px;font-weight:700}
+.pp-msg{font-size:13px;color:#8b95a1;margin-top:6px;min-height:34px;line-height:1.3}
+.pp-msg.bad{color:#ff8a7a}
+.pp-dots{display:flex;margin:6px 0 18px}
+.pp-dots i{width:12px;height:12px;border-radius:6px;margin-right:9px;border:2px solid #4a5560;box-sizing:border-box}
+.pp-dots i.on{background:#12b0f0;border-color:#12b0f0}
+.pp-pad{display:flex;flex-wrap:wrap;width:198px}
+.pp-key{width:60px;height:50px;margin:0 6px 6px 0;border:0;border-radius:12px;background:#1f252d;color:#e8eaed;font-size:22px;font-weight:600;padding:0}
+.pp-key:nth-child(3n){margin-right:0}
+.pp-key:active{background:#2c3540}
+.pp-key.fn{font-size:20px;color:#8b95a1}
+.pp-key.ok{background:#12b0f0;color:#001018;font-size:16px;font-weight:800}
+.pp-key.cancel{width:auto;height:38px;padding:0 16px;font-size:14px;color:#8b95a1;margin:0}
+.pinpad.shake .pp-dots{-webkit-animation:ppshake .4s;animation:ppshake .4s}
+@-webkit-keyframes ppshake{20%,60%{-webkit-transform:translateX(-8px)}40%,80%{-webkit-transform:translateX(8px)}}
+@keyframes ppshake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+

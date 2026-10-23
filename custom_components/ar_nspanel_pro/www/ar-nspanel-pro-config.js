@@ -8989,6 +8989,84 @@ function gA(e, t) {
       return { tone: "bad", label: e.reason, detail: "The panel rejected this licence." };
   }
 }
+// --- Panel setup password (hidden: hold the Licence card's top right corner 2 s) ---
+// The panel asks for it before its setup screen opens. Only a salted SHA-256
+// is stored (device.setupPin = {salt, hash}); the panel checks against that.
+function arSha256(str) {
+  const K = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+  ];
+  const bytes = unescape(encodeURIComponent(str));
+  const l = bytes.length;
+  const words = [];
+  for (let i = 0; i < l; i++) words[i >> 2] |= (bytes.charCodeAt(i) & 255) << (24 - (i % 4) * 8);
+  words[l >> 2] |= 0x80 << (24 - (l % 4) * 8);
+  const n = (((l + 8) >> 6) + 1) * 16;
+  for (let i = (l >> 2) + 1; i < n; i++) words[i] = words[i] | 0;
+  words[n - 1] = l * 8;
+  let H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+  const W = new Array(64);
+  const r = (x, s) => (x >>> s) | (x << (32 - s));
+  for (let j = 0; j < n; j += 16) {
+    let [a, b, c, d, e, f, g, hh] = H;
+    for (let i = 0; i < 64; i++) {
+      if (i < 16) W[i] = words[j + i] | 0;
+      else {
+        const s0 = r(W[i - 15], 7) ^ r(W[i - 15], 18) ^ (W[i - 15] >>> 3);
+        const s1 = r(W[i - 2], 17) ^ r(W[i - 2], 19) ^ (W[i - 2] >>> 10);
+        W[i] = (W[i - 16] + s0 + W[i - 7] + s1) | 0;
+      }
+      const t1 = (hh + (r(e, 6) ^ r(e, 11) ^ r(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + W[i]) | 0;
+      const t2 = ((r(a, 2) ^ r(a, 13) ^ r(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+      hh = g;
+      g = f;
+      f = e;
+      e = (d + t1) | 0;
+      d = c;
+      c = b;
+      b = a;
+      a = (t1 + t2) | 0;
+    }
+    H = [(H[0] + a) | 0, (H[1] + b) | 0, (H[2] + c) | 0, (H[3] + d) | 0, (H[4] + e) | 0, (H[5] + f) | 0, (H[6] + g) | 0, (H[7] + hh) | 0];
+  }
+  return H.map((x) => ("00000000" + (x >>> 0).toString(16)).slice(-8)).join("");
+}
+
+function ArSetupPin({ device: t, onChange: r, onClose: c }) {
+  const on = !!(t.setupPin && typeof t.setupPin.hash === "string" && t.setupPin.hash.length === 64);
+  const [p1, s1] = M.useState(""), [p2, s2] = M.useState(""), [err, setErr] = M.useState("");
+  const box = { margin: "12px 0", padding: 14, borderRadius: 12, border: "1px solid rgba(18,176,240,.35)", background: "rgba(18,176,240,.06)" };
+  const save = () => {
+    const v = p1.trim();
+    if (!/^\d{4,8}$/.test(v)) return setErr("Use 4 to 8 digits — the panel asks for it on a number keypad.");
+    if (v !== p2.trim()) return setErr("The two don't match.");
+    const salt = Math.random().toString(36).slice(2, 10);
+    r({ setupPin: { salt, hash: arSha256(salt + ":" + v) } });
+    s1(""), s2(""), setErr("");
+  };
+  return /* @__PURE__ */ a.jsxs("div", { style: box, children: [
+    /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", alignItems: "center" }, children: [
+      /* @__PURE__ */ a.jsx("b", { style: { fontSize: 15 }, children: "Panel setup password" }),
+      /* @__PURE__ */ a.jsx("button", { className: "btn ghost", style: { marginLeft: "auto", padding: "2px 10px" }, title: "Close", onClick: c, children: "×" })
+    ] }),
+    /* @__PURE__ */ a.jsx("div", { style: { fontSize: 13, margin: "6px 0 10px", color: on ? "#4caf50" : "var(--secondary-text-color, #9b9b9b)" }, children: on ? "On — holding the corner on the panel asks for this password before Panel setup opens." : "Off — holding the corner on the panel opens Panel setup straight away." }),
+    /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: [
+      /* @__PURE__ */ a.jsx("input", { className: "inp", style: { flex: 1, minWidth: 140 }, type: "password", inputMode: "numeric", maxLength: 8, autoComplete: "new-password", placeholder: on ? "New password (4–8 digits)" : "Password (4–8 digits)", value: p1, onChange: (m) => (s1(m.target.value), setErr("")) }),
+      /* @__PURE__ */ a.jsx("input", { className: "inp", style: { flex: 1, minWidth: 140 }, type: "password", inputMode: "numeric", maxLength: 8, autoComplete: "new-password", placeholder: "Type it again", value: p2, onChange: (m) => (s2(m.target.value), setErr("")) })
+    ] }),
+    /* @__PURE__ */ a.jsx("div", { style: { color: "#ff8a7a", fontSize: 13, minHeight: 18, marginTop: 6 }, children: err }),
+    /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" }, children: [
+      on && /* @__PURE__ */ a.jsx("button", { className: "btn danger", onClick: () => r({ setupPin: void 0 }), children: "Remove password" }),
+      /* @__PURE__ */ a.jsx("button", { className: "btn primary", onClick: save, children: on ? "Change password" : "Set password" })
+    ] }),
+    /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 10 }, children: "Forgot it? Remove it here and the panel opens Panel setup straight away again. A panel that can't reach Home Assistant keeps the last password it got." })
+  ] });
+}
 function zA(e) {
   const { panel: t } = e, r = t.license, n = r?.serial || t.serial || "", l = gA(r, t.online), [i, s] = M.useState(""), [d, o] = M.useState(!1), [u, c] = M.useState(null), [v, p] = M.useState(!1), [arReqBusy, arSetReqBusy] = M.useState(!1), [arReqMsg, arSetReqMsg] = M.useState(null), arRequest = async () => {
     if (!e.onRequestLicense) return;
@@ -9010,6 +9088,12 @@ function zA(e) {
     const h = setTimeout(() => p(!1), 1500);
     return () => clearTimeout(h);
   }, [v]);
+  // hidden spot: hold the card's top right corner 2 s -> Panel setup password
+  const [arPinOpen, arSetPinOpen] = M.useState(!1), arHold = M.useRef(null);
+  const arDown = (m) => {
+    m.preventDefault(), clearTimeout(arHold.current);
+    arHold.current = setTimeout(() => arSetPinOpen(!0), 2e3);
+  }, arUp = () => clearTimeout(arHold.current);
   const b = async () => {
     try {
       await navigator.clipboard.writeText(n), p(!0);
@@ -9026,11 +9110,13 @@ function zA(e) {
       o(!1);
     }
   };
-  return /* @__PURE__ */ a.jsxs("div", { className: "card dev-card", children: [
+  return /* @__PURE__ */ a.jsxs("div", { className: "card dev-card", style: { position: "relative" }, children: [
+    !!e.device && !!e.onChange && /* @__PURE__ */ a.jsx("span", { className: "ar-pin-spot", onPointerDown: arDown, onPointerUp: arUp, onPointerLeave: arUp, onPointerCancel: arUp, onContextMenu: (m) => m.preventDefault() }),
     /* @__PURE__ */ a.jsxs("h3", { children: [
       /* @__PURE__ */ a.jsx(j, { d: N.infoCircle, size: 20, style: { color: "var(--accent)" } }),
       "Licence"
     ] }),
+    arPinOpen && !!e.device && /* @__PURE__ */ a.jsx(ArSetupPin, { device: e.device, onChange: e.onChange, onClose: () => arSetPinOpen(!1) }),
     /* @__PURE__ */ a.jsx("div", { className: "sub", children: "Unlocks page types without the watermark. Verified on the panel itself, offline — Home Assistant only stores and delivers the licence." }),
     /* @__PURE__ */ a.jsxs("div", { className: "dev-fields", children: [
       /* @__PURE__ */ a.jsxs("div", { className: `lic-status lic-${l.tone}`, children: [
@@ -9510,7 +9596,7 @@ function kA(e) {
         ] })
       ] })
     ] }),
-    e.panel && e.onSetLicense && /* @__PURE__ */ a.jsx(zA, { panel: e.panel, onSetLicense: e.onSetLicense, onRequestLicense: e.onRequestLicense }),
+    e.panel && e.onSetLicense && /* @__PURE__ */ a.jsx(zA, { panel: e.panel, onSetLicense: e.onSetLicense, onRequestLicense: e.onRequestLicense, device: t, onChange: r }),
     /* @__PURE__ */ a.jsxs("div", { className: "card dev-card", children: [
       /* @__PURE__ */ a.jsxs("h3", { children: [
         /* @__PURE__ */ a.jsx(j, { d: N.infoCircle, size: 20, style: V }),
@@ -11434,6 +11520,7 @@ textarea.inp{resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monos
 .errsum .ei .ic{color:var(--error);flex:none}
 .dev-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;align-items:start}
 .dev-card{padding:18px}
+.ar-pin-spot{position:absolute;top:0;right:0;width:56px;height:48px;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 .dev-card h3{margin:0 0 4px;font-size:15px;font-weight:800;display:flex;align-items:center;gap:9px}
 .dev-card .sub{font-size:12px;color:var(--text2);margin-bottom:16px}
 .dev-fields{display:flex;flex-direction:column;gap:16px}
