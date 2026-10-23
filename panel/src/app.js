@@ -1025,7 +1025,9 @@ function connect() {
   base = PREFIX + "/" + deviceId;
   mqtt = new MqttClient({
     url: settings.brokerUrl,
-    clientId: "ar-nspanel-" + deviceId + "-" + uid().slice(0, 4),
+    // one fixed name per panel: when it reconnects, the broker drops the old
+    // (dead) session at once instead of announcing it "offline" 45 s later
+    clientId: "ar-nspanel-" + deviceId,
     username: settings.username || "",
     password: settings.password || "",
     keepalive: 30,
@@ -1068,6 +1070,10 @@ function connect() {
   mqtt.start();
   subscribeAlarmTopics();
 }
+// Wi-Fi back: reconnect now instead of waiting out the backoff
+window.addEventListener("online", () => {
+  if (mqtt) mqtt.kick();
+});
 
 // --- settings / setup screen ------------------------------------------------------
 

@@ -7,6 +7,22 @@
 //
 // Reconnects with exponential backoff + jitter; on every (re)connect the
 // retained topics replay, which is how the panel reconciles its state.
+//
+// Dead links (Wi-Fi blip, access-point roam, broker restart) are found fast:
+// a ping every 10 s and the link counts as dead after 15 s of silence, well
+// before the broker's own 45 s timeout marks the panel offline. A dead socket
+// is dropped on the spot (a polite close would wait about a minute for an
+// answer that never comes), and a connection attempt that gets no answer in
+// 10 s is given up and retried.
+
+const PING_MS = 10000; // send a ping this often
+const DEAD_MS = 15000; // nothing heard for this long: the link is dead
+const CONNECT_MS = 10000; // no CONNACK within this: try again
+const CHECK_MS = 5000;
+
+// a timer that the wall clock can't move (a clock fix after boot must not look
+// like a dead link)
+const now = typeof performance !== "undefined" && performance.now ? () => performance.now() : () => Date.now();
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -79,7 +95,9 @@ export class MqttClient {
     this.backoff = 1000;
     this.timer = null;
     this.pingTimer = null;
+    this.connTimer = null;
     this.lastRx = 0;
+    this.lastPing = 0;
     this.stopped = false;
   }
 
@@ -95,8 +113,10 @@ export class MqttClient {
   stop() {
     this.stopped = true;
     clearTimeout(this.timer);
+    clearTimeout(this.connTimer);
     clearInterval(this.pingTimer);
     if (this.ws) {
+      this._detach(this.ws);
       try {
         if (this.connected) this.ws.send(new Uint8Array([0xe0, 0x00]));
         this.ws.close();
@@ -106,6 +126,14 @@ export class MqttClient {
     }
     this.ws = null;
     this.connected = false;
+  }
+
+  /** The network came back (Android says so): don't sit out the backoff. */
+  kick() {
+    if (this.stopped || this.connected || this.ws) return;
+    clearTimeout(this.timer);
+    this.backoff = 1000;
+    this._open();
   }
 
   subscribe(filter) {
@@ -144,13 +172,45 @@ export class MqttClient {
     ws.onmessage = (ev) => this._onData(new Uint8Array(ev.data));
     ws.onerror = () => {};
     ws.onclose = () => {
-      const was = this.connected;
-      this.connected = false;
-      clearInterval(this.pingTimer);
-      if (this.ws === ws) this.ws = null;
-      if (was && o.onClose) o.onClose();
-      this._scheduleReconnect();
+      if (this.ws !== ws) return; // an old socket we already dropped
+      this._lost();
     };
+    // no answer at all (broker restarting, half-open network): try again
+    clearTimeout(this.connTimer);
+    this.connTimer = setTimeout(() => {
+      if (this.ws === ws && !this.connected) {
+        this.log("mqtt: no answer from the broker in", CONNECT_MS / 1000, "s");
+        this._drop();
+      }
+    }, CONNECT_MS);
+  }
+
+  _detach(ws) {
+    ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null;
+  }
+
+  /** Forget the current socket at once and reconnect (no polite close). */
+  _drop() {
+    const ws = this.ws;
+    if (ws) {
+      this._detach(ws);
+      try {
+        ws.close();
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    this._lost();
+  }
+
+  _lost() {
+    const was = this.connected;
+    this.connected = false;
+    this.ws = null;
+    clearInterval(this.pingTimer);
+    clearTimeout(this.connTimer);
+    if (was && this.opts.onClose) this.opts.onClose();
+    this._scheduleReconnect();
   }
 
   _scheduleReconnect() {
@@ -201,7 +261,7 @@ export class MqttClient {
   }
 
   _onData(chunk) {
-    this.lastRx = Date.now();
+    this.lastRx = now();
     this.buf = this.buf.length ? concat([this.buf, chunk]) : chunk;
     for (;;) {
       if (this.buf.length < 2) return;
@@ -231,35 +291,32 @@ export class MqttClient {
       if (rc !== 0) {
         this.log("mqtt: connect refused, code", rc);
         if (o.onRefused) o.onRefused(rc);
-        try {
-          this.ws.close();
-        } catch (e) {
-          /* ignore */
-        }
+        this._drop();
         return;
       }
+      clearTimeout(this.connTimer);
       this.connected = true;
       this.backoff = 1000;
+      this.lastPing = now();
       if (this.subs.length) this._sendSubscribe(this.subs);
-      const ka = (o.keepalive || 30) * 1000;
       clearInterval(this.pingTimer);
       this.pingTimer = setInterval(() => {
-        if (!this.connected) return;
-        if (Date.now() - this.lastRx > ka * 2) {
-          this.log("mqtt: keepalive timeout");
+        if (!this.connected || !this.ws) return;
+        const t = now();
+        if (t - this.lastRx > DEAD_MS) {
+          this.log("mqtt: nothing heard for", Math.round((t - this.lastRx) / 1000), "s — link is dead, reconnecting");
+          this._drop();
+          return;
+        }
+        if (t - this.lastPing >= PING_MS - 100) {
+          this.lastPing = t;
           try {
-            this.ws.close();
+            this.ws.send(new Uint8Array([0xc0, 0x00]));
           } catch (e) {
             /* ignore */
           }
-          return;
         }
-        try {
-          this.ws.send(new Uint8Array([0xc0, 0x00]));
-        } catch (e) {
-          /* ignore */
-        }
-      }, ka / 2);
+      }, CHECK_MS);
       if (o.onConnect) o.onConnect();
     } else if (type === 3) {
       // PUBLISH
