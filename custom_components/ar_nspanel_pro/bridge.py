@@ -1823,7 +1823,7 @@ def _parse(payload: str) -> dict[str, Any]:
     return v if isinstance(v, dict) else {}
 
 
-ELEGANT_CATEGORIES = ("lights", "climate", "music", "cameras", "security", "shades", "scenes")
+ELEGANT_CATEGORIES = ("lights", "climate", "music", "cameras", "security", "shades", "scenes", "utilities", "presence")
 
 
 def _as_list(v: Any) -> list[str]:
@@ -1856,6 +1856,13 @@ def _elegant_payload(entity_id: str, state: Any, base_url: str | None) -> dict[s
         p["dim"] = any(m != "onoff" for m in modes) if modes else isinstance(bri, (int, float))
     elif domain in ("switch", "input_boolean", "fan"):
         p["on"] = st == "on"
+        p["since"] = round(state.last_changed.timestamp())  # utilities: "Running · 2 h"
+    elif domain == "binary_sensor":
+        p["on"] = st == "on"
+        p["since"] = round(state.last_changed.timestamp())  # presence: "last 12 min ago"
+    elif domain == "valve":
+        p["on"] = st in ("open", "opening")
+        p["since"] = round(state.last_changed.timestamp())
     elif domain == "climate":
         p["on"] = st != "off"
         for src, dst in (("temperature", "temp"), ("current_temperature", "cur"), ("min_temp", "min"),

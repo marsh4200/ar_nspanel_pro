@@ -1263,6 +1263,9 @@ function openSettings() {
       "Screen " + fitInfo().w + "x" + fitInfo().h + " · UI 480x" + fitInfo().stageH + " · scale " + fitInfo().scale + " · dpr " + fitInfo().dpr,
     ),
   );
+  settingsEl.appendChild(
+    h("div.credit", null, "This application was developed by arsmarthome.co.za in collaboration with 1PM Technologies."),
+  );
   settingsEl.classList.add("show");
   if (window.__arCover) window.__arCover(true);
 }

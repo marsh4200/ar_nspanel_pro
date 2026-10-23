@@ -9249,11 +9249,13 @@ const EL_ROOM_CATS = [
   { key: "climate", title: "Climate", hint: "AC / thermostat for this room", domains: ["climate"] },
   { key: "music", title: "Speaker", hint: "media players (not needed with Music Assistant)", domains: ["media_player"] },
   { key: "shades", title: "Shades", hint: "blinds, curtains, gates", domains: ["cover"] },
-  { key: "scenes", title: "Scenes", hint: "up to 4 quick buttons", domains: ["scene", "script"], max: 4 }
+  { key: "scenes", title: "Scenes", hint: "up to 4 quick buttons", domains: ["scene", "script"], max: 4 },
+  { key: "presence", title: "Presence", hint: "motion / occupancy sensors — the Lights page shows \"Motion in <room>\"", domains: ["binary_sensor"], max: 3 }
 ];
 const EL_HOUSE_CATS = [
   { key: "cameras", title: "Cameras", hint: "up to 4, live video", domains: ["camera"], max: 4 },
-  { key: "security", title: "Security", hint: "one alarm panel (e.g. Alarmo)", domains: ["alarm_control_panel"], max: 1 }
+  { key: "security", title: "Security", hint: "one alarm panel (e.g. Alarmo)", domains: ["alarm_control_panel"], max: 1 },
+  { key: "utilities", title: "Utilities", hint: "pool pump, borehole, irrigation, geyser… (tap to switch on the panel)", domains: ["switch", "input_boolean", "valve"] }
 ];
 const EL_ICONS = {
   sofa: "M4 11V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3M2 13a2 2 0 0 1 4 0v2h12v-2a2 2 0 0 1 4 0v5H2z",
@@ -9380,7 +9382,7 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
   };
   const summary = (x) => {
     const b = [];
-    const words = { lights: ["light", "lights"], climate: ["AC", "ACs"], music: ["speaker", "speakers"], shades: ["shade", "shades"], scenes: ["scene", "scenes"] };
+    const words = { lights: ["light", "lights"], climate: ["AC", "ACs"], music: ["speaker", "speakers"], shades: ["shade", "shades"], scenes: ["scene", "scenes"], presence: ["sensor", "sensors"] };
     EL_ROOM_CATS.forEach((c) => {
       const n = elList(x[c.key]).length;
       n && b.push(n + " " + words[c.key][n === 1 ? 0 : 1]);
@@ -9438,7 +9440,9 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
         /* @__PURE__ */ a.jsx("option", { value: "bulb", children: "Bulb" })
       ] }) }),
       /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Whole house (same in every room)" }),
-      EL_HOUSE_CATS.map((c) => field(c, elList(cfg[c.key]), (v) => save({ [c.key]: v.length ? (c.max === 1 ? v[0] : v) : void 0 }), -1)),
+      EL_HOUSE_CATS.filter((c) => c.key !== "utilities").map((c) => field(c, elList(cfg[c.key]), (v) => save({ [c.key]: v.length ? (c.max === 1 ? v[0] : v) : void 0 }), -1)),
+      /* @__PURE__ */ a.jsx(et, { title: "Utilities section", sub: "Adds a Utilities page to the panel for pumps, irrigation, geyser and the like.", on: !!cfg.utilitiesOn, onChange: (m) => save({ utilitiesOn: m || void 0 }) }),
+      !!cfg.utilitiesOn && EL_HOUSE_CATS.filter((c) => c.key === "utilities").map((c) => field(c, elList(cfg[c.key]), (v) => save({ [c.key]: v.length ? v : void 0 }), -1)),
       /* @__PURE__ */ a.jsx(ElRtsp, { list: Array.isArray(cfg.rtsp) ? cfg.rtsp : [], entityCams: elList(cfg.cameras).length, onChange: (v) => save({ rtsp: v.length ? v : void 0 }) }),
       /* @__PURE__ */ a.jsx(X, { label: "Weather", hint: "Leave on automatic to use the first weather entity.", children: /* @__PURE__ */ a.jsxs("select", { className: "inp", value: cfg.weather ?? "", onChange: (m) => save({ weather: m.target.value || void 0 }), children: [
         /* @__PURE__ */ a.jsx("option", { value: "", children: "Automatic" }),

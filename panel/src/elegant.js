@@ -24,6 +24,14 @@ const ICON = {
   cameras: '<path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
   security: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/>',
   shades: '<path d="M3 3h18M5 3v15h14V3M5 8h14M5 13h14M12 18v3"/>',
+  utilities: '<path d="M12 2.7 6.3 9a7 7 0 1 0 11.4 0z"/><path d="m12.5 10-2.5 4h4l-2.5 4"/>',
+  u_pump: '<circle cx="12" cy="12" r="5"/><path d="M12 7V3M12 21v-4M3 12h4M17 12h4"/><path d="m10 10 4 4M14 10l-4 4"/>',
+  u_drop: '<path d="M12 2.7 6.3 9a7 7 0 1 0 11.4 0z"/>',
+  u_sprinkler: '<path d="M12 20v-7M9 20h6M12 13a5 5 0 0 0-5-5M12 13a5 5 0 0 1 5-5M12 13V7M5 5l1.5 1.5M19 5l-1.5 1.5M12 3v1"/>',
+  u_flame: '<path d="M12 2c2 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-7 1 2 3 3 3 3s0-4 0-7z"/>',
+  u_gate: '<path d="M3 21V5M21 21V5M3 9h18M3 15h18M8 9v12M13 9v12M18 9v12"/>',
+  u_power: '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>',
+  u_fence: '<path d="m13 2-8 12h6l-2 8 8-12h-6z"/>',
   chev: '<path d="m9 6 6 6-6 6"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   backsp: '<path d="M9 5h11a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9l-6-7z"/><path d="m12 9 6 6M18 9l-6 6"/>',
@@ -85,6 +93,7 @@ const CATS = [
   { key: "cameras", title: "Cameras" },
   { key: "security", title: "Security" },
   { key: "shades", title: "Shades" },
+  { key: "utilities", title: "Utilities" },
 ];
 const MODE_ICON = { cool: "cool", heat: "heat", heat_cool: "auto", auto: "auto", dry: "dry", fan_only: "fan", off: "off" };
 const MODE_NAME = { cool: "Cool", heat: "Heat", heat_cool: "Heat/Cool", auto: "Auto", dry: "Dry", fan_only: "Fan", off: "Off" };
@@ -105,7 +114,7 @@ export function buildElegant(cfg, ctx) {
   // Rooms: cfg.rooms = [{name, icon, lights, climate, music, shades, scenes}],
   // cfg.start (index), cfg.wholeHouse. Cameras + security are house-wide. An
   // older single-room config (categories at the top level) becomes one room.
-  const ROOM_KEYS = ["lights", "climate", "music", "shades", "scenes"];
+  const ROOM_KEYS = ["lights", "climate", "music", "shades", "scenes", "presence"];
   let ROOMS = (Array.isArray(cfg.rooms) ? cfg.rooms : []).filter((r) => r && typeof r === "object");
   if (!ROOMS.length) {
     const r0 = { name: cfg.title || "", icon: "sofa" };
@@ -122,14 +131,16 @@ export function buildElegant(cfg, ctx) {
   const RTSP = (Array.isArray(cfg.rtsp) ? cfg.rtsp : []).filter((c) => c && typeof c.url === "string" && c.url);
   const isRtsp = (e) => typeof e === "string" && e.indexOf("rtsp:") === 0;
   const rtspCam = (e) => RTSP[Number(e.slice(5))] || {};
-  const house = { cameras: list(cfg.cameras).concat(RTSP.map((c, i) => "rtsp:" + i)).slice(0, 4), security: list(cfg.security) };
+  // Utilities (pool pump, borehole, irrigation…): house-wide, only when the
+  // installer ticked "Utilities section" in Device Setup
+  const house = { cameras: list(cfg.cameras).concat(RTSP.map((c, i) => "rtsp:" + i)).slice(0, 4), security: list(cfg.security), utilities: cfg.utilitiesOn ? list(cfg.utilities) : [] };
   const wholeOn = cfg.wholeHouse !== false && ROOMS.length > 1;
   const uniq = (a) => a.filter((x, i) => a.indexOf(x) === i);
   const union = {};
   ROOM_KEYS.forEach((k) => (union[k] = uniq([].concat.apply([], ROOMS.map((r) => r[k])))));
   // pages exist for anything any room uses; the dock shows what this room has
   const ents = {};
-  CATS.forEach((c) => (ents[c.key] = c.key === "cameras" || c.key === "security" ? house[c.key] : union[c.key]));
+  CATS.forEach((c) => (ents[c.key] = c.key === "cameras" || c.key === "security" || c.key === "utilities" ? house[c.key] : union[c.key]));
   let scenes = [];
   let roomIdx = clamp(typeof cfg.start === "number" ? cfg.start : 0, 0, ROOMS.length - 1);
   let whole = false;
@@ -138,6 +149,7 @@ export function buildElegant(cfg, ctx) {
   const keys = ["weather"];
   Object.keys(ents).forEach((k) => ents[k].forEach((e) => keys.push(slugify(e))));
   union.scenes.forEach((e) => keys.push(slugify(e)));
+  union.presence.forEach((e) => keys.push(slugify(e)));
   // lighting scenes the customer made in the AR Lighting Scenes card and pushed
   // to this panel: [{entity: "scene.ar_movie_night", name: "Movie night"}], 4 at most
   keys.push("client_scenes");
@@ -209,6 +221,7 @@ export function buildElegant(cfg, ctx) {
   const dock = el("div", "el-dock");
   function buildDock() {
     dock.innerHTML = "";
+    dock.classList.toggle("many", curCats().length >= 6);
     [{ key: "home", title: "Home" }].concat(curCats()).forEach((c) => {
       const b = el("div", "el-dockbtn", svg(c.key === "home" ? "home" : c.key) + "<span></span>");
       b.lastChild.textContent = c.title;
@@ -266,7 +279,7 @@ export function buildElegant(cfg, ctx) {
     }
     grid.appendChild(hero);
     const cc = curCats();
-    const tiles = el("div", "el-tiles n" + Math.min(6, cc.length));
+    const tiles = el("div", "el-tiles n" + Math.min(8, cc.length));
     cc.forEach((c) => {
       const t = el("div", "el-glass el-tile", '<span class="el-glow"></span>' + svg("chev", "el-arrow") + '<span class="el-ic">' + svg(c.key) + '</span><div class="el-name"></div><div class="el-sub"></div>');
       t.querySelector(".el-name").textContent = c.title;
@@ -309,7 +322,36 @@ export function buildElegant(cfg, ctx) {
       const n = es.filter((e) => get(e).on).length;
       return { text: n ? n + " open" : "All closed" };
     }
+    if (key === "utilities") {
+      const n = es.filter((e) => get(e).on).length;
+      return { text: n ? n + " running" : "All off", lit: n > 0 };
+    }
     return { text: "" };
+  }
+
+  // --- presence: "Motion in Lounge" above the Lights page's buttons ------------------
+  const ago = (t) => {
+    if (typeof t !== "number") return "";
+    const m = Math.max(0, Math.round((Date.now() / 1000 - t) / 60));
+    return m < 1 ? "just now" : m < 60 ? m + " min ago" : Math.round(m / 60) + " h ago";
+  };
+  function presenceLine() {
+    const rooms = whole ? ROOMS : [ROOMS[roomIdx]];
+    const withSensors = rooms.filter((r) => r && r.presence.length);
+    if (!withSensors.length) return null;
+    const busy = withSensors.filter((r) => r.presence.some((e) => get(e).on));
+    const line = el("div", "el-pres" + (busy.length ? " on" : ""), "<i></i><b></b><span></span>");
+    const names = (rs) => rs.map((r) => r.name || "this room").join(", ");
+    let last = 0;
+    withSensors.forEach((r) => r.presence.forEach((e) => (last = Math.max(last, get(e).since || 0))));
+    if (busy.length) {
+      line.querySelector("b").textContent = "Motion in " + names(busy);
+      line.querySelector("span").textContent = last ? "· " + ago(last) : "";
+    } else {
+      line.querySelector("b").textContent = whole ? "No motion anywhere" : "No motion in " + names(withSensors);
+      line.querySelector("span").textContent = last ? "· last " + ago(last) : "";
+    }
+    return line;
   }
 
   // lights
@@ -321,6 +363,9 @@ export function buildElegant(cfg, ctx) {
       if (dragging) return;
       const p = lp.el;
       p.innerHTML = "";
+      const pres = presenceLine();
+      p.classList.toggle("pres", !!pres);
+      if (pres) p.appendChild(pres);
       const bar = el("div", "el-subbar");
       // the customer's lighting scenes, left of All on / All off
       clientScenes().forEach((s) => {
@@ -356,6 +401,41 @@ export function buildElegant(cfg, ctx) {
       p.appendChild(bar);
       const g = el("div", "el-cards");
       ents.lights.forEach((e, i) => g.appendChild(levelCard(e, i, "light")));
+      p.appendChild(g);
+    };
+  }
+
+  // utilities: pool pump, borehole, irrigation, geyser… tap a card to switch it
+  const utilIcon = (e) => {
+    const n = (nameOf(e) + " " + e).toLowerCase();
+    if (/irrigat|sprinkl|garden|zone|lawn/.test(n)) return "u_sprinkler";
+    if (/pump|pool|borehole|pond|fountain|filter/.test(n)) return "u_pump";
+    if (/geyser|boiler|heat|towel|underfloor/.test(n)) return "u_flame";
+    if (/gate|garage|door/.test(n)) return "u_gate";
+    if (/fence/.test(n)) return "u_fence";
+    if (/water|tank|valve/.test(n)) return "u_drop";
+    return "u_power";
+  };
+  if (ents.utilities) {
+    const up = mkPage("utilities");
+    up.render = function () {
+      const p = up.el;
+      p.innerHTML = "";
+      const g = el("div", "el-cards top el-utils");
+      ents.utilities.forEach((e) => {
+        const s = get(e);
+        const c = el("div", "el-glass el-util" + (s.on ? " on" : ""), '<span class="el-uic">' + svg(utilIcon(e)) + '</span><div class="el-nm"></div><div class="el-pc"></div><span class="el-usw"><i></i></span>');
+        c.querySelector(".el-nm").textContent = nameOf(e);
+        c.querySelector(".el-pc").textContent = s.on ? "Running" + (s.since ? " · " + ago(s.since).replace(" ago", "") : "") : "Off";
+        c.addEventListener("click", () => {
+          const turnOn = !get(e).on;
+          patch(e, { on: turnOn, since: Date.now() / 1000 });
+          send("toggle", { entity: e });
+          up.render();
+          toast(nameOf(e) + (turnOn ? " on" : " off"));
+        });
+        g.appendChild(c);
+      });
       p.appendChild(g);
     };
   }

@@ -344,6 +344,7 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 /* setup screen: reset for a new site */
 #settings button.danger{background:#2a1a1a;color:#ff8f80}
 #settings button.danger.armed{background:#c0392b;color:#fff}
+#settings .credit{margin:22px 0 4px;padding-top:12px;border-top:1px solid #1f252d;text-align:center;font-size:12px;color:#6b7580;line-height:1.5}
 #settings .hint{color:#8b95a1;font-size:12px;margin-top:6px;line-height:1.4}
 
 /* setup screen: ADB finder */
@@ -716,4 +717,29 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .pinpad.shake .pp-dots{-webkit-animation:ppshake .4s;animation:ppshake .4s}
 @-webkit-keyframes ppshake{20%,60%{-webkit-transform:translateX(-8px)}40%,80%{-webkit-transform:translateX(8px)}}
 @keyframes ppshake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+
+/* utilities page: one card per pump / valve / switch, tap to switch */
+.el-util{position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:16px;border-radius:22px;cursor:pointer}
+.el-uic{position:absolute;top:14px;left:14px;width:40px;height:40px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.07);color:rgba(243,241,236,.6)}
+.el-uic svg{width:22px;height:22px}
+.el-util.on .el-uic{background:rgba(120,220,160,.18);color:#8fe3b0}
+.el-util.on .el-pc{color:#8fe3b0}
+.el-usw{position:absolute;top:18px;right:16px;width:42px;height:24px;border-radius:12px;background:rgba(255,255,255,.12)}
+.el-usw i{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:9px;background:#9aa0a6;-webkit-transition:-webkit-transform .2s;transition:transform .2s}
+.el-util.on .el-usw{background:rgba(120,220,160,.45)}
+.el-util.on .el-usw i{background:#fff;-webkit-transform:translateX(18px);transform:translateX(18px)}
+/* home tiles: room for 7-8 categories, and a slimmer dock */
+.el-tiles.n7,.el-tiles.n8{grid-template-columns:repeat(4,1fr)}
+.el-dock.many .el-dockbtn{width:74px}
+/* presence line above the Lights page buttons */
+.el-pres{display:flex;align-items:center;height:20px;margin:-6px 0 4px;font-size:13px;color:rgba(243,241,236,.55);white-space:nowrap;overflow:hidden}
+.el-pres i{width:8px;height:8px;border-radius:4px;background:rgba(243,241,236,.3);margin-right:8px;flex:none}
+.el-pres b{font-weight:700;color:rgba(243,241,236,.75);overflow:hidden;text-overflow:ellipsis}
+.el-pres span{margin-left:6px;flex:none}
+.el-pres.on i{background:#7be0a4;box-shadow:0 0 0 0 rgba(123,224,164,.6);-webkit-animation:elpulse 1.6s infinite;animation:elpulse 1.6s infinite}
+.el-pres.on b{color:#bff0d2}
+@-webkit-keyframes elpulse{70%{box-shadow:0 0 0 7px rgba(123,224,164,0)}100%{box-shadow:0 0 0 0 rgba(123,224,164,0)}}
+@keyframes elpulse{70%{box-shadow:0 0 0 7px rgba(123,224,164,0)}100%{box-shadow:0 0 0 0 rgba(123,224,164,0)}}
+.el-page.pres .el-cards{top:78px}
+.el-root.lite .el-pres.on i{-webkit-animation:none;animation:none}
 
