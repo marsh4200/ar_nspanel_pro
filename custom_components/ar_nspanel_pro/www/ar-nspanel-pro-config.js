@@ -9446,6 +9446,12 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
         /* @__PURE__ */ a.jsx("option", { value: "downlight", children: "Downlight" }),
         /* @__PURE__ */ a.jsx("option", { value: "bulb", children: "Bulb" })
       ] }) }),
+      /* @__PURE__ */ a.jsx(X, { label: "Knob dimming step", hint: "How much one click of the knob dims or brightens a light. Smaller is finer.", children: /* @__PURE__ */ a.jsxs("select", { className: "inp", value: String([2.5, 7.5, 10].includes(Number(cfg.knobDim)) ? Number(cfg.knobDim) : 5), onChange: (m) => save({ knobDim: m.target.value === "5" ? void 0 : Number(m.target.value) }), children: [
+        /* @__PURE__ */ a.jsx("option", { value: "2.5", children: "2.5% per click" }),
+        /* @__PURE__ */ a.jsx("option", { value: "5", children: "5% per click (default)" }),
+        /* @__PURE__ */ a.jsx("option", { value: "7.5", children: "7.5% per click" }),
+        /* @__PURE__ */ a.jsx("option", { value: "10", children: "10% per click" })
+      ] }) }),
       /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Whole house (same in every room)" }),
       EL_HOUSE_CATS.filter((c) => c.key !== "utilities").map((c) => field(c, elList(cfg[c.key]), (v) => save({ [c.key]: v.length ? (c.max === 1 ? v[0] : v) : void 0 }), -1)),
       /* @__PURE__ */ a.jsx(et, { title: "Utilities section", sub: "Adds a Utilities page to the panel for pumps, irrigation, geyser and the like.", on: !!cfg.utilitiesOn, onChange: (m) => save({ utilitiesOn: m || void 0 }) }),

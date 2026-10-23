@@ -470,6 +470,8 @@ export function buildElegant(cfg, ctx) {
   // cone (default), "bulb" = the round bulb that glows with the dimmer
   // "edison" = filament bulb on a cord, "downlight" = recessed ceiling light
   const LIGHT_ICON = ["bulb", "edison", "downlight"].indexOf(cfg.lightIcon) >= 0 ? cfg.lightIcon : "lamp";
+  // knob: how much one click dims a light (Device Setup, Dashboard: 2.5 / 5 / 7.5 / 10 %)
+  const KNOB_DIM = [2.5, 7.5, 10].indexOf(Number(cfg.knobDim)) >= 0 ? Number(cfg.knobDim) / 100 : 0.05;
   const LAMP_SVG = '<svg class="el-lamp" viewBox="0 0 46 60" aria-hidden="true"><defs><linearGradient id="elBrass" x1="0" x2="1"><stop offset="0" stop-color="#b8892e"/><stop offset=".45" stop-color="#f4d27c"/><stop offset="1" stop-color="#a87a24"/></linearGradient><linearGradient id="elShade" x1="0" x2="1"><stop offset="0" stop-color="#9da1a6"/><stop offset=".35" stop-color="#f6f6f3"/><stop offset=".6" stop-color="#dfe1e3"/><stop offset="1" stop-color="#8f9399"/></linearGradient></defs><line x1="23" y1="0" x2="23" y2="21" stroke="#e7e4dd" stroke-width="2"/><path d="M19 20h8l2 10H17z" fill="url(#elBrass)"/><rect x="19.5" y="30" width="7" height="3" rx="1" fill="#d6d8db"/><path d="M10 45c0-7 5-12 13-12s13 5 13 12l2 4H8z" fill="url(#elShade)"/><ellipse class="el-lrim" cx="23" cy="49" rx="15" ry="2.6" fill="#fff6dc"/></svg>';
   // filament bulb: cord, brass cap, clear glass; the filament runs from a dull
   // ember at 5 % to warm white at 100 %, with a halo around the glass
@@ -2475,7 +2477,7 @@ export function buildElegant(cfg, ctx) {
           return true;
         }
         const cur = held("L" + e, () => levelOf(e, "light"));
-        const v = clamp(Math.round((cur + dir * 0.05 * fast) * 100) / 100, 0, 1);
+        const v = clamp(Math.round((cur + dir * KNOB_DIM * fast) * 1000) / 1000, 0, 1);
         hold("L" + e, v);
         patch(e, { on: v > 0, brightness: Math.max(0.01, v) });
         throttle("L" + e, () => send("dim", { entity: e, v: hold("L" + e) }));
