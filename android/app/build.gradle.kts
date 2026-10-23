@@ -18,7 +18,7 @@ val keyPasswordValue: String = System.getenv("ANDROID_KEY_PASSWORD") ?: keystore
 
 android {
     namespace = "za.co.arsmarthome.nspanel"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "za.co.arsmarthome.nspanel"
@@ -56,8 +56,8 @@ android {
 
 dependencies {
     // RTSP cameras (Elegant cameras page): played natively, hardware decoding
-    implementation("androidx.media3:media3-exoplayer:1.4.1")
-    implementation("androidx.media3:media3-exoplayer-rtsp:1.4.1")
+    implementation("androidx.media3:media3-exoplayer:1.5.1")
+    implementation("androidx.media3:media3-exoplayer-rtsp:1.5.1")
 }
 
 // Bundle the built panel UI as assets/app/ (the offline copy the app boots from).

@@ -873,7 +873,7 @@ export function buildElegant(cfg, ctx) {
       if (tracks.length) {
         head("Songs");
         tracks.forEach((tr, i) => {
-          const playing = media && media.uri && media.uri === tr.uri;
+          const playing = picked(tr.uri) || (media && ((media.uri && media.uri === tr.uri) || (media.title && media.title === tr.name)));
           const row = el("div", "el-trkr" + (playing ? " on" : ""));
           const a = el("div", "el-sart");
           const iu = imgOf(tr) || (tr.album && imgOf(tr.album));
@@ -884,7 +884,10 @@ export function buildElegant(cfg, ctx) {
           tt.appendChild(txt("small", "", (tr.artists || []).map((x) => x && x.name).filter(Boolean).join(", ") + (tr.album && tr.album.name ? " · " + tr.album.name : "")));
           row.appendChild(tt);
           row.appendChild(txt("span", "el-trkd", mmss(tr.duration)));
-          row.addEventListener("click", () => playTracks(pl, tracks, i));
+          row.addEventListener("click", () => {
+            pickRow(row, out, tr.uri);
+            playTracks(pl, tracks, i);
+          });
           out.appendChild(row);
         });
       }
@@ -942,7 +945,7 @@ export function buildElegant(cfg, ctx) {
     else if (!o.tracks.length) box.appendChild(txt("div", "el-libmsg", "No songs in this " + (o.item.media_type === "album" ? "album" : "playlist") + "."));
     else
       o.tracks.forEach((tr, i) => {
-        const playing = media && ((media.uri && media.uri === tr.uri) || (media.title && media.title === tr.name));
+        const playing = picked(tr.uri) || (media && ((media.uri && media.uri === tr.uri) || (media.title && media.title === tr.name)));
         const r = el("div", "el-trkr" + (playing ? " on" : ""));
         r.appendChild(txt("span", "el-trkn", playing ? "▶" : String(i + 1)));
         const tt = el("div", "el-trkm");
@@ -952,6 +955,11 @@ export function buildElegant(cfg, ctx) {
         r.appendChild(tt);
         r.appendChild(txt("span", "el-trkd", mmss(tr.duration)));
         r.addEventListener("click", () => {
+          pickRow(r, box, tr.uri);
+          const n = r.querySelector(".el-trkn");
+          const was = box.querySelectorAll(".el-trkn");
+          for (let k = 0; k < was.length; k++) if (was[k].textContent === "▶") was[k].textContent = String(k + 1);
+          if (n) n.textContent = "▶";
           if (o.item.media_type === "artist") playTracks(pl, o.tracks, i);
           else playItem(pl, o.item, tr);
         });
@@ -960,6 +968,16 @@ export function buildElegant(cfg, ctx) {
     return box;
   }
   const libCache = {};
+  // the song just tapped lights up at once and stays lit until the player
+  // reports it (Spotify / Music Assistant take a few seconds)
+  let spPick = { uri: "", t: 0 };
+  const picked = (uri) => !!uri && spPick.uri === uri && Date.now() - spPick.t < 10000;
+  function pickRow(row, box, uri) {
+    spPick = { uri: uri || "", t: Date.now() };
+    const was = box.querySelectorAll(".el-trkr.on");
+    for (let k = 0; k < was.length; k++) was[k].classList.remove("on");
+    row.classList.add("on");
+  }
   let libBusy = false;
   const maName = (pl) => (pl && (pl.display_name || pl.name)) || "Speaker";
   const maState = (pl) => (pl && (pl.playback_state || pl.state)) || "idle";
@@ -1458,8 +1476,12 @@ export function buildElegant(cfg, ctx) {
     sp.play(body).catch((e) => spErr(e, "couldn't play that"));
   }
   function spTrackRows(box, list, onTap, playingUri) {
+    const item = (sp.player || {}).item || {};
+    const linked = item.linked_from && item.linked_from.uri; // Spotify may play a relinked copy
+    const isOn = (tr) =>
+      !!tr.uri && ((playingUri && playingUri === tr.uri) || linked === tr.uri || picked(tr.uri));
     list.forEach((tr, i) => {
-      const row = el("div", "el-trkr" + (playingUri && playingUri === tr.uri ? " on" : ""));
+      const row = el("div", "el-trkr" + (isOn(tr) ? " on" : ""));
       const a = el("div", "el-sart");
       const iu = spImg(tr);
       if (iu) a.appendChild(artImg(iu));
@@ -1469,7 +1491,10 @@ export function buildElegant(cfg, ctx) {
       tt.appendChild(txt("small", "", spArtists(tr) + (tr.album && tr.album.name ? " · " + tr.album.name : "")));
       row.appendChild(tt);
       row.appendChild(txt("span", "el-trkd", mmss((tr.duration_ms || 0) / 1000)));
-      row.addEventListener("click", () => onTap(tr, i));
+      row.addEventListener("click", () => {
+        pickRow(row, box, tr.uri);
+        onTap(tr, i);
+      });
       box.appendChild(row);
     });
   }

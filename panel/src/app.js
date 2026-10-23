@@ -318,22 +318,55 @@ function updateStatus() {
 
 // --- activity, screensaver, backlight ------------------------------------------
 
+// The touch that wakes the screen only wakes it: the whole gesture (down, move,
+// up and the click after it) is eaten here, before any tile, slider or swipe
+// sees it. Same for a touch that lands just after the proximity sensor (or
+// anything else) woke the screen.
 let swallow = false;
+let swallowT = 0;
+let wokeAt = 0;
+let wokeBy = "";
 window.__arWakeSwallow = () => swallow;
+const eatTouch = (e) => {
+  if (!swallow) return;
+  e.stopImmediatePropagation();
+  if (e.cancelable) e.preventDefault();
+};
+const releaseTouch = () => {
+  clearTimeout(swallowT);
+  swallowT = setTimeout(() => (swallow = false), 400); // the click comes after pointerup
+};
 document.addEventListener(
   "pointerdown",
-  () => {
+  (e) => {
     if (!awake) {
       swallow = true;
+      clearTimeout(swallowT);
       wake("touch");
-    } else {
+    } else if (!swallow && wokeBy !== "touch" && Date.now() - wokeAt < 700) {
+      swallow = true; // reached for the screen as it lit up
+      clearTimeout(swallowT);
+      activity();
+    } else if (!swallow) {
       activity();
     }
+    eatTouch(e);
   },
   true,
 );
-document.addEventListener("pointerup", () => setTimeout(() => (swallow = false), 0), true);
-document.addEventListener("pointercancel", () => (swallow = false), true);
+["pointermove", "touchstart", "touchmove", "touchend", "mousedown", "mousemove", "mouseup", "click", "contextmenu"].forEach((t) =>
+  document.addEventListener(t, eatTouch, { capture: true, passive: false }),
+);
+document.addEventListener(
+  "pointerup",
+  (e) => {
+    if (!swallow) return;
+    eatTouch(e);
+    releaseTouch();
+  },
+  true,
+);
+document.addEventListener("pointercancel", () => swallow && releaseTouch(), true);
 
 function activity() {
   lastActivity = Date.now();
@@ -431,6 +464,8 @@ function wake(cause) {
     return;
   }
   awake = true;
+  wokeAt = Date.now();
+  wokeBy = cause || "";
   manualBrightness = null;
   saverEl.className = "";
   saverEl.__clock = null;
