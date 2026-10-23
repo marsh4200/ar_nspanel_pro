@@ -458,6 +458,9 @@ export function buildElegant(cfg, ctx) {
     };
   }
 
+  // a cover gets a slider when it can go to a position; open/close-only covers,
+  // or all of them with "Curtains & shades as switches", get an open/close switch
+  const coverSlides = (e) => e.split(".")[0] === "cover" && get(e).setpos !== false && !cfg.coverSwitch;
   function levelOf(e, kind) {
     const s = get(e);
     if (kind === "cover") return e.split(".")[0] === "cover" && typeof s.pos === "number" ? s.pos / 100 : s.on ? 1 : 0;
@@ -490,15 +493,16 @@ export function buildElegant(cfg, ctx) {
   function levelCard(e, i, kind) {
     const s = get(e);
     const dom = e.split(".")[0];
-    // shades: every cover slides (position, or open/close for covers that
-    // report none); a switch in the shades list is plain on/off
-    const dimmable = kind === "cover" ? dom === "cover" : dom === "light" && s.dim !== false;
+    // shades: a cover with a position slides, the others get an open/close
+    // switch; a switch in the shades list is plain on/off
+    const dimmable = kind === "cover" ? coverSlides(e) : dom === "light" && s.dim !== false;
+    const cvSwitch = kind === "cover" && dom === "cover" && !dimmable;
     const sel = kind === "cover" ? selShade === i : selLight === i;
     const c = el("div", "el-glass el-card" + (levelOf(e, kind) > 0 ? " on" : "") + (sel ? " sel" : "") + (kind === "cover" ? " cover" : LIGHT_ICON === "bulb" ? " bulb" : " lamp " + LIGHT_ICON));
     // lights: a pendant lamp hanging from the card's top edge (its light cone and
     // shade rim glow with the brightness), or the round bulb. Shades keep their icon.
     const icon = kind === "cover" ? svg("shades") : LIGHT_ICON === "bulb" ? '<i class="el-bglow"></i>' + svg("lights") : lightArt();
-    c.innerHTML = '<div class="el-row"><span class="el-bulb">' + icon + '</span><div class="el-meta"><div class="el-nm"></div><div class="el-pc"></div></div></div>' + (dimmable ? '<div class="el-slider"><div class="el-fill"></div><div class="el-line"></div></div>' : "");
+    c.innerHTML = '<div class="el-row"><span class="el-bulb">' + icon + '</span><div class="el-meta"><div class="el-nm"></div><div class="el-pc"></div></div></div>' + (dimmable ? '<div class="el-slider"><div class="el-fill"></div><div class="el-line"></div></div>' : cvSwitch ? '<div class="el-cvsw"><span class="el-usw"><i></i></span></div>' : "");
     c.querySelector(".el-nm").textContent = whole && kind !== "cover" && lightRoom[e] ? nameOf(e) + " · " + lightRoom[e] : nameOf(e);
     paintCard(c, e, kind);
     const toggle = () => {
@@ -518,7 +522,7 @@ export function buildElegant(cfg, ctx) {
       Array.prototype.forEach.call(c.parentNode.children, (x, n) => x.classList.toggle("sel", n === i));
     });
     c.addEventListener("click", (ev) => {
-      if (kind === "cover" || !wasSel) return;
+      if ((kind === "cover" && !cvSwitch) || !wasSel) return;
       if (ev.target.closest && (ev.target.closest(".el-slider") || ev.target.closest(".el-bulb"))) return;
       toggle();
     });
@@ -526,6 +530,12 @@ export function buildElegant(cfg, ctx) {
       ev.stopPropagation();
       toggle();
     });
+    const cvs = c.querySelector(".el-cvsw");
+    if (cvs)
+      cvs.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        toggle();
+      });
     const sl = c.querySelector(".el-slider");
     if (sl) {
       let startV = 0;
@@ -570,7 +580,7 @@ export function buildElegant(cfg, ctx) {
     const v = levelOf(e, kind);
     c.classList.toggle("on", v > 0);
     const pc = c.querySelector(".el-pc");
-    if (kind === "cover" && e.split(".")[0] === "cover") pc.textContent = v > 0 ? Math.round(v * 100) + "% open" : "Closed";
+    if (kind === "cover" && e.split(".")[0] === "cover") pc.textContent = v > 0 ? (coverSlides(e) ? Math.round(v * 100) + "% open" : "Open") : "Closed";
     else pc.textContent = v > 0 ? (c.querySelector(".el-slider") ? Math.round(v * 100) + "%" : "On") : "Off";
     if (kind !== "cover" && LIGHT_ICON === "bulb") {
       // the bulb glows with the dimmer: faint at 5 %, full at 100 %
@@ -2487,12 +2497,13 @@ export function buildElegant(cfg, ctx) {
       if (current === "shades" && ents.shades) {
         const e = ents.shades[selShade];
         if (!e) return false;
-        if (e.split(".")[0] !== "cover") {
-          // a switch in the shades list: right = on, left = off
+        if (e.split(".")[0] !== "cover" || !coverSlides(e)) {
+          // a switch (or a curtain shown as a switch): right = on / open, left = off / close
           const open = dir > 0;
           if (!!get(e).on !== open) {
-            patch(e, { on: open });
-            throttle("S" + e, () => send("toggle", { entity: e }));
+            const isCover = e.split(".")[0] === "cover";
+            patch(e, isCover ? { on: open, pos: open ? 100 : 0 } : { on: open });
+            throttle("S" + e, () => (isCover ? send("position", { entity: e, v: open ? 1 : 0, dir: dir }) : send("toggle", { entity: e })));
           }
           repaint("shades");
           return true;

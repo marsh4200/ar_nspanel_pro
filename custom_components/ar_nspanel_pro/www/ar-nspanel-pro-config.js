@@ -9452,6 +9452,7 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
         /* @__PURE__ */ a.jsx("option", { value: "7.5", children: "7.5% per click" }),
         /* @__PURE__ */ a.jsx("option", { value: "10", children: "10% per click" })
       ] }) }),
+      /* @__PURE__ */ a.jsx(et, { title: "Curtains & shades as switches", sub: "An open / close switch instead of a slider. Curtains that can only open or close are always a switch.", on: !!cfg.coverSwitch, onChange: (m) => save({ coverSwitch: m || void 0 }) }),
       /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Whole house (same in every room)" }),
       EL_HOUSE_CATS.filter((c) => c.key !== "utilities").map((c) => field(c, elList(cfg[c.key]), (v) => save({ [c.key]: v.length ? (c.max === 1 ? v[0] : v) : void 0 }), -1)),
       /* @__PURE__ */ a.jsx(et, { title: "Utilities section", sub: "Adds a Utilities page to the panel for pumps, irrigation, geyser and the like.", on: !!cfg.utilitiesOn, onChange: (m) => save({ utilitiesOn: m || void 0 }) }),

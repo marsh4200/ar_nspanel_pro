@@ -1903,6 +1903,7 @@ def _elegant_payload(entity_id: str, state: Any, base_url: str | None) -> dict[s
         # otherwise fully open / closed from its state
         pos = a.get("current_position")
         p["pos"] = pos if isinstance(pos, (int, float)) else (100 if p["on"] else 0)
+        p["setpos"] = bool(int(a.get("supported_features") or 0) & 4)  # CoverEntityFeature.SET_POSITION
     elif domain == "alarm_control_panel":
         p["on"] = st not in ("disarmed", "unavailable", "unknown")
         if a.get("code_format"):

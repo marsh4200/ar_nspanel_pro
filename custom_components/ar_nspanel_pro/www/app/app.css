@@ -762,3 +762,10 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.gsafe .el-dock{background:rgba(14,15,19,.86)}
 .el-root.gsafe .el-room{-webkit-transition:none;transition:none}
 
+/* curtains shown as an open/close switch instead of a slider */
+.el-cvsw{margin-top:auto;padding-top:10px;display:flex;justify-content:flex-end}
+.el-cvsw .el-usw{position:relative;top:auto;right:auto;width:58px;height:32px;border-radius:16px}
+.el-cvsw .el-usw i{top:4px;left:4px;width:24px;height:24px;border-radius:12px}
+.el-card.cover.on .el-cvsw .el-usw{background:rgba(124,196,232,.55)}
+.el-card.cover.on .el-cvsw .el-usw i{background:#fff;-webkit-transform:translateX(26px);transform:translateX(26px)}
+
