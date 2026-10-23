@@ -10810,11 +10810,11 @@ function IA({
         /* @__PURE__ */ a.jsx(j, { d: v.kind === "ok" ? N.check : N.warning, size: 16 }),
         /* @__PURE__ */ a.jsx("span", { children: v.text })
       ] }),
+      /* @__PURE__ */ a.jsx(ArPanelTime, { api: l, host: S, port: d, blocked: F, log: T }),
       /* @__PURE__ */ a.jsxs("div", { className: "sec-h", style: { marginTop: 4 }, children: [
         "Log",
         V.length > 0 && /* @__PURE__ */ a.jsx("button", { className: "linkbtn", style: { float: "right" }, onClick: () => m([]), children: "Clear" })
       ] }),
-      /* @__PURE__ */ a.jsx(ArPanelTime, { api: l, host: S, port: d, blocked: F, log: T }),
       /* @__PURE__ */ a.jsx("div", { className: "adb-log", ref: W, children: V.length === 0 ? /* @__PURE__ */ a.jsx("div", { className: "adb-log-empty", children: "Steps appear here as you run actions." }) : V.map((Z, K) => /* @__PURE__ */ a.jsxs("div", { className: "adb-log-line " + Z.level, children: [
         Z.level === "ok" ? "✓ " : Z.level === "err" ? "✕ " : "• ",
         Z.text
