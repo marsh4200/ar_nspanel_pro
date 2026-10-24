@@ -531,20 +531,19 @@ class PanelAdb:
             if msg:
                 log.append(msg)
             d.shell(f"am start -n {APP_PACKAGE}/{APP_ACTIVITY}")
-            # Then the maker's software off, LAST and on the panel by itself:
-            # switching it off can drop this ADB connection (the HDL Source 10
-            # did), so a detached root script finishes the job either way and
-            # puts network ADB back on the same port afterwards.
+            # Then the maker's software off, LAST, one package at a time, the
+            # launcher/main app at the very end. Switching it off can drop this
+            # ADB connection (the HDL Source 10 did): what is done stays done,
+            # and network ADB was already made permanent above.
             if pkgs:
-                steps = "; ".join(f"pm disable-user --user 0 {p}" for p in pkgs)
-                script = (
-                    f"sleep 1; {steps}; settings put global adb_enabled 1; "
-                    f"setprop service.adb.tcp.port {adb_port}; "
-                    f"am start -n {APP_PACKAGE}/{APP_ACTIVITY}"
-                )
-                d.shell(f"su 0 sh -c \"nohup sh -c '{script}' >/dev/null 2>&1 &\"")
-                log.append(f"Switching off {name}: " + ", ".join(pkgs) + ".")
-                log.append("If the connection drops now, that's expected: reconnect in a few seconds.")
+                order = [p for p in pkgs if p not in (AKUBELA_APP, HDL_LAUNCHER)] + [p for p in pkgs if p in (AKUBELA_APP, HDL_LAUNCHER)]
+                try:
+                    for pkg in order:
+                        log.append(f"{pkg}: " + (d.shell(f"pm disable-user --user 0 {pkg}") or "").strip())
+                    d.shell(f"setprop service.adb.tcp.port {adb_port}")
+                    d.shell(f"am start -n {APP_PACKAGE}/{APP_ACTIVITY}")
+                except Exception as err:  # noqa: BLE001 - the connection went with the maker's software
+                    log.append(f"The ADB connection dropped while switching {name} off ({type(err).__name__}): reconnect in a few seconds and check.")
             return {"output": "\n".join(log)}
 
         return await self._hass.async_add_executor_job(self._run, host, port, signer, fn)
