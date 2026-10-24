@@ -10773,7 +10773,7 @@ function IA({
     p({ kind: "ok", text: okText }), T(okText, "ok"), Oe();
   }
   async function hdlTakeover() {
-    if (!window.confirm(adbType === "akubela" ? "Switch the Akubela software off on this panel? The Akubela app, its voice assistant, updater and log service are disabled, so only Android and the AR app run. Network ADB is kept on. \"Back to Akubela screen\" switches it all on again." : "Switch HDL off on this panel? On some HDL panels, HDL's software also runs the panel's network and ADB — with HDL off the panel can lose its IP address until HDL is switched back on from Android Settings → Apps.")) return;
+    if (!window.confirm(adbType === "akubela" ? "Switch the Akubela software off on this panel? The Akubela app, its voice assistant, updater, log service, factory test and stress-test apps are disabled, so only Android and the AR app run. Network ADB is kept on. \"Back to Akubela screen\" switches it all on again." : "Switch HDL off on this panel? On some HDL panels, HDL's software also runs the panel's network and ADB — with HDL off the panel can lose its IP address until HDL is switched back on from Android Settings → Apps.")) return;
     await runLogged("takeover", () => l.adbHdlTakeover(S, d), (adbType === "akubela" ? "Akubela" : "HDL") + " is off — the app is Home and opens on every boot. If the panel drops off for a moment, reconnect.");
   }
   async function hdlRestore() {
@@ -10906,7 +10906,7 @@ function IA({
           /* @__PURE__ */ a.jsx(j, { d: N.close, size: 18 }),
           u === "unsethome" ? "Unsetting…" : "Unset Home"
         ] }),
-        (isS10 || adbType === "akubela") && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: hdlTakeover, title: adbType === "akubela" ? "Switches off the Akubela app, its voice assistant, updater and log service: only Android and the AR app run." : void 0, children: [
+        (isS10 || adbType === "akubela") && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: hdlTakeover, title: adbType === "akubela" ? "Switches off the Akubela app, its voice assistant, updater, log service, factory test and stress test: only Android and the AR app run." : void 0, children: [
           /* @__PURE__ */ a.jsx(j, { d: N.home, size: 18 }),
           u === "takeover" ? "Switching…" : adbType === "akubela" ? "Use AR app (Akubela off)" : "Use AR app (HDL off)"
         ] }),

@@ -61,10 +61,19 @@ HDL_LAUNCHER = "com.hdl.source.ten.launcher"
 HDL_HOME = f"{HDL_LAUNCHER}/.ui.MainActivity"
 #: Akubela (Akuvox) 10" touch panel, 2560x1600, RK3566: its own launcher app
 AKUBELA_APP = "com.akubela.panel"
-#: Akuvox software switched off with "Use AR app": the panel app, its voice
-#: assistant (holds the microphone), the updater and the log service.
-#: com.akuvox.factorytest (the factory tool) is never touched.
-AKUBELA_PKGS = (AKUBELA_APP, "com.akuvox.voiceassist", "com.akuvox.upgradeui", "com.akuvox.logservice")
+#: Akuvox software switched off with "Use AR app": the panel app (Home, 11
+#: background services as a system app), its voice assistant (holds the
+#: microphone), the updater, the log service, and the factory test and
+#: stress-test apps that keep running in the background on these panels.
+#: "Back to Akubela screen" switches them all on again.
+AKUBELA_PKGS = (
+    AKUBELA_APP,
+    "com.akuvox.voiceassist",
+    "com.akuvox.upgradeui",
+    "com.akuvox.logservice",
+    "com.akuvox.factorytest",
+    "com.cghs.stresstest",
+)
 
 
 KIOSK_ADMIN = f"{APP_PACKAGE}/.KioskAdmin"
