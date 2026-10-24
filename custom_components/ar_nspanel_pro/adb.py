@@ -265,6 +265,22 @@ def _vendor(device: Any) -> tuple[str, list[str], str] | None:
     return None
 
 
+def _run_panel_script(device: Any, name: str) -> str:
+    """Copy one of scripts/<name> onto the panel and run it as root.
+    The Akubela background services (their Home Assistant, KNX, SIP, SSH,
+    cloud clients…) are started by Android's init, not as apps, so they are
+    switched off/on in its boot files by aku-clean.sh / aku-restore.sh."""
+    path = os.path.join(os.path.dirname(__file__), "scripts", name)
+    with open(path, "rb") as fh:
+        data = base64.b64encode(fh.read()).decode()
+    remote = f"/data/local/tmp/{name}"
+    device.shell(f"rm -f {remote}.b64")
+    for i in range(0, len(data), 3000):
+        device.shell(f"echo -n {data[i:i + 3000]} >> {remote}.b64")
+    device.shell(f"/system/bin/toybox base64 -d {remote}.b64 > {remote}; rm -f {remote}.b64; chmod 755 {remote}")
+    return (device.shell(f"su 0 sh {remote}", read_timeout_s=60) or "").strip()
+
+
 def _installed(device: Any, pkg: str) -> bool:
     out = device.shell(f"pm list packages {pkg}") or ""
     return any(line.strip() == f"package:{pkg}" for line in out.splitlines())
@@ -549,6 +565,9 @@ class PanelAdb:
                     if name == "Akubela" and _installed(d, "com.android.provision"):
                         log.append("com.android.provision: " + (d.shell("pm disable-user --user 0 com.android.provision") or "").strip())
                     log.append(_set_home(d, f"{APP_PACKAGE}/{APP_ACTIVITY}", APP_PACKAGE, strict=False))
+                    if name == "Akubela":
+                        # their background services too (Home Assistant, KNX, SIP, SSH, cloud…)
+                        log.append(_run_panel_script(d, "aku-clean.sh"))
                     d.shell(f"am start -n {APP_PACKAGE}/{APP_ACTIVITY}")
                 except Exception as err:  # noqa: BLE001 - the connection went with the maker's software
                     log.append(f"The ADB connection dropped while switching {name} off ({type(err).__name__}): reconnect in a few seconds and check.")
@@ -567,6 +586,10 @@ class PanelAdb:
                 raise AdbError("no_hdl", "This panel has no HDL or Akubela software to go back to.")
             name, pkgs, home = found
             log = [m for m in [_kiosk_unlock(d)] if m]  # the maker's screen can't show while locked
+            if name == "Akubela":
+                log.append(_run_panel_script(d, "aku-restore.sh"))
+                if _installed(d, "com.android.provision"):
+                    d.shell("pm enable com.android.provision")
             log += [f"{pkg}: " + (d.shell(f"pm enable {pkg}") or "").strip() for pkg in pkgs]
             log.append(_set_home(d, home, home.split("/", 1)[0]))
             d.shell("input keyevent 3")

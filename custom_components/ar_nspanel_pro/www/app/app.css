@@ -979,3 +979,6 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .skin-nordic .el-util.on .el-pc{color:#2f6b4c}
 .skin-nordic .el-util.on .el-usw{background:#3c9a68}
 .skin-nordic .sl-live{color:#2f6b4c}
+/* the selected card (tap / knob) keeps its highlight ring in every style */
+.el-root.skin-aurora .el-card.sel,.el-root.skin-nordic .el-card.sel,.el-root.skin-studio .el-card.sel,.el-root.skin-tiles .el-card.sel{border-color:var(--acc);box-shadow:0 0 0 2px rgba(var(--acc-rgb),.55),0 0 24px -6px rgba(var(--acc-rgb),.7)}
+.el-root.skin-tiles .el-card.sel{border-width:2px}
