@@ -541,6 +541,14 @@ class PanelAdb:
                     for pkg in order:
                         log.append(f"{pkg}: " + (d.shell(f"pm disable-user --user 0 {pkg}") or "").strip())
                     d.shell(f"setprop service.adb.tcp.port {adb_port}")
+                    # Switching a Home app off clears the Home choice, and then
+                    # Android's setup wizard (com.android.provision, left on in
+                    # the Akubela software) takes Home after a reboot: mark the
+                    # panel set up, switch the wizard off, and make ours Home again.
+                    d.shell("settings put global device_provisioned 1; settings put secure user_setup_complete 1")
+                    if name == "Akubela" and _installed(d, "com.android.provision"):
+                        log.append("com.android.provision: " + (d.shell("pm disable-user --user 0 com.android.provision") or "").strip())
+                    log.append(_set_home(d, f"{APP_PACKAGE}/{APP_ACTIVITY}", APP_PACKAGE, strict=False))
                     d.shell(f"am start -n {APP_PACKAGE}/{APP_ACTIVITY}")
                 except Exception as err:  # noqa: BLE001 - the connection went with the maker's software
                     log.append(f"The ADB connection dropped while switching {name} off ({type(err).__name__}): reconnect in a few seconds and check.")
