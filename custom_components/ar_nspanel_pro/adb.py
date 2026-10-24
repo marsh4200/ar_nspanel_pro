@@ -762,8 +762,18 @@ class PanelAdb:
         except AdbError as err:
             if err.code == "no_asset":
                 raise
+            api_err = err
             _LOGGER.debug("GitHub API lookup failed (%s); trying the release page", err)
-        return await self._latest_from_web(session)
+        # github.com's pages send headers (Content-Security-Policy) longer than
+        # aiohttp's default 8190-byte limit, so this lookup gets its own session
+        # with room for them.
+        try:
+            async with aiohttp.ClientSession(max_line_size=65536, max_field_size=65536) as big:
+                return await self._latest_from_web(big)
+        except AdbError as err:
+            if err.code in ("no_asset", "no_release"):
+                raise
+            raise AdbError("github", f"{err} (GitHub API: {api_err})") from err
 
     async def _latest_from_api(self, session: aiohttp.ClientSession) -> tuple[str, str, str]:
         api = (
