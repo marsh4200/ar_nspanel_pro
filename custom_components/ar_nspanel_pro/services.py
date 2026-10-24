@@ -25,6 +25,7 @@ from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from . import discovery
 from .const import (
+    ELEGANT_STYLES,
     DOMAIN,
     EVENT_DISCOVERY,
     SERVICE_DISCOVER,
@@ -313,7 +314,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                     "name": name or entry.title or bridge.device_id,
                     "model": (bridge.sys_info or {}).get("model") or "",
                     "online": bool(bridge.available),
-                    "elegant": bridge.device_cfg.get("dashboardStyle") == "elegant",
+                    "elegant": bridge.device_cfg.get("dashboardStyle") in ELEGANT_STYLES,
                     "scenes": list(bridge.client_scenes),
                 }
             )

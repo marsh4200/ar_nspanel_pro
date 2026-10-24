@@ -45,6 +45,7 @@ from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from . import panel_config, licensing
 from .const import (
+    ELEGANT_STYLES,
     topic_intercom_peer,
     LICENSE_RETRY_GIVE_UP,
     LICENSE_RETRY_SCHEDULE,
@@ -250,7 +251,7 @@ class PanelBridge:
         payload = "" if remove else json.dumps({
             "name": self.entry.title or self.device_id,
             # calls need the Elegant dashboard (the call screens live there)
-            "on": cfg.get("dashboardStyle") == "elegant" and not el.get("intercomOff"),
+            "on": cfg.get("dashboardStyle") in ELEGANT_STYLES and not el.get("intercomOff"),
         })
         await mqtt.async_publish(self.hass, topic_intercom_peer(self.device_id), payload, retain=True)
 
@@ -342,7 +343,7 @@ class PanelBridge:
         panel's "el" events to act on exactly those entities."""
         self._elegant_entities = {s["entity"] for s in self.client_scenes}
         cfg = self.device_cfg.get("elegant") if isinstance(self.device_cfg, dict) else None
-        if self.device_cfg.get("dashboardStyle") != "elegant" or not isinstance(cfg, dict):
+        if self.device_cfg.get("dashboardStyle") not in ELEGANT_STYLES or not isinstance(cfg, dict):
             return
         sources = [cfg] + [r for r in (cfg.get("rooms") or []) if isinstance(r, dict)]
         listed = [e for src in sources for cat in ELEGANT_CATEGORIES for e in _as_list(src.get(cat))]

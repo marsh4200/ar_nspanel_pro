@@ -103,8 +103,13 @@ const CATS = [
 const MODE_ICON = { cool: "cool", heat: "heat", heat_cool: "auto", auto: "auto", dry: "dry", fan_only: "fan", off: "off" };
 const MODE_NAME = { cool: "Cool", heat: "Heat", heat_cool: "Heat/Cool", auto: "Auto", dry: "Dry", fan_only: "Fan", off: "Off" };
 
-export function buildElegant(cfg, ctx) {
+// Styles on the Elegant engine (device.dashboardStyle): the same pages and
+// controls, each with its own colours and navigation (app.css, .skin-*).
+export const EL_SKINS = ["elegant", "aurora", "nordic", "studio", "tiles"];
+
+export function buildElegant(cfg, ctx, skin) {
   cfg = cfg || {};
+  skin = EL_SKINS.indexOf(skin) > 0 ? skin : "elegant";
   // Music Assistant (Device tab): when set up, the Music page uses its
   // speakers, playlists and radio instead of (or as well as) HA media players.
   const maCfg = (ctx.device && ctx.device().musicAssistant) || {};
@@ -190,7 +195,7 @@ export function buildElegant(cfg, ctx) {
   // frosted-glass blur and take the whole panel down (kernel panic, reboot).
   // There the glass is drawn without the blur and lamps without glow filters.
   const GSAFE = !LITE && /RK356[68]/i.test(navigator.userAgent || "");
-  const root = el("div", "el-root" + (LITE ? " lite" : "") + (GSAFE ? " gsafe" : ""));
+  const root = el("div", "el-root skin-" + skin + (LITE ? " lite" : "") + (GSAFE ? " gsafe" : ""));
   page.appendChild(root);
   const room = el("div", "el-room");
   root.appendChild(room);
@@ -219,6 +224,10 @@ export function buildElegant(cfg, ctx) {
     status.appendChild(callBtn);
   }
   status.appendChild(clock);
+  // Tiles style has no dock: a Home button in the top bar instead
+  const backBtn = el("div", "el-back", svg("chev") + "<span>Home</span>");
+  backBtn.addEventListener("click", () => go("home"));
+  top.appendChild(backBtn);
   top.appendChild(title);
   top.appendChild(sub);
   sub.addEventListener("click", () => {
@@ -302,7 +311,7 @@ export function buildElegant(cfg, ctx) {
     const cc = curCats();
     const tiles = el("div", "el-tiles n" + Math.min(8, cc.length));
     cc.forEach((c) => {
-      const t = el("div", "el-glass el-tile", '<span class="el-glow"></span>' + svg("chev", "el-arrow") + '<span class="el-ic">' + svg(c.key) + '</span><div class="el-name"></div><div class="el-sub"></div>');
+      const t = el("div", "el-glass el-tile cat-" + c.key, '<span class="el-glow"></span>' + svg("chev", "el-arrow") + '<span class="el-ic">' + svg(c.key) + '</span><div class="el-name"></div><div class="el-sub"></div>');
       t.querySelector(".el-name").textContent = c.title;
       const s = summary(c.key);
       t.querySelector(".el-sub").textContent = s.text;
@@ -2429,6 +2438,7 @@ export function buildElegant(cfg, ctx) {
       else sp.stop();
     }
     Object.keys(pages).forEach((n) => pages[n].el.classList.toggle("show", n === k));
+    root.classList.toggle("at-home", k === "home");
     Array.prototype.forEach.call(dock.children, (b) => b.classList.toggle("on", b.getAttribute("data-go") === k));
     title.textContent = k === "home" ? "Home" : (CATS.filter((c) => c.key === k)[0] || {}).title;
     pages[k].render();

@@ -16,7 +16,7 @@ import { MusicAssistant } from "./ma.js";
 import { Spotify } from "./spotify.js";
 import * as sound from "./sound.js";
 import { initKnob } from "./knob.js";
-import { buildElegant } from "./elegant.js";
+import { buildElegant, EL_SKINS } from "./elegant.js";
 import { wifiSection } from "./wifi.js";
 import { askPin, pinSet } from "./pin.js";
 import { intercomEngine, IC_TOPIC } from "./intercom.js";
@@ -207,7 +207,7 @@ const ctx = {
 
 // --- intercom ------------------------------------------------------------------
 let ic = null;
-const intercomOn = () => device.dashboardStyle === "elegant" && !!device.elegant && !device.elegant.intercomOff;
+const intercomOn = () => EL_SKINS.indexOf(device.dashboardStyle) >= 0 && !!device.elegant && !device.elegant.intercomOff;
 function intercomFor(id) {
   if (ic && ic.myId === id) return ic;
   ic = intercomEngine({
@@ -243,10 +243,10 @@ function render() {
   const pages = panels && Array.isArray(panels.pages) ? panels.pages : [];
   // Elegant dashboard (per panel): one keypad-style view with its own Home
   // dock instead of the swipeable Classic pages, which stay untouched.
-  if (device.dashboardStyle === "elegant" && device.elegant) {
+  if (EL_SKINS.indexOf(device.dashboardStyle) >= 0 && device.elegant) {
     let view;
     try {
-      view = buildElegant(device.elegant, ctx);
+      view = buildElegant(device.elegant, ctx, device.dashboardStyle);
     } catch (e) {
       log("elegant dashboard failed", e);
       view = { el: h("div.page", null, h("div.empty-msg", null, "Elegant dashboard failed: " + (e && e.message))), keys: [], update() {} };

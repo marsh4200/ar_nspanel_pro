@@ -9343,7 +9343,8 @@ function ElRtsp({ list: L, entityCams: nE, onChange: set }) {
   ] });
 }
 function ElegantCard({ hass: h, device: t, onChange: r }) {
-  const style = t.dashboardStyle === "elegant" ? "elegant" : "classic", cfg = t.elegant ?? {};
+  // Elegant and the styles built on it share the same setup (rooms, entities…)
+  const style = ["elegant", "aurora", "nordic", "studio", "tiles"].includes(t.dashboardStyle) ? t.dashboardStyle : "classic", cfg = t.elegant ?? {};
   const rooms = elRooms(cfg), start = Math.min(cfg.start ?? 0, Math.max(0, rooms.length - 1));
   const [open, setOpen] = M.useState(0);
   const save = (m) => {
@@ -9410,12 +9411,16 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
       /* @__PURE__ */ a.jsx(j, { d: N.home, size: 20, style: { color: "var(--accent)" } }),
       "Dashboard style"
     ] }),
-    /* @__PURE__ */ a.jsx("div", { className: "sub", children: "Classic shows the pages you design here (swipe between them). Elegant is a keypad-style home screen with rooms, category buttons and a Home dock — your Classic pages are kept as they are." }),
-    /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", gap: 10, margin: "10px 0" }, children: [
+    /* @__PURE__ */ a.jsx("div", { className: "sub", children: "Classic shows the pages you design here (swipe between them). Elegant, Aurora, Nordic, Studio and Tiles are home screens with rooms and category buttons: the same setup below, each with its own look. Your Classic pages are kept as they are." }),
+    /* @__PURE__ */ a.jsxs("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, margin: "10px 0" }, children: [
       optBtn("classic", "Classic", "Tile pages, swipe"),
-      optBtn("elegant", "Elegant", "Rooms + home screen, no swiping")
+      optBtn("elegant", "Elegant", "Warm glass, dock at the bottom"),
+      optBtn("aurora", "Aurora", "Night blue, menu down the side"),
+      optBtn("nordic", "Nordic", "Light and calm, tabs on top"),
+      optBtn("studio", "Studio", "Black, big type, hotel style"),
+      optBtn("tiles", "Tiles", "Bold colour blocks, Home button")
     ] }),
-    style === "elegant" && /* @__PURE__ */ a.jsxs("div", { children: [
+    style !== "classic" && /* @__PURE__ */ a.jsxs("div", { children: [
       /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Rooms" }),
       /* @__PURE__ */ a.jsx("div", { className: "hint", children: "Each room is one card in the panel's room sheet (tap the room name at the top of the panel). Tap a room here to edit it." }),
       rooms.map((x, i) => /* @__PURE__ */ a.jsxs("div", { style: { border: "1px solid var(--divider, rgba(127,127,127,.3))", borderRadius: 12, marginTop: 10, overflow: "hidden" }, children: [
