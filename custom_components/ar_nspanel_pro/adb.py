@@ -257,6 +257,13 @@ def _set_home(device: Any, component: str, pkg: str, *, strict: bool = True) -> 
     )
 
 
+def _github_session() -> aiohttp.ClientSession:
+    """github.com (release pages, and the download redirect) sends headers
+    (Content-Security-Policy) longer than aiohttp's default 8190-byte limit:
+    requests to it get their own session with room for them."""
+    return aiohttp.ClientSession(max_line_size=65536, max_field_size=65536)
+
+
 class PanelAdb:
     """Runs ADB-over-TCP actions against a panel from Home Assistant."""
 
@@ -768,7 +775,7 @@ class PanelAdb:
         # aiohttp's default 8190-byte limit, so this lookup gets its own session
         # with room for them.
         try:
-            async with aiohttp.ClientSession(max_line_size=65536, max_field_size=65536) as big:
+            async with _github_session() as big:
                 return await self._latest_from_web(big)
         except AdbError as err:
             if err.code in ("no_asset", "no_release"):
@@ -897,9 +904,8 @@ class PanelAdb:
 
     async def _asset_size(self, url: str) -> int:
         """Size of the release APK in bytes (0 if unknown), for the progress bar."""
-        session = async_get_clientsession(self._hass)
         try:
-            async with session.head(
+            async with _github_session() as session, session.head(
                 url,
                 allow_redirects=True,
                 headers={"User-Agent": "ar-nspanel-pro-integration"},
@@ -920,9 +926,8 @@ class PanelAdb:
 
     async def _download_in_ha(self, url: str, tick: Callable[[int, int], None] | None = None) -> bytes:
         """Fallback: download the release APK in Home Assistant itself."""
-        session = async_get_clientsession(self._hass)
         try:
-            async with session.get(
+            async with _github_session() as session, session.get(
                 url,
                 headers={"User-Agent": "ar-nspanel-pro-integration"},
                 timeout=aiohttp.ClientTimeout(total=180),
