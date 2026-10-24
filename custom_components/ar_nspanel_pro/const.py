@@ -109,6 +109,15 @@ def base_topic(device_id: str) -> str:
     return f"{TOPIC_PREFIX}/{device_id}"
 
 
+#: Intercom (calls between panels): each panel's directory record
+#: ``{INTERCOM_PREFIX}/peer/<device_id>`` = {"name", "on"} (retained).
+INTERCOM_PREFIX = "ar-nspanel-pro/intercom"
+
+
+def topic_intercom_peer(device_id: str) -> str:
+    return f"{INTERCOM_PREFIX}/peer/{device_id}"
+
+
 def topic_avail(device_id: str) -> str:
     return f"{base_topic(device_id)}/avail"
 

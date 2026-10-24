@@ -73,6 +73,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: PanelConfigEntry) -> boo
     return True
 
 
+async def async_remove_entry(hass: HomeAssistant, entry: PanelConfigEntry) -> None:
+    """A panel was deleted: take it out of the other panels' intercom list."""
+    from .const import CONF_DEVICE_ID, topic_intercom_peer
+
+    device_id = entry.data.get(CONF_DEVICE_ID)
+    if device_id and await mqtt.async_wait_for_mqtt_client(hass):
+        await mqtt.async_publish(hass, topic_intercom_peer(device_id), "", retain=True)
+
+
 async def async_unload_entry(hass: HomeAssistant, entry: PanelConfigEntry) -> bool:
     """Tear down one panel."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

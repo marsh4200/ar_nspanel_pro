@@ -19,6 +19,7 @@ import { initKnob } from "./knob.js";
 import { buildElegant } from "./elegant.js";
 import { wifiSection } from "./wifi.js";
 import { askPin, pinSet } from "./pin.js";
+import { intercomEngine, IC_TOPIC } from "./intercom.js";
 
 const VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev";
 const PREFIX = "ar-nspanel-pro/panel";
@@ -189,7 +190,41 @@ const ctx = {
   ma: () => ma,
   spotify: () => spotify,
   log,
+  // intercom (Elegant dashboard): calls between panels (Device Setup > Dashboard)
+  get intercom() {
+    if (!ic || !intercomOn()) return null;
+    return {
+      api: ic.api,
+      set ui(u) {
+        ic.attach(u);
+      },
+      get ui() {
+        return ic.ui;
+      },
+    };
+  },
 };
+
+// --- intercom ------------------------------------------------------------------
+let ic = null;
+const intercomOn = () => device.dashboardStyle === "elegant" && !!device.elegant && !device.elegant.intercomOff;
+function intercomFor(id) {
+  if (ic && ic.myId === id) return ic;
+  ic = intercomEngine({
+    myId: id,
+    send: (topic, obj) => publishRaw(topic, JSON.stringify(obj), false),
+    wake: () => {
+      wake("intercom");
+      activity();
+    },
+    enabled: intercomOn,
+    autoAnswer: () => !!(device.elegant && device.elegant.autoAnswer),
+    sound,
+    log,
+  });
+  ic.myId = id;
+  return ic;
+}
 
 // --- rendering ---------------------------------------------------------------
 
@@ -482,6 +517,7 @@ function tick() {
   const cur = views[pageIdx];
   const blockSleep =
     (cur && cur.view.keepAwake && cur.page.type === "camera") ||
+    (ic && ic.busy()) ||
     ringEl.classList.contains("show") ||
     settingsEl.classList.contains("show") ||
     (notification && notification.full);
@@ -1000,6 +1036,15 @@ function onMessage(topic, payload) {
     }
     return;
   }
+  if (ic && topic.indexOf(IC_TOPIC + "/") === 0) {
+    if (topic === IC_TOPIC + "/to/" + deviceId) ic.onSignal(payload);
+    else if (topic.indexOf(IC_TOPIC + "/peer/") === 0) ic.onPeer(topic.slice(IC_TOPIC.length + 6), payload);
+    return;
+  }
+  if (ic && topic.indexOf(PREFIX + "/") === 0 && /\/avail$/.test(topic)) {
+    ic.onAvail(topic.slice(PREFIX.length + 1, -6), payload);
+    return;
+  }
   if (alarmSubs[topic] === "state") return onAlarmState(topic, payload);
   if (alarmSubs[topic] === "event") {
     const ev = parseJson(payload);
@@ -1059,6 +1104,7 @@ function connect() {
     return;
   }
   base = PREFIX + "/" + deviceId;
+  intercomFor(deviceId);
   mqtt = new MqttClient({
     url: settings.brokerUrl,
     // one fixed name per panel: when it reconnects, the broker drops the old
@@ -1101,6 +1147,10 @@ function connect() {
     base + "/cmd/#",
     base + "/avail",
     PREFIX + "/discover",
+    // intercom: who the other panels are, whether they're online, and my inbox
+    IC_TOPIC + "/peer/+",
+    PREFIX + "/+/avail",
+    IC_TOPIC + "/to/" + deviceId,
   ].forEach((t) => mqtt.subscribe(t));
   Object.keys(alarmSubs).forEach((t) => mqtt.subscribe(t));
   mqtt.start();

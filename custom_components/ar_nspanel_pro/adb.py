@@ -59,6 +59,8 @@ _DL_READ_TIMEOUT = 300.0
 HDL_APP = "com.hdl.source.ten"
 HDL_LAUNCHER = "com.hdl.source.ten.launcher"
 HDL_HOME = f"{HDL_LAUNCHER}/.ui.MainActivity"
+#: Akubela (Akuvox) 10" touch panel, 2560x1600, RK3566: its own launcher app
+AKUBELA_APP = "com.akubela.panel"
 
 
 KIOSK_ADMIN = f"{APP_PACKAGE}/.KioskAdmin"
@@ -384,7 +386,8 @@ class PanelAdb:
                 "hdl_launcher": found[1] if found else None,
                 "kiosk": _kiosk_owner(device) == APP_PACKAGE,
                 "hdl_disabled": bool(found) and f"package:{found[1]}" in disabled,
-                "panel_type": ("source10" if found[1] == HDL_LAUNCHER else "source7") if found else "nspanel",
+                "panel_type": ("source10" if found[1] == HDL_LAUNCHER else "source7") if found
+                else ("akubela" if _installed(device, AKUBELA_APP) else "nspanel"),
             }
 
         return self._run(host, port, signer, fn)
@@ -1029,6 +1032,8 @@ class PanelAdb:
             #  * With root, pin the current port so adbd opens it by itself.
             try:
                 device.shell(f"pm grant {APP_PACKAGE} android.permission.WRITE_SECURE_SETTINGS")
+                # Intercom: the microphone, so a call never stops to ask
+                device.shell(f"pm grant {APP_PACKAGE} android.permission.RECORD_AUDIO")
                 # Start on boot even when another launcher is Home (Android 10+
                 # blocks a boot receiver from opening a screen without this).
                 device.shell(f"appops set {APP_PACKAGE} SYSTEM_ALERT_WINDOW allow")

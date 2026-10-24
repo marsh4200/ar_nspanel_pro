@@ -14,6 +14,7 @@
 import { slugify } from "./util.js";
 import { playHls } from "./livevideo.js";
 import * as native from "./native.js";
+import { mountIntercom, intercomIcon } from "./intercom.js";
 
 const W = 1000;
 const ICON = {
@@ -33,6 +34,10 @@ const ICON = {
   u_power: '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>',
   u_fence: '<path d="m13 2-8 12h6l-2 8 8-12h-6z"/>',
   chev: '<path d="m9 6 6 6-6 6"/>',
+  s_sun: '<circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
+  s_grid: '<path d="M8 22 12 2l4 20M6 8h12M5 14h14M9.5 14 12 8l2.5 6"/>',
+  s_batt: '<rect x="3" y="7" width="16" height="10" rx="2"/><path d="M22 11v2"/>',
+  s_inv: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 9h8M8 13c1-1.5 2-1.5 3 0s2 1.5 3 0"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   backsp: '<path d="M9 5h11a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9l-6-7z"/><path d="m12 9 6 6M18 9l-6 6"/>',
   sun: '<path d="M12 2v2M4.9 4.9l1.4 1.4M2 12h2M19.1 4.9l-1.4 1.4"/><path d="M17.5 19H9a5 5 0 1 1 4.6-7"/><path d="M17.5 19a3.5 3.5 0 0 0 0-7h-1.3"/>',
@@ -134,6 +139,10 @@ export function buildElegant(cfg, ctx) {
   // Utilities (pool pump, borehole, irrigation…): house-wide, only when the
   // installer ticked "Utilities section" in Device Setup
   const house = { cameras: list(cfg.cameras).concat(RTSP.map((c, i) => "rtsp:" + i)).slice(0, 4), security: list(cfg.security), utilities: cfg.utilitiesOn ? list(cfg.utilities) : [] };
+  // Solar (a tab in Utilities): cfg.solar = {pv, load, grid, battery, soc, today}
+  // sensor entity ids; grid + = buying, battery + = discharging (HA's convention)
+  const SOLAR = cfg.utilitiesOn && cfg.solar && typeof cfg.solar.pv === "string" && cfg.solar.pv ? cfg.solar : null;
+  const SOLAR_KEYS = SOLAR ? ["pv", "load", "grid", "battery", "soc", "today"].filter((k) => typeof SOLAR[k] === "string" && SOLAR[k]) : [];
   const wholeOn = cfg.wholeHouse !== false && ROOMS.length > 1;
   const uniq = (a) => a.filter((x, i) => a.indexOf(x) === i);
   const union = {};
@@ -150,6 +159,7 @@ export function buildElegant(cfg, ctx) {
   Object.keys(ents).forEach((k) => ents[k].forEach((e) => keys.push(slugify(e))));
   union.scenes.forEach((e) => keys.push(slugify(e)));
   union.presence.forEach((e) => keys.push(slugify(e)));
+  SOLAR_KEYS.forEach((k) => keys.push(slugify(SOLAR[k])));
   // lighting scenes the customer made in the AR Lighting Scenes card and pushed
   // to this panel: [{entity: "scene.ar_movie_night", name: "Movie night"}], 4 at most
   keys.push("client_scenes");
@@ -164,7 +174,7 @@ export function buildElegant(cfg, ctx) {
     toast(name);
   };
   function curCats() {
-    return CATS.filter((c) => (ents[c.key] && ents[c.key].length) || (c.key === "music" && (maOn || spOn)));
+    return CATS.filter((c) => (ents[c.key] && ents[c.key].length) || (c.key === "music" && (maOn || spOn)) || (c.key === "utilities" && SOLAR));
   }
 
   const page = el("div", "page page-elegant");
@@ -202,6 +212,12 @@ export function buildElegant(cfg, ctx) {
   const clock = txt("span", "el-clock", "");
   status.appendChild(wxChip);
   status.appendChild(secChip);
+  // intercom: a phone button next to the clock calls another panel
+  if (ctx.intercom) {
+    const callBtn = el("span", "el-callbtn", intercomIcon());
+    callBtn.addEventListener("click", () => ctx.intercom.ui && ctx.intercom.ui.open());
+    status.appendChild(callBtn);
+  }
   status.appendChild(clock);
   top.appendChild(title);
   top.appendChild(sub);
@@ -213,6 +229,7 @@ export function buildElegant(cfg, ctx) {
   root.appendChild(top);
   const toastEl = el("div", "el-toast");
   root.appendChild(toastEl);
+  if (ctx.intercom) ctx.intercom.ui = mountIntercom(root, ctx.intercom.api);
   let toastT = null;
   function toast(m) {
     toastEl.textContent = m;
@@ -420,12 +437,168 @@ export function buildElegant(cfg, ctx) {
     if (/water|tank|valve/.test(n)) return "u_drop";
     return "u_power";
   };
+  // --- solar: live power flow --------------------------------------------------
+  // Built once and then only updated in place (sensors report every few
+  // seconds; rebuilding would restart the animation). Only small dots move,
+  // with transform animations, at most 3 per line; they pause while the screen
+  // sleeps, stop when the page is left, and don't run on the Source 7.
+  let uTab = "switches";
+  let solarView = null;
+  const solarNum = (k) => {
+    if (!SOLAR || !SOLAR[k]) return null;
+    const s = get(SOLAR[k]);
+    const v = parseFloat(s.value);
+    if (!isFinite(v)) return null;
+    const u = String(s.unit || "").toLowerCase();
+    if (k === "soc") return v;
+    if (k === "today") return u === "wh" ? v / 1000 : u === "mwh" ? v * 1000 : v; // kWh
+    const inv = (k === "grid" && SOLAR.invertGrid) || (k === "battery" && SOLAR.invertBattery) ? -1 : 1;
+    return inv * (u === "kw" ? v * 1000 : u === "mw" ? v * 1e6 : v); // W
+  };
+  const fmtW = (w) => (w == null ? "—" : Math.abs(w) < 1000 ? Math.round(Math.abs(w)) + " W" : (Math.abs(w) / 1000).toFixed(Math.abs(w) < 10000 ? 1 : 0) + " kW");
+  // node centres on the 936 x 360 diagram
+  const SN = { pv: [140, 60], home: [808, 60], grid: [140, 262], batt: [808, 262], hub: [474, 161] };
+  function buildSolar() {
+    const v = el("div", "sl-wrap");
+    const head = el("div", "el-utabs");
+    const back = el("div", "el-tab sl-back", svg("chev") + "<span>Back</span>");
+    back.addEventListener("click", () => {
+      uTab = "switches";
+      pages.utilities.render();
+    });
+    head.appendChild(back);
+    head.appendChild(txt("div", "sl-title", "Solar"));
+    head.appendChild(el("span", "sl-live", "<i></i>Live"));
+    v.appendChild(head);
+    const d = el("div", "sl-diag");
+    const lines = {};
+    [
+      ["pv", "pv"],
+      ["home", "home"],
+      ["grid", "grid"],
+      ["batt", "batt"],
+    ].forEach((k) => {
+      if (k[0] === "batt" && !SOLAR.battery && !SOLAR.soc) return;
+      const a = SN[k[0]];
+      const b = SN.hub;
+      const dx = b[0] - a[0];
+      const dy = b[1] - a[1];
+      const len = Math.sqrt(dx * dx + dy * dy);
+      const ln = el("div", "sl-line l-" + k[0], '<div class="sl-run"><i></i></div><div class="sl-run"><i></i></div><div class="sl-run"><i></i></div><b class="sl-arr"></b>');
+      ln.style.left = a[0] + "px";
+      ln.style.top = a[1] + "px";
+      ln.style.width = len + "px";
+      ln.style.webkitTransform = ln.style.transform = "rotate(" + Math.atan2(dy, dx) + "rad)";
+      d.appendChild(ln);
+      lines[k[0]] = ln;
+    });
+    const node = (k, icon, label) => {
+      const n = el("div", "sl-node n-" + k, '<span class="sl-ic">' + svg(icon) + '</span><div class="sl-v"></div><div class="sl-l"></div>');
+      n.style.left = SN[k][0] + "px";
+      n.style.top = SN[k][1] + "px";
+      n.querySelector(".sl-l").textContent = label;
+      d.appendChild(n);
+      return n;
+    };
+    const nodes = { pv: node("pv", "s_sun", "Solar"), home: node("home", "home", "Home"), grid: node("grid", "s_grid", "Grid") };
+    if (lines.batt) {
+      nodes.batt = node("batt", "s_batt", "Battery");
+      nodes.batt.querySelector(".sl-ic").appendChild(el("i", "sl-fill"));
+    }
+    const hub = el("div", "sl-hub", svg("s_inv"));
+    hub.style.left = SN.hub[0] + "px";
+    hub.style.top = SN.hub[1] + "px";
+    d.appendChild(hub);
+    v.appendChild(d);
+    const foot = el("div", "sl-foot");
+    v.appendChild(foot);
+    solarView = { el: v, lines, nodes, foot };
+    updateSolar();
+    return v;
+  }
+  // one line: dots flowing towards the inverter (in) or away from it (out)
+  function flow(ln, w, towardsHub) {
+    if (!ln) return;
+    const on = w != null && Math.abs(w) >= 20;
+    ln.classList.toggle("on", on);
+    ln.classList.toggle("rev", on && !towardsHub);
+    if (!on) return;
+    // faster with more power, in 3 steps (a step change restarts the dots)
+    const dur = Math.abs(w) >= 3000 ? 1.2 : Math.abs(w) >= 800 ? 2 : 3;
+    if (ln.__dur === dur) return;
+    ln.__dur = dur;
+    const runs = ln.querySelectorAll(".sl-run");
+    for (let i = 0; i < runs.length; i++) {
+      runs[i].style.webkitAnimationDuration = runs[i].style.animationDuration = dur + "s";
+      runs[i].style.webkitAnimationDelay = runs[i].style.animationDelay = (-dur * i) / runs.length + "s";
+    }
+  }
+  function updateSolar() {
+    const V = solarView;
+    if (!V) return;
+    const pv = Math.max(0, solarNum("pv") || 0);
+    const grid = solarNum("grid"); // + buying
+    const batt = solarNum("battery"); // + discharging
+    let load = solarNum("load");
+    if (load == null) load = Math.max(0, pv + (grid || 0) + (batt || 0));
+    const soc = solarNum("soc");
+    flow(V.lines.pv, pv, true);
+    flow(V.lines.home, load, false);
+    flow(V.lines.grid, grid, grid != null && grid > 0);
+    flow(V.lines.batt, batt, batt != null && batt > 0);
+    V.nodes.pv.classList.toggle("on", pv >= 20);
+    V.nodes.pv.querySelector(".sl-v").textContent = fmtW(pv);
+    V.nodes.home.querySelector(".sl-v").textContent = fmtW(load);
+    const gl = grid == null ? "Grid" : Math.abs(grid) < 20 ? "Grid · idle" : grid > 0 ? "Buying from grid" : "Selling to grid";
+    V.nodes.grid.querySelector(".sl-v").textContent = fmtW(grid);
+    V.nodes.grid.querySelector(".sl-l").textContent = gl;
+    V.nodes.grid.classList.toggle("buy", grid != null && grid >= 20);
+    V.nodes.grid.classList.toggle("sell", grid != null && grid <= -20);
+    if (V.lines.grid) V.lines.grid.classList.toggle("sell", grid != null && grid <= -20);
+    if (V.nodes.batt) {
+      V.nodes.batt.querySelector(".sl-v").textContent = soc != null ? Math.round(soc) + "%" : fmtW(batt);
+      V.nodes.batt.querySelector(".sl-l").textContent = batt == null || Math.abs(batt) < 20 ? "Battery" : (batt > 0 ? "Discharging " : "Charging ") + fmtW(batt);
+      const f = V.nodes.batt.querySelector(".sl-fill");
+      const lv = soc != null ? Math.max(0, Math.min(100, soc)) : 0;
+      f.style.webkitTransform = f.style.transform = "scaleY(" + (lv / 100).toFixed(2) + ")";
+      V.nodes.batt.classList.toggle("low", soc != null && soc < 20);
+    }
+    const today = solarNum("today");
+    V.foot.textContent = (today != null ? "Today " + today.toFixed(1) + " kWh · " : "") + (load > 0 ? Math.round(Math.min(100, (Math.min(pv, load) / load) * 100)) + "% of the house runs on solar" : "");
+  }
+
   if (ents.utilities) {
     const up = mkPage("utilities");
     up.render = function () {
       const p = up.el;
+      if (uTab === "solar" && SOLAR) {
+        if (solarView && solarView.el.parentNode === p) return updateSolar();
+        p.innerHTML = "";
+        p.appendChild(buildSolar());
+        return;
+      }
+      solarView = null;
       p.innerHTML = "";
-      const g = el("div", "el-cards top el-utils");
+      if (SOLAR) {
+        const tabs = el("div", "el-utabs");
+        [
+          ["switches", "Switches"],
+          ["solar", "Solar"],
+        ].forEach((t) => {
+          const b = txt("div", "el-tab" + (uTab === t[0] ? " on" : ""), t[1]);
+          b.addEventListener("click", () => {
+            uTab = t[0];
+            up.render();
+          });
+          tabs.appendChild(b);
+        });
+        p.appendChild(tabs);
+      }
+      if (!ents.utilities.length) {
+        p.appendChild(txt("div", "el-libmsg sl-none", "No switches in Utilities yet: tap Solar above."));
+        return;
+      }
+      const g = el("div", "el-cards top el-utils" + (SOLAR ? " tabbed" : ""));
       ents.utilities.forEach((e) => {
         const s = get(e);
         const c = el("div", "el-glass el-util" + (s.on ? " on" : ""), '<span class="el-uic">' + svg(utilIcon(e)) + '</span><div class="el-nm"></div><div class="el-pc"></div><span class="el-usw"><i></i></span>');
@@ -2243,6 +2416,11 @@ export function buildElegant(cfg, ctx) {
       stopCams();
       for (const k2 in camAsked) delete camAsked[k2];
     }
+    if (current === "utilities" && k !== "utilities" && solarView) {
+      solarView.el.parentNode && solarView.el.parentNode.removeChild(solarView.el);
+      solarView = null;
+      uTab = "switches";
+    }
     current = k;
     pin = null;
     if (k === "music" && maOn) ma.start();
@@ -2257,6 +2435,7 @@ export function buildElegant(cfg, ctx) {
   }
 
   function chrome() {
+    root.classList.toggle("asleep", !!(ctx.awake && !ctx.awake()));
     const d = new Date();
     clock.textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
     const w = ctx.get("weather");

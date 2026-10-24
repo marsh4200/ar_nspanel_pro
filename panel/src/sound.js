@@ -64,6 +64,21 @@ const PATTERNS = {
     tone(c, d, 1318.5, t + 0.16, 0.8, "sine", 0.3);
     return 1.2;
   },
+  // intercom: incoming call (a friendly two-note ring) and the caller's ringback
+  ring(c, t, d) {
+    for (let i = 0; i < 2; i++) {
+      tone(c, d, 784, t + i * 0.5, 0.2, "sine", 0.32);
+      tone(c, d, 1046.5, t + i * 0.5 + 0.2, 0.26, "sine", 0.32);
+    }
+    return 2.6;
+  },
+  ringback(c, t, d) {
+    tone(c, d, 400, t, 0.4, "sine", 0.1);
+    tone(c, d, 450, t, 0.4, "sine", 0.1);
+    tone(c, d, 400, t + 0.6, 0.4, "sine", 0.1);
+    tone(c, d, 450, t + 0.6, 0.4, "sine", 0.1);
+    return 3.0;
+  },
   ding(c, t, d) {
     tone(c, d, 1046.5, t, 0.7, "triangle", 0.35);
     return 0.8;

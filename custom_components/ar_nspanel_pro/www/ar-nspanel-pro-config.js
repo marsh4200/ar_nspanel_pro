@@ -9264,6 +9264,15 @@ const EL_HOUSE_CATS = [
   { key: "security", title: "Security", hint: "one alarm panel (e.g. Alarmo)", domains: ["alarm_control_panel"], max: 1 },
   { key: "utilities", title: "Utilities", hint: "pool pump, borehole, irrigation, geyser… (tap to switch on the panel)", domains: ["switch", "input_boolean", "valve"] }
 ];
+// Utilities > Solar: one sensor each (only Solar power is required)
+const EL_SOLAR = [
+  { key: "pv", title: "Solar power", hint: "what the panels make now (W or kW)" },
+  { key: "load", title: "House load", hint: "optional: worked out from the others if left out" },
+  { key: "grid", title: "Grid power", hint: "+ buying, − selling" },
+  { key: "battery", title: "Battery power", hint: "+ discharging, − charging" },
+  { key: "soc", title: "Battery %", hint: "state of charge" },
+  { key: "today", title: "Solar today", hint: "energy made today (kWh)" }
+].map((c) => ({ ...c, domains: ["sensor"], max: 1 }));
 const EL_ICONS = {
   sofa: "M4 11V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3M2 13a2 2 0 0 1 4 0v2h12v-2a2 2 0 0 1 4 0v5H2z",
   pot: "M3 10h18M5 10v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8M9 6c0-1 1-2 1-3M13 6c0-1 1-2 1-3",
@@ -9452,11 +9461,22 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
         /* @__PURE__ */ a.jsx("option", { value: "7.5", children: "7.5% per click" }),
         /* @__PURE__ */ a.jsx("option", { value: "10", children: "10% per click" })
       ] }) }),
+      /* @__PURE__ */ a.jsx(et, { title: "Intercom", sub: "A phone button next to the clock to call other panels (live voice). This panel can be called too.", on: !cfg.intercomOff, onChange: (m) => save({ intercomOff: m ? void 0 : !0 }) }),
+      !cfg.intercomOff && /* @__PURE__ */ a.jsx(et, { title: "Answer calls automatically", sub: "Intercom style: an incoming call connects by itself after one ring, no need to tap Answer.", on: !!cfg.autoAnswer, onChange: (m) => save({ autoAnswer: m || void 0 }) }),
       /* @__PURE__ */ a.jsx(et, { title: "Curtains & shades as switches", sub: "An open / close switch instead of a slider. Curtains that can only open or close are always a switch.", on: !!cfg.coverSwitch, onChange: (m) => save({ coverSwitch: m || void 0 }) }),
       /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Whole house (same in every room)" }),
       EL_HOUSE_CATS.filter((c) => c.key !== "utilities").map((c) => field(c, elList(cfg[c.key]), (v) => save({ [c.key]: v.length ? (c.max === 1 ? v[0] : v) : void 0 }), -1)),
       /* @__PURE__ */ a.jsx(et, { title: "Utilities section", sub: "Adds a Utilities page to the panel for pumps, irrigation, geyser and the like.", on: !!cfg.utilitiesOn, onChange: (m) => save({ utilitiesOn: m || void 0 }) }),
       !!cfg.utilitiesOn && EL_HOUSE_CATS.filter((c) => c.key === "utilities").map((c) => field(c, elList(cfg[c.key]), (v) => save({ [c.key]: v.length ? v : void 0 }), -1)),
+      !!cfg.utilitiesOn && /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Solar (a Solar tab in Utilities with the live power flow)" }),
+      !!cfg.utilitiesOn && EL_SOLAR.map((c) => field(c, cfg.solar && cfg.solar[c.key] ? [cfg.solar[c.key]] : [], (v) => {
+        const so = Object.assign({}, cfg.solar || {});
+        if (v.length) so[c.key] = v[0];
+        else delete so[c.key];
+        save({ solar: Object.keys(so).length ? so : void 0 });
+      }, -1)),
+      !!cfg.utilitiesOn && !!(cfg.solar && cfg.solar.grid) && /* @__PURE__ */ a.jsx(et, { title: "Grid shows the wrong way round", sub: "Tick if your inverter reports selling as + and buying as −.", on: !!cfg.solar.invertGrid, onChange: (m) => save({ solar: Object.assign({}, cfg.solar, { invertGrid: m || void 0 }) }) }),
+      !!cfg.utilitiesOn && !!(cfg.solar && cfg.solar.battery) && /* @__PURE__ */ a.jsx(et, { title: "Battery shows the wrong way round", sub: "Tick if your inverter reports charging as + and discharging as −.", on: !!cfg.solar.invertBattery, onChange: (m) => save({ solar: Object.assign({}, cfg.solar, { invertBattery: m || void 0 }) }) }),
       /* @__PURE__ */ a.jsx(ElRtsp, { list: Array.isArray(cfg.rtsp) ? cfg.rtsp : [], entityCams: elList(cfg.cameras).length, onChange: (v) => save({ rtsp: v.length ? v : void 0 }) }),
       /* @__PURE__ */ a.jsx(X, { label: "Weather", hint: "Leave on automatic to use the first weather entity.", children: /* @__PURE__ */ a.jsxs("select", { className: "inp", value: cfg.weather ?? "", onChange: (m) => save({ weather: m.target.value || void 0 }), children: [
         /* @__PURE__ */ a.jsx("option", { value: "", children: "Automatic" }),
@@ -10646,7 +10666,7 @@ function IA({
     }
     // The Source 10 keeps network ADB on 8555; the Source 7 and NSPanel Pro use 5555.
     if (z === "source10" && d === 5555) o(8555);
-    if ((z === "nspanel" || z === "source7") && d === 8555) o(5555);
+    if ((z === "nspanel" || z === "source7" || z === "akubela") && d === 8555) o(5555);
   }
   if (M.useEffect(() => {
     localStorage.setItem(Ad, i);
@@ -10689,7 +10709,7 @@ function IA({
     const Z = await J("probe", () => l.adbProbe(S, d));
     if (!Z) return;
     q(Z);
-    Z.panel_type && Z.panel_type !== adbType && (setAdbType(Z.panel_type), T(Z.panel_type === "source10" ? "Detected an HDL Source 10 — switched to its tools." : Z.panel_type === "source7" ? "Detected an HDL Source 7" + (Z.hdl_launcher ? " (" + Z.hdl_launcher + ")" : "") + " — switched to its tools." : "Detected an NSPanel Pro — switched to its tools."));
+    Z.panel_type && Z.panel_type !== adbType && (setAdbType(Z.panel_type), T(Z.panel_type === "source10" ? "Detected an HDL Source 10 — switched to its tools." : Z.panel_type === "source7" ? "Detected an HDL Source 7" + (Z.hdl_launcher ? " (" + Z.hdl_launcher + ")" : "") + " — switched to its tools." : Z.panel_type === "akubela" ? "Detected an Akubela panel — switched to its tools." : "Detected an NSPanel Pro — switched to its tools."));
     const K = [Z.model || "Device", Z.android ? `Android ${Z.android}` : null, Z.screen || null, Z.hdl ? (Z.hdl_disabled ? "HDL off" : "HDL on") : null].filter(Boolean).join(" · "), te = Z.app_installed ? `app v${Z.app_version} installed` : "app not installed", Be = `Connected — ${K} · ${te}`;
     p({ kind: "ok", text: Be }), T(Be, "ok");
   }
@@ -10807,10 +10827,11 @@ function IA({
       ] }),
       /* @__PURE__ */ a.jsxs("div", { className: "adb-row", children: [
         /* @__PURE__ */ a.jsx("label", { className: "hint", style: { minWidth: 80 }, children: "Panel type" }),
-        /* @__PURE__ */ a.jsx("button", { className: "btn " + (isS10 ? "ghost" : "primary"), disabled: u !== null, onClick: () => setAdbType("nspanel"), children: "NSPanel Pro" }),
+        /* @__PURE__ */ a.jsx("button", { className: "btn " + (adbType === "nspanel" || !adbType ? "primary" : "ghost"), disabled: u !== null, onClick: () => setAdbType("nspanel"), children: "NSPanel Pro" }),
         /* @__PURE__ */ a.jsx("button", { className: "btn " + (adbType === "source10" ? "primary" : "ghost"), disabled: u !== null, onClick: () => setAdbType("source10"), children: "HDL Source 10" }),
         /* @__PURE__ */ a.jsx("button", { className: "btn " + (adbType === "source7" ? "primary" : "ghost"), disabled: u !== null, onClick: () => setAdbType("source7"), children: "HDL Source 7" }),
-        /* @__PURE__ */ a.jsx("div", { className: "hint", style: { flex: 1, minWidth: 160 }, children: adbType === "source7" ? "Knob panel, 1280 × 720; ADB port 5555. Installing leaves HDL on." : isS10 ? "Knob panel; ADB port 8555. Installing leaves HDL on." : "Square touch panel, no knob; ADB port 5555." })
+        /* @__PURE__ */ a.jsx("button", { className: "btn " + (adbType === "akubela" ? "primary" : "ghost"), disabled: u !== null, onClick: () => setAdbType("akubela"), children: "Akubela" }),
+        /* @__PURE__ */ a.jsx("div", { className: "hint", style: { flex: 1, minWidth: 160 }, children: adbType === "source7" ? "Knob panel, 1280 × 720; ADB port 5555. Installing leaves HDL on." : isS10 ? "Knob panel; ADB port 8555. Installing leaves HDL on." : adbType === "akubela" ? "10\" touch panel, 2560 × 1600, no knob; ADB port 5555. Installing leaves the Akubela app on; Set as Home makes ours open on boot." : "Square touch panel, no knob; ADB port 5555." })
       ] }),
       /* @__PURE__ */ a.jsxs("div", { className: "adb-row", children: [
         /* @__PURE__ */ a.jsxs("div", { className: "field", style: { flex: 1, minWidth: 160 }, children: [

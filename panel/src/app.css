@@ -769,3 +769,109 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-card.cover.on .el-cvsw .el-usw{background:rgba(124,196,232,.55)}
 .el-card.cover.on .el-cvsw .el-usw i{background:#fff;-webkit-transform:translateX(26px);transform:translateX(26px)}
 
+/* --- intercom: call another panel --- */
+.el-callbtn{display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin-right:16px;border-radius:22px;background:rgba(110,210,150,.16);border:1px solid rgba(110,210,150,.4);color:#8ee3b0}
+.el-callbtn svg{width:21px;height:21px}
+.ic-pickwrap{position:absolute;top:0;left:0;right:0;bottom:0;z-index:30;display:none}
+.ic-pickwrap.open{display:block}
+.ic-dim{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(6,7,9,.6)}
+.ic-pick{position:absolute;left:50%;top:84px;width:640px;margin-left:-320px;padding:20px 22px 24px;border-radius:24px;background:#1b1d23;border:1px solid rgba(255,255,255,.12);box-shadow:0 30px 60px -20px rgba(0,0,0,.8)}
+.ic-pickh{display:flex;align-items:center;margin-bottom:16px}
+.ic-pickh b{flex:1;font-size:21px;font-weight:600;color:#f3f1ec}
+.ic-x{width:40px;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);color:rgba(243,241,236,.7)}
+.ic-x svg{width:20px;height:20px}
+.ic-empty{color:rgba(243,241,236,.6);font-size:15px;padding:10px 0}
+.ic-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-gap:12px}
+.ic-p{display:flex;flex-direction:column;align-items:center;padding:16px 10px 14px;border-radius:18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.ic-p .ic-av{width:62px;height:62px;border-radius:31px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#0b2216;background:linear-gradient(145deg,#9ff0c2,#4fc487);margin-bottom:10px}
+.ic-pn{font-size:16px;font-weight:600;color:#f3f1ec;text-align:center}
+.ic-ps{font-size:13px;color:#7fdca6;margin-top:2px}
+.ic-p.off{opacity:.45}
+.ic-p.off .ic-av{background:rgba(255,255,255,.14);color:rgba(243,241,236,.7)}
+.ic-p.off .ic-ps{color:rgba(243,241,236,.5)}
+.ic-call{position:absolute;top:0;left:0;right:0;bottom:0;z-index:40;display:none;flex-direction:column;align-items:center;justify-content:space-between;padding:56px 0 44px;
+  background:radial-gradient(60% 55% at 50% 38%,rgba(70,160,110,.28),transparent 70%),linear-gradient(180deg,#121820 0%,#0b0d11 100%)}
+.ic-call.show{display:flex}
+.ic-mid{display:flex;flex-direction:column;align-items:center}
+.ic-big{position:relative;width:160px;height:160px;margin-bottom:24px}
+.ic-call.live .ic-big{width:124px;height:124px;margin-bottom:18px}
+.ic-call.live .ic-big span{font-size:44px}
+.ic-big span{position:absolute;top:0;left:0;right:0;bottom:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:58px;font-weight:700;color:#0b2216;background:linear-gradient(145deg,#a8f3c8,#46b97c);box-shadow:0 0 50px rgba(90,200,140,.35)}
+.ic-ring{position:absolute;top:0;left:0;right:0;bottom:0;border-radius:50%;border:2px solid rgba(140,230,180,.55);opacity:0}
+.ic-call.out .ic-ring,.ic-call.in .ic-ring{-webkit-animation:icRing 2.4s ease-out infinite;animation:icRing 2.4s ease-out infinite}
+.ic-ring.r2{-webkit-animation-delay:.8s!important;animation-delay:.8s!important}
+.ic-ring.r3{-webkit-animation-delay:1.6s!important;animation-delay:1.6s!important}
+@-webkit-keyframes icRing{0%{opacity:.8;-webkit-transform:scale(1)}100%{opacity:0;-webkit-transform:scale(1.9)}}
+@keyframes icRing{0%{opacity:.8;transform:scale(1)}100%{opacity:0;transform:scale(1.9)}}
+.ic-nm{font-size:40px;font-weight:600;color:#f3f1ec;letter-spacing:-.01em}
+.ic-st{font-size:19px;color:rgba(243,241,236,.62);margin-top:6px;font-variant-numeric:tabular-nums}
+.ic-call.live .ic-st{color:#8ee3b0}
+.ic-call.end .ic-st{color:#ff9a8a}
+.ic-call.end .ic-big span{background:rgba(255,255,255,.14);color:rgba(243,241,236,.7);box-shadow:none}
+.ic-lvl{display:flex;align-items:center;height:40px;margin-top:16px}
+.ic-lvl i{display:block;width:8px;height:40px;margin:0 4px;border-radius:4px;background:#8ee3b0;-webkit-transform:scaleY(.08);transform:scaleY(.08);-webkit-transition:-webkit-transform .12s;transition:transform .12s}
+.ic-btns{display:flex}
+.ic-b{display:flex;flex-direction:column;align-items:center;margin:0 34px}
+.ic-bc{width:88px;height:88px;border-radius:44px;display:flex;align-items:center;justify-content:center;color:#fff}
+.ic-bc svg{width:36px;height:36px}
+.ic-bl{font-size:15px;font-weight:600;color:rgba(243,241,236,.75);margin-top:10px}
+.ic-b.green .ic-bc{background:#2fbf6a;box-shadow:0 10px 30px -8px rgba(47,191,106,.7)}
+.ic-b.red .ic-bc{background:#e5484d;box-shadow:0 10px 30px -8px rgba(229,72,77,.7)}
+.ic-b.red .ic-bc svg{-webkit-transform:rotate(135deg);transform:rotate(135deg)}
+.ic-b.glass .ic-bc{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16)}
+.ic-b.glass.on .ic-bc{background:#f3f1ec;color:#15171c}
+.ic-call.in .ic-b.green .ic-bc{-webkit-animation:icPulse 1.2s ease-in-out infinite;animation:icPulse 1.2s ease-in-out infinite}
+@-webkit-keyframes icPulse{50%{-webkit-transform:scale(1.08)}}
+@keyframes icPulse{50%{transform:scale(1.08)}}
+.el-root.lite .ic-ring,.el-root.lite .ic-b .ic-bc{-webkit-animation:none!important;animation:none!important}
+
+/* --- Utilities > Solar: live power flow --- */
+.el-utabs{display:flex;align-items:center;height:44px}
+.el-utils.tabbed{top:56px}
+.sl-none{margin-top:20px}
+.sl-back{display:flex;align-items:center}
+.sl-back svg{width:14px;height:14px;margin-right:4px;-webkit-transform:rotate(180deg);transform:rotate(180deg)}
+.sl-title{font-size:19px;font-weight:600;color:#f3f1ec;margin-left:6px}
+.sl-live{margin-left:auto;display:flex;align-items:center;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8ee3b0}
+.sl-live i{width:8px;height:8px;border-radius:4px;background:#5fd394;margin-right:6px}
+.sl-diag{position:relative;height:330px}
+.sl-line{position:absolute;height:4px;margin-top:-2px;border-radius:2px;-webkit-transform-origin:0 50%;transform-origin:0 50%;color:#f3f1ec}
+.sl-line::before{content:"";position:absolute;left:0;right:0;top:0;bottom:0;border-radius:2px;background:currentColor;opacity:.1}
+.sl-line.on::before{opacity:.32}
+.sl-line.l-pv{color:#f5c451}
+.sl-line.l-home{color:#f2b866}
+.sl-line.l-grid{color:#ff8f7d}
+.sl-line.l-grid.sell{color:#7fdca6}
+.sl-line.l-batt{color:#7cc4e8}
+.sl-run{position:absolute;left:0;top:0;width:100%;height:4px;display:none}
+.sl-line.on .sl-run{display:block;-webkit-animation:slFlow 2s linear infinite;animation:slFlow 2s linear infinite}
+.sl-line.rev .sl-run{-webkit-animation-direction:reverse;animation-direction:reverse}
+.sl-run i{position:absolute;left:-5px;top:-3px;width:10px;height:10px;border-radius:5px;background:currentColor;box-shadow:0 0 8px currentColor}
+@-webkit-keyframes slFlow{from{-webkit-transform:translateX(0)}to{-webkit-transform:translateX(100%)}}
+@keyframes slFlow{from{transform:translateX(0)}to{transform:translateX(100%)}}
+.sl-arr{display:none;position:absolute;left:50%;top:-6px;width:12px;height:12px;margin-left:-6px;border-top:3px solid currentColor;border-right:3px solid currentColor;-webkit-transform:rotate(45deg);transform:rotate(45deg)}
+.sl-line.rev .sl-arr{-webkit-transform:rotate(225deg);transform:rotate(225deg)}
+.sl-node{position:absolute;width:170px;margin:-42px 0 0 -85px;text-align:center}
+.sl-ic{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;width:84px;height:84px;margin:0 auto;border-radius:42px;background:#1d2026;border:2px solid rgba(255,255,255,.14);color:rgba(243,241,236,.7)}
+.sl-ic svg{position:relative;width:38px;height:38px}
+.sl-v{margin-top:8px;font-size:23px;font-weight:700;color:#f3f1ec;font-variant-numeric:tabular-nums}
+.sl-l{margin-top:1px;font-size:13px;color:rgba(243,241,236,.6)}
+.sl-node.n-pv.on .sl-ic{border-color:#f5c451;color:#f5c451;background:#2a2516}
+.sl-node.n-pv.on .sl-ic svg{-webkit-animation:slSpin 24s linear infinite;animation:slSpin 24s linear infinite}
+@-webkit-keyframes slSpin{to{-webkit-transform:rotate(360deg)}}
+@keyframes slSpin{to{transform:rotate(360deg)}}
+.sl-node.n-home .sl-ic{border-color:rgba(242,184,102,.7);color:#f2b866}
+.sl-node.n-grid.buy .sl-ic{border-color:#ff8f7d;color:#ff8f7d}
+.sl-node.n-grid.sell .sl-ic{border-color:#7fdca6;color:#7fdca6}
+.sl-node.n-batt .sl-ic{border-color:#7cc4e8;color:#d6eefa}
+.sl-fill{position:absolute;left:0;right:0;bottom:0;height:100%;background:rgba(124,196,232,.32);-webkit-transform-origin:50% 100%;transform-origin:50% 100%}
+.sl-node.n-batt.low .sl-fill{background:rgba(255,120,100,.35)}
+.sl-hub{position:absolute;display:flex;align-items:center;justify-content:center;width:60px;height:60px;margin:-30px 0 0 -30px;border-radius:16px;background:#20232a;border:1px solid rgba(255,255,255,.16);color:rgba(243,241,236,.75)}
+.sl-hub svg{width:30px;height:30px}
+.sl-foot{margin-top:-4px;text-align:center;font-size:14px;color:rgba(243,241,236,.66)}
+.el-root.asleep .sl-run,.el-root.asleep .sl-node.n-pv svg{-webkit-animation-play-state:paused!important;animation-play-state:paused!important}
+.el-root.gsafe .sl-run i{box-shadow:none}
+/* Source 7: no moving dots, a still arrow shows the direction */
+.el-root.lite .sl-run{display:none!important}
+.el-root.lite .sl-line.on .sl-arr{display:block}
+

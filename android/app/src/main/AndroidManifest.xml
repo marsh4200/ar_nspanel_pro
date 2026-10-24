@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Intercom: live voice calls between panels (granted by the installer / device owner) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Granted by Home Assistant's installer over ADB (pm grant): lets the app
          keep USB / network debugging on when the panel's own software turns it off. -->
     <!-- Granted by Home Assistant's installer (appops): Android 10+ only lets an

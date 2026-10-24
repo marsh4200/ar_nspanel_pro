@@ -146,10 +146,29 @@ class MainActivity : Activity(), SensorEventListener {
         webView.addJavascriptInterface(bridge, "ARNative")
         // LAN cable first: with a cable in, everything goes over it, not Wi-Fi
         LanFirst.start(this) { via -> emit("network", "{\"via\":\"$via\"}") }
+        grantMic()
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(m: ConsoleMessage): Boolean {
                 android.util.Log.i("ARPanel", "${m.message()} (${m.sourceId()}:${m.lineNumber()})")
                 return true
+            }
+
+            // Intercom: the page asks for the microphone (getUserMedia)
+            override fun onPermissionRequest(request: android.webkit.PermissionRequest) {
+                main.post {
+                    if (!request.resources.contains(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
+                        request.deny()
+                        return@post
+                    }
+                    val mic = arrayOf(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE)
+                    if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        request.grant(mic)
+                    } else {
+                        pendingMic?.deny()
+                        pendingMic = request
+                        requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), REQ_MIC)
+                    }
+                }
             }
         }
         webView.webViewClient = object : WebViewClient() {
@@ -318,6 +337,34 @@ class MainActivity : Activity(), SensorEventListener {
         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
+    private var pendingMic: android.webkit.PermissionRequest? = null
+
+    /** Device owner (kiosk): grant itself the microphone, so a call never asks. */
+    private fun grantMic() {
+        if (!Kiosk.isOwner(this)) return
+        try {
+            val d = getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
+            d.setPermissionGrantState(
+                android.content.ComponentName(this, KioskAdmin::class.java), packageName,
+                android.Manifest.permission.RECORD_AUDIO, android.app.admin.DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED,
+            )
+        } catch (e: Exception) {
+            android.util.Log.w("ARPanel", "mic grant failed", e)
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQ_MIC) return
+        val req = pendingMic ?: return
+        pendingMic = null
+        if (grantResults.isNotEmpty() && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            req.grant(arrayOf(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE))
+        } else {
+            req.deny()
+        }
+    }
+
     fun hasSensor(type: Int): Boolean =
         (type != Sensor.TYPE_PROXIMITY || proximityOk) && sensors?.getDefaultSensor(type) != null
 
@@ -362,5 +409,6 @@ class MainActivity : Activity(), SensorEventListener {
         var current: MainActivity? = null
 
         const val BUNDLED_UI = "file:///android_asset/app/index.html"
+        private const val REQ_MIC = 7101
     }
 }

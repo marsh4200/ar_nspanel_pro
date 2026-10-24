@@ -45,6 +45,7 @@ from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from . import panel_config, licensing
 from .const import (
+    topic_intercom_peer,
     LICENSE_RETRY_GIVE_UP,
     LICENSE_RETRY_SCHEDULE,
     CONF_DEVICE_ID,
@@ -239,6 +240,19 @@ class PanelBridge:
         await self._publish_all_states()
         self._start_weather()
         self._fire_status()
+        await self.async_publish_intercom_peer()
+
+    async def async_publish_intercom_peer(self, remove: bool = False) -> None:
+        """Intercom directory: every panel lists the others from these retained
+        records (name + whether this panel takes calls)."""
+        cfg = self.device_cfg if isinstance(self.device_cfg, dict) else {}
+        el = cfg.get("elegant") if isinstance(cfg.get("elegant"), dict) else {}
+        payload = "" if remove else json.dumps({
+            "name": self.entry.title or self.device_id,
+            # calls need the Elegant dashboard (the call screens live there)
+            "on": cfg.get("dashboardStyle") == "elegant" and not el.get("intercomOff"),
+        })
+        await mqtt.async_publish(self.hass, topic_intercom_peer(self.device_id), payload, retain=True)
 
     async def async_unload(self) -> None:
         for unsub in self._unsubs:
@@ -332,6 +346,10 @@ class PanelBridge:
             return
         sources = [cfg] + [r for r in (cfg.get("rooms") or []) if isinstance(r, dict)]
         listed = [e for src in sources for cat in ELEGANT_CATEGORIES for e in _as_list(src.get(cat))]
+        # Utilities > Solar: {pv, load, grid, battery, soc, today} sensor ids (mirror only)
+        solar = cfg.get("solar") if cfg.get("utilitiesOn") else None
+        if isinstance(solar, dict):
+            listed += [v for k, v in solar.items() if k in ("pv", "load", "grid", "battery", "soc", "today") and isinstance(v, str) and v.startswith("sensor.")]
         for entity in dict.fromkeys(listed):
             domain = entity.split(".", 1)[0]
             self._elegant_entities.add(entity)
@@ -1877,6 +1895,9 @@ def _elegant_payload(entity_id: str, state: Any, base_url: str | None) -> dict[s
     elif domain == "valve":
         p["on"] = st in ("open", "opening")
         p["since"] = round(state.last_changed.timestamp())
+    elif domain == "sensor":
+        if a.get("unit_of_measurement"):
+            p["unit"] = a.get("unit_of_measurement")  # solar: W / kW / kWh / %
     elif domain == "climate":
         p["on"] = st != "off"
         for src, dst in (("temperature", "temp"), ("current_temperature", "cur"), ("min_temp", "min"),
