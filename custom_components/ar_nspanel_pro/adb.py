@@ -61,6 +61,10 @@ HDL_LAUNCHER = "com.hdl.source.ten.launcher"
 HDL_HOME = f"{HDL_LAUNCHER}/.ui.MainActivity"
 #: Akubela (Akuvox) 10" touch panel, 2560x1600, RK3566: its own launcher app
 AKUBELA_APP = "com.akubela.panel"
+#: Akuvox software switched off with "Use AR app": the panel app, its voice
+#: assistant (holds the microphone), the updater and the log service.
+#: com.akuvox.factorytest (the factory tool) is never touched.
+AKUBELA_PKGS = (AKUBELA_APP, "com.akuvox.voiceassist", "com.akuvox.upgradeui", "com.akuvox.logservice")
 
 
 KIOSK_ADMIN = f"{APP_PACKAGE}/.KioskAdmin"
@@ -230,6 +234,26 @@ def _input_text_arg(text: str) -> str:
     """
     safe = text.replace("'", "'\\''").replace(" ", "%s")
     return f"'{safe}'"
+
+
+def _vendor(device: Any) -> tuple[str, list[str], str] | None:
+    """The panel maker's own software: (name, packages to switch off, its Home
+    component). HDL (Source 10 / 7) or Akubela; None on a plain NSPanel."""
+    found = _hdl(device)
+    if found:
+        app, launcher, home = found
+        return "HDL", [p for p in (launcher, app) if p and _installed(device, p)], home
+    if _installed(device, AKUBELA_APP):
+        resolved = (
+            device.shell(
+                "cmd package resolve-activity --brief -a android.intent.action.MAIN "
+                f"-c android.intent.category.HOME {AKUBELA_APP}"
+            )
+            or ""
+        ).strip().splitlines()
+        home = resolved[-1].strip() if resolved and "/" in resolved[-1] else f"{AKUBELA_APP}/.MainActivity"
+        return "Akubela", [p for p in AKUBELA_PKGS if _installed(device, p)], home
+    return None
 
 
 def _installed(device: Any, pkg: str) -> bool:
@@ -488,16 +512,30 @@ class PanelAdb:
                     "(no root), so HDL was left on — switching it off would lock ADB out "
                     "after the next reboot.",
                 )
-            log.append(f"Network ADB stays on port {adb_port} without HDL.")
-            found = _hdl(d)
-            for pkg in (found[1], found[0]) if found else ():
-                if pkg and _installed(d, pkg):
-                    log.append(f"{pkg}: " + (d.shell(f"pm disable-user --user 0 {pkg}") or "").strip())
+            found = _vendor(d)
+            name, pkgs = (found[0], found[1]) if found else ("the panel's own software", [])
+            log.append(f"Network ADB stays on port {adb_port} without {name}.")
+            d.shell("settings put global adb_enabled 1")
+            # our app first: Home, kiosk lock, open
             log.append(_set_home(d, f"{APP_PACKAGE}/{APP_ACTIVITY}", APP_PACKAGE))
-            d.shell(f"am start -n {APP_PACKAGE}/{APP_ACTIVITY}")
             msg = _kiosk_lock(d)[1]
             if msg:
                 log.append(msg)
+            d.shell(f"am start -n {APP_PACKAGE}/{APP_ACTIVITY}")
+            # Then the maker's software off, LAST and on the panel by itself:
+            # switching it off can drop this ADB connection (the HDL Source 10
+            # did), so a detached root script finishes the job either way and
+            # puts network ADB back on the same port afterwards.
+            if pkgs:
+                steps = "; ".join(f"pm disable-user --user 0 {p}" for p in pkgs)
+                script = (
+                    f"sleep 1; {steps}; settings put global adb_enabled 1; "
+                    f"setprop service.adb.tcp.port {adb_port}; "
+                    f"am start -n {APP_PACKAGE}/{APP_ACTIVITY}"
+                )
+                d.shell(f"su 0 sh -c \"nohup sh -c '{script}' >/dev/null 2>&1 &\"")
+                log.append(f"Switching off {name}: " + ", ".join(pkgs) + ".")
+                log.append("If the connection drops now, that's expected: reconnect in a few seconds.")
             return {"output": "\n".join(log)}
 
         return await self._hass.async_add_executor_job(self._run, host, port, signer, fn)
@@ -508,17 +546,13 @@ class PanelAdb:
         signer = await self._get_signer()
 
         def fn(d: Any) -> dict[str, Any]:
-            found = _hdl(d)
+            found = _vendor(d)
             if not found:
-                raise AdbError("no_hdl", "This panel has no HDL launcher — it isn't an HDL Source panel.")
-            app, launcher, home = found
-            log = [m for m in [_kiosk_unlock(d)] if m]  # the HDL screen can't show while locked
-            log += [
-                f"{pkg}: " + (d.shell(f"pm enable {pkg}") or "").strip()
-                for pkg in (app, launcher)
-                if pkg and _installed(d, pkg)
-            ]
-            log.append(_set_home(d, home, launcher))
+                raise AdbError("no_hdl", "This panel has no HDL or Akubela software to go back to.")
+            name, pkgs, home = found
+            log = [m for m in [_kiosk_unlock(d)] if m]  # the maker's screen can't show while locked
+            log += [f"{pkg}: " + (d.shell(f"pm enable {pkg}") or "").strip() for pkg in pkgs]
+            log.append(_set_home(d, home, home.split("/", 1)[0]))
             d.shell("input keyevent 3")
             return {"output": "\n".join(log)}
 
@@ -532,13 +566,12 @@ class PanelAdb:
         def fn(d: Any) -> dict[str, Any]:
             # a device-owner app can't be uninstalled: release the lock first
             log = [m for m in [_kiosk_unlock(d)] if m]
-            found = _hdl(d)
+            found = _vendor(d)
             if found:
-                app, launcher, home = found
-                for pkg in (app, launcher):
-                    if pkg and _installed(d, pkg):
-                        log.append(f"{pkg}: " + (d.shell(f"pm enable {pkg}") or "").strip())
-                log.append(_set_home(d, home, launcher, strict=False))
+                name, pkgs, home = found
+                for pkg in pkgs:
+                    log.append(f"{pkg}: " + (d.shell(f"pm enable {pkg}") or "").strip())
+                log.append(_set_home(d, home, home.split("/", 1)[0], strict=False))
             if not _installed(d, APP_PACKAGE):
                 log.append("The app isn't installed.")
             else:

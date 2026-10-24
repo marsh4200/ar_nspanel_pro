@@ -10773,12 +10773,12 @@ function IA({
     p({ kind: "ok", text: okText }), T(okText, "ok"), Oe();
   }
   async function hdlTakeover() {
-    if (!window.confirm("Switch HDL off on this panel? On some HDL panels, HDL's software also runs the panel's network and ADB — with HDL off the panel can lose its IP address until HDL is switched back on from Android Settings → Apps.")) return;
-    await runLogged("takeover", () => l.adbHdlTakeover(S, d), "HDL is off — the app is Home and opens on every boot.");
+    if (!window.confirm(adbType === "akubela" ? "Switch the Akubela software off on this panel? The Akubela app, its voice assistant, updater and log service are disabled, so only Android and the AR app run. Network ADB is kept on. \"Back to Akubela screen\" switches it all on again." : "Switch HDL off on this panel? On some HDL panels, HDL's software also runs the panel's network and ADB — with HDL off the panel can lose its IP address until HDL is switched back on from Android Settings → Apps.")) return;
+    await runLogged("takeover", () => l.adbHdlTakeover(S, d), (adbType === "akubela" ? "Akubela" : "HDL") + " is off — the app is Home and opens on every boot. If the panel drops off for a moment, reconnect.");
   }
   async function hdlRestore() {
-    if (!window.confirm("Switch this panel back to the HDL screen? HDL's app and launcher are re-enabled and become Home again. The AR app stays installed.")) return;
-    await runLogged("restore", () => l.adbHdlRestore(S, d), "Back on the HDL screen.");
+    if (!window.confirm(adbType === "akubela" ? "Switch this panel back to the Akubela screen? The Akubela software is re-enabled and becomes Home again. The AR app stays installed." : "Switch this panel back to the HDL screen? HDL's app and launcher are re-enabled and become Home again. The AR app stays installed.")) return;
+    await runLogged("restore", () => l.adbHdlRestore(S, d), adbType === "akubela" ? "Back on the Akubela screen." : "Back on the HDL screen.");
   }
   async function resetApp() {
     if (!window.confirm("Reset the app for a new site? It forgets the broker, login, panel ID, saved pages and licence key, then opens on its setup screen.")) return;
@@ -10906,13 +10906,13 @@ function IA({
           /* @__PURE__ */ a.jsx(j, { d: N.close, size: 18 }),
           u === "unsethome" ? "Unsetting…" : "Unset Home"
         ] }),
-        isS10 && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: hdlTakeover, children: [
+        (isS10 || adbType === "akubela") && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: hdlTakeover, title: adbType === "akubela" ? "Switches off the Akubela app, its voice assistant, updater and log service: only Android and the AR app run." : void 0, children: [
           /* @__PURE__ */ a.jsx(j, { d: N.home, size: 18 }),
-          u === "takeover" ? "Switching…" : "Use AR app (HDL off)"
+          u === "takeover" ? "Switching…" : adbType === "akubela" ? "Use AR app (Akubela off)" : "Use AR app (HDL off)"
         ] }),
-        isS10 && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: hdlRestore, children: [
+        (isS10 || adbType === "akubela") && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: hdlRestore, children: [
           /* @__PURE__ */ a.jsx(j, { d: N.reload, size: 18 }),
-          u === "restore" ? "Restoring…" : "Back to HDL screen"
+          u === "restore" ? "Restoring…" : adbType === "akubela" ? "Back to Akubela screen" : "Back to HDL screen"
         ] }),
         adbType === "source7" && b?.app_installed && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: b?.kiosk ? kioskUnlock : kioskLock, title: "Kiosk lock: install does this by itself", children: [
           /* @__PURE__ */ a.jsx(j, { d: "M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z", size: 18 }),
