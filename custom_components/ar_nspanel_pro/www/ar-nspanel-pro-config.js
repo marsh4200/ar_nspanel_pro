@@ -9460,6 +9460,11 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
         /* @__PURE__ */ a.jsx("option", { value: "downlight", children: "Downlight" }),
         /* @__PURE__ */ a.jsx("option", { value: "bulb", children: "Bulb" })
       ] }) }),
+      /* @__PURE__ */ a.jsx(X, { label: "Tap to select", hint: "Full: the first tap highlights a card (the knob then controls it), a second tap switches it. Dimmable only: on/off lights and switches switch on the first tap; only dimmable ones highlight. Off: no highlight, every tap switches straight away.", children: /* @__PURE__ */ a.jsxs("select", { className: "inp", value: cfg.selectMode === "off" || cfg.selectMode === "dimmable" ? cfg.selectMode : "full", onChange: (m) => save({ selectMode: m.target.value === "full" ? void 0 : m.target.value }), children: [
+        /* @__PURE__ */ a.jsx("option", { value: "full", children: "Full highlight (as now)" }),
+        /* @__PURE__ */ a.jsx("option", { value: "dimmable", children: "Dimmable lights only" }),
+        /* @__PURE__ */ a.jsx("option", { value: "off", children: "Off: tap switches at once" })
+      ] }) }),
       /* @__PURE__ */ a.jsx(X, { label: "Knob dimming step", hint: "How much one click of the knob dims or brightens a light. Smaller is finer.", children: /* @__PURE__ */ a.jsxs("select", { className: "inp", value: String([2.5, 7.5, 10].includes(Number(cfg.knobDim)) ? Number(cfg.knobDim) : 5), onChange: (m) => save({ knobDim: m.target.value === "5" ? void 0 : Number(m.target.value) }), children: [
         /* @__PURE__ */ a.jsx("option", { value: "2.5", children: "2.5% per click" }),
         /* @__PURE__ */ a.jsx("option", { value: "5", children: "5% per click (default)" }),

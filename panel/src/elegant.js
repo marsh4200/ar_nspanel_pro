@@ -686,7 +686,12 @@ export function buildElegant(cfg, ctx, skin) {
     // switch; a switch in the shades list is plain on/off
     const dimmable = kind === "cover" ? coverSlides(e) : dom === "light" && s.dim !== false;
     const cvSwitch = kind === "cover" && dom === "cover" && !dimmable;
-    const sel = kind === "cover" ? selShade === i : selLight === i;
+    // Device Setup > Dashboard > Tap to select: "full" (first tap selects, the
+    // knob then controls it), "dimmable" (only dimmable cards select; on/off
+    // ones switch at once) or "off" (no highlight: every tap switches at once)
+    const selMode = cfg.selectMode === "off" || cfg.selectMode === "dimmable" ? cfg.selectMode : "full";
+    const instant = selMode === "off" || (selMode === "dimmable" && !dimmable);
+    const sel = !instant && (kind === "cover" ? selShade === i : selLight === i);
     const c = el("div", "el-glass el-card" + (levelOf(e, kind) > 0 ? " on" : "") + (sel ? " sel" : "") + (kind === "cover" ? " cover" : LIGHT_ICON === "bulb" ? " bulb" : " lamp " + LIGHT_ICON));
     // lights: a pendant lamp hanging from the card's top edge (its light cone and
     // shade rim glow with the brightness), or the round bulb. Shades keep their icon.
@@ -708,9 +713,16 @@ export function buildElegant(cfg, ctx, skin) {
       wasSel = c.classList.contains("sel");
       if (kind === "cover") selShade = i;
       else selLight = i;
-      Array.prototype.forEach.call(c.parentNode.children, (x, n) => x.classList.toggle("sel", n === i));
+      Array.prototype.forEach.call(c.parentNode.children, (x, n) => x.classList.toggle("sel", n === i && !instant));
     });
     c.addEventListener("click", (ev) => {
+      if (instant) {
+        // no selecting: a tap anywhere (but the slider) switches it straight away
+        if (ev.target.closest && ev.target.closest(".el-slider")) return;
+        if (kind === "cover" && dimmable) return;
+        toggle();
+        return;
+      }
       if ((kind === "cover" && !cvSwitch) || !wasSel) return;
       if (ev.target.closest && (ev.target.closest(".el-slider") || ev.target.closest(".el-bulb"))) return;
       toggle();
