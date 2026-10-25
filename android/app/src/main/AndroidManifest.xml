@@ -27,6 +27,8 @@
     <!-- Android 11+: the music page can open the Spotify app -->
     <queries>
         <package android:name="com.spotify.music" />
+        <!-- Akubela panel: is this one (AkuOff) -->
+        <package android:name="com.akubela.panel" />
     </queries>
 
     <application

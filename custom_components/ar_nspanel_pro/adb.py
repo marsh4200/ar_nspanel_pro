@@ -269,7 +269,8 @@ def _run_panel_script(device: Any, name: str) -> str:
     """Copy one of scripts/<name> onto the panel and run it as root.
     The Akubela background services (their Home Assistant, KNX, SIP, SSH,
     cloud clients…) are started by Android's init, not as apps, so they are
-    switched off/on in its boot files by aku-clean.sh / aku-restore.sh."""
+    switched off by aku-clean.sh (the AR app re-stops them on every start)
+    and back on by aku-restore.sh."""
     path = os.path.join(os.path.dirname(__file__), "scripts", name)
     with open(path, "rb") as fh:
         data = base64.b64encode(fh.read()).decode()

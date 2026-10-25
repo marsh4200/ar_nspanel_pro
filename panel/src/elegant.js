@@ -1647,6 +1647,43 @@ export function buildElegant(cfg, ctx, skin) {
     if (r === "PREMIUM_REQUIRED") return toast("Spotify needs Premium to play from here");
     toast("Spotify: " + ((e && e.message) || what || "failed"));
   }
+  // a Device Setup speaker <-> its Spotify Connect device (same name, roughly)
+  const spNorm = (t) => String(t || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  function spDevFor(x) {
+    const n = spNorm(nameOf(x));
+    const fn = spNorm((get(x) || {}).name);
+    if (!n) return null;
+    return (
+      sp.devices.filter((d) => {
+        const dn = spNorm(d.name);
+        return dn && (dn === n || dn === fn || (dn.length > 3 && (n.indexOf(dn) >= 0 || dn.indexOf(n) >= 0)));
+      })[0] || null
+    );
+  }
+  let spWaking = null;
+  function spWake(x) {
+    if (spWaking) return;
+    spWaking = x;
+    send("spwake", { entity: x });
+    pages.music.render();
+    let n = 0;
+    const tick = () => {
+      if (spWaking !== x) return;
+      const d = spDevFor(x);
+      if (d) {
+        spWaking = null;
+        sp.transfer(d.id).then(() => toast("Spotify now plays on " + d.name), (e) => spErr(e));
+        return pages.music.render();
+      }
+      if (++n > 8) {
+        spWaking = null;
+        toast(nameOf(x) + " didn't show up in Spotify. Spotify only lists speakers that are awake: open Spotify on your phone, pick " + nameOf(x) + " once, then it shows here");
+        return pages.music.render();
+      }
+      sp.refresh().catch(() => {}).then(() => setTimeout(tick, 2000));
+    };
+    setTimeout(tick, 1500);
+  }
   let spTab = "playlists";
   let spOpen = null; // {kind, item, tracks, albums, err}
   const spLib = {};
@@ -1939,6 +1976,17 @@ export function buildElegant(cfg, ctx, skin) {
         });
         row.appendChild(c);
       });
+      // the speakers from Device Setup that Spotify doesn't list (asleep):
+      // tap = HA wakes it into Spotify, then play there once Spotify sees it
+      (ents.music || []).forEach((x) => {
+        if (spDevFor(x)) return;
+        const c = el("div", "el-spkc" + (spWaking === x ? " on" : ""), svg("speaker") + '<div class="el-spkt"><span></span><small></small></div>');
+        c.querySelector("span").textContent = nameOf(x);
+        c.querySelector("small").textContent = spWaking === x ? "Waking…" : "Tap to play here";
+        c.addEventListener("click", () => spWake(x));
+        row.appendChild(c);
+      });
+      if (row.children.length > 1 && !sp.devices.length && !sp.error) row.removeChild(row.firstChild);
       right.appendChild(row);
     }
     const tabs = el("div", "el-libtabs");

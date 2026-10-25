@@ -1,51 +1,39 @@
 #!/system/bin/sh
 # AR Smart Home: switch off the Akubela/Akuvox background services so only
-# Android and the AR app run. Undo with aku-restore.sh (backups are kept).
+# Android and the AR app run. Undo with aku-restore.sh.
 # Run as root:  su 0 sh /data/local/tmp/aku-clean.sh
+#
+# The panel's boot files are NOT edited (a damaged init file stops Android
+# booting). Instead this leaves a small stop script; the AR app runs it as
+# root every time the panel starts, which stops the services again.
 
 # Android's own (toybox) tools first: this panel also has a 2009 BusyBox in its PATH
 export PATH=/system/bin:/system/xbin:$PATH
 
-SVCS="log_debug pmonitor autop lighttpd sipall netcast dclient homeassistant gesturekit knx dropbear"
-set -f
-
-# mark every listed "service <name>" in an init .rc file as disabled
-disable_in() {
-  rc=$1
-  [ -f "$rc.ar_bak" ] || cp "$rc" "$rc.ar_bak"
-  cp "$rc.ar_bak" "/data/local/tmp/$(basename "$rc").ar_bak"
-  : > /data/local/tmp/rc.new
-  while IFS= read -r line || [ -n "$line" ]; do
-    echo "$line" >> /data/local/tmp/rc.new
-    set -- $line
-    if [ "$1" = "service" ]; then
-      case " $SVCS " in
-        *" $2 "*) echo "    disabled" >> /data/local/tmp/rc.new; echo "  disabled at boot: $2 ($rc)";;
-      esac
-    fi
-  done < "$rc.ar_bak"
-  cat /data/local/tmp/rc.new > "$rc"
-  rm -f /data/local/tmp/rc.new
-}
-
-echo "== making the system writable =="
-mount -o remount,rw / 2>/dev/null || mount -o remount,rw /system
-mount -o remount,rw /vendor 2>/dev/null
-
-echo "== boot files =="
-for rc in $(grep -rlE "^service ($(echo $SVCS | tr ' ' '|')) " /system/etc/init /vendor/etc/init 2>/dev/null); do
-  disable_in "$rc"
+# undo the boot-file edits made by older versions (2.0.20-2.0.24)
+for bak in $(ls /system/etc/init/*.ar_bak /system/etc/init/hw/*.ar_bak /vendor/etc/init/*.ar_bak /vendor/etc/init/hw/*.ar_bak 2>/dev/null); do
+  mount -o remount,rw / 2>/dev/null || mount -o remount,rw /system
+  mount -o remount,rw /vendor 2>/dev/null
+  rc=${bak%.ar_bak}
+  cat "$bak" > "$rc" && rm -f "$bak" && echo "put back the original $rc"
 done
-
 mount -o remount,ro / 2>/dev/null
 mount -o remount,ro /vendor 2>/dev/null
 
-echo "== stopping them now =="
-touch /tmp/kill_ha /tmp/kill_mqtt
-for s in $SVCS; do setprop ctl.stop $s; done
+cat > /data/local/tmp/aku-stop.sh <<'STOP'
+#!/system/bin/sh
+export PATH=/system/bin:/system/xbin:$PATH
+touch /tmp/kill_ha /tmp/kill_mqtt 2>/dev/null
+for s in log_debug pmonitor autop lighttpd sipall netcast dclient homeassistant gesturekit knx dropbear; do
+  setprop ctl.stop $s
+done
 sleep 2
 killall python3.9 knx mosquitto 2>/dev/null
+STOP
+chmod 755 /data/local/tmp/aku-stop.sh
+touch /data/local/tmp/ar_aku_off
 
-echo "== still running (should be empty) =="
-getprop | grep init.svc | grep running | grep -E "\[init.svc.($(echo $SVCS | tr ' ' '|'))\]"
-echo "done - restart the panel to check it stays off"
+echo "== stopping them now =="
+sh /data/local/tmp/aku-stop.sh
+getprop | grep init.svc | grep running | grep -E "\[init.svc.(log_debug|pmonitor|autop|lighttpd|sipall|netcast|dclient|homeassistant|gesturekit|knx|dropbear)\]"
+echo "done - the AR app stops them again on every start"

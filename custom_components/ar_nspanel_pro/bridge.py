@@ -1227,6 +1227,17 @@ class PanelBridge:
                     await self._svc("media_player", "join", entity, {"group_members": members})
             elif action == "unjoin" and domain == "media_player":
                 await self._svc("media_player", "unjoin", entity, {})
+            elif action == "spwake" and domain == "media_player":
+                # Spotify page: a speaker from Device Setup that Spotify doesn't
+                # list yet (asleep). Switch it on and to its Spotify input, so it
+                # shows up in Spotify Connect and the panel can play there.
+                st = self.hass.states.get(entity)
+                if st is not None and st.state in ("off", "standby", "unavailable"):
+                    await self._svc("media_player", "turn_on", entity, {})
+                srcs = (st.attributes.get("source_list") if st else None) or []
+                src = next((x for x in srcs if isinstance(x, str) and "spotify" in x.lower()), None)
+                if src:
+                    await self._svc("media_player", "select_source", entity, {"source": src})
             elif action == "arm" and value.get("mode") in ("away", "home", "night", "disarm"):
                 svc = "alarm_disarm" if value["mode"] == "disarm" else f"alarm_arm_{value['mode']}"
                 data = {"code": str(value["code"])} if value.get("code") else {}
