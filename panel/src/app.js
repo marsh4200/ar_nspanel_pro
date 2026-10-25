@@ -194,7 +194,7 @@ const ctx = {
   get intercom() {
     if (!ic || !intercomOn()) return null;
     return {
-      api: ic.api,
+      api: icApi,
       set ui(u) {
         ic.attach(u);
       },
@@ -208,8 +208,20 @@ const ctx = {
 // --- intercom ------------------------------------------------------------------
 let ic = null;
 const intercomOn = () => EL_SKINS.indexOf(device.dashboardStyle) >= 0 && !!device.elegant && !device.elegant.intercomOff;
+// the call screen always talks to the current engine, even after the panel ID changed
+const icApi = {
+  panels: () => (ic ? ic.api.panels() : []),
+  dial: (...a) => ic && ic.api.dial(...a),
+  answer: (...a) => ic && ic.api.answer(...a),
+  decline: () => ic && ic.api.decline(),
+  hangup: () => ic && ic.api.hangup(),
+  mute: (on) => ic && ic.api.mute(on),
+};
 function intercomFor(id) {
   if (ic && ic.myId === id) return ic;
+  // panel ID changed: end any call on the old ID and move the call screen over
+  const old = ic;
+  if (old && old.busy()) old.api.hangup();
   ic = intercomEngine({
     myId: id,
     send: (topic, obj) => publishRaw(topic, JSON.stringify(obj), false),
@@ -223,6 +235,7 @@ function intercomFor(id) {
     log,
   });
   ic.myId = id;
+  if (old && old.ui) ic.attach(old.ui);
   return ic;
 }
 

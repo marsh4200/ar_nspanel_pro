@@ -145,7 +145,7 @@ class MainActivity : Activity(), SensorEventListener {
         bridge = NativeBridge(this)
         webView.addJavascriptInterface(bridge, "ARNative")
         // LAN cable first: with a cable in, everything goes over it, not Wi-Fi
-        LanFirst.start(this) { via -> emit("network", "{\"via\":\"$via\"}") }
+        LanFirst.start(this, { brokerHost() }) { via -> emit("network", "{\"via\":\"$via\"}") }
         grantMic()
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(m: ConsoleMessage): Boolean {
@@ -204,7 +204,27 @@ class MainActivity : Activity(), SensorEventListener {
     fun loadUi() {
         loadedFallback = false
         val url = bridge.uiUrl()
-        webView.loadUrl(if (url.isNullOrBlank()) BUNDLED_UI else url)
+        if (url.isNullOrBlank()) {
+            webView.loadUrl(BUNDLED_UI)
+            return
+        }
+        // http UI: run a copy on the panel so the intercom may use the mic
+        Thread {
+            val go = UiCache.resolve(this, url)
+            main.post { webView.loadUrl(go) }
+        }.start()
+    }
+
+    /** The MQTT broker's host and port from the panel settings (ws://host:port). */
+    private fun brokerHost(): Pair<String, Int>? = try {
+        val b = (MiniJson.parse(bridge.getSettings()) as? Map<*, *>)?.get("brokerUrl") as? String
+        if (b.isNullOrBlank()) null else {
+            val u = java.net.URI(b.trim())
+            val port = if (u.port > 0) u.port else if (u.scheme.equals("wss", true)) 443 else 80
+            if (u.host.isNullOrBlank()) null else Pair(u.host, port)
+        }
+    } catch (e: Exception) {
+        null
     }
 
     override fun onResume() {
