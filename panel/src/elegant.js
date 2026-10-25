@@ -573,7 +573,14 @@ export function buildElegant(cfg, ctx, skin) {
       V.nodes.batt.classList.toggle("low", soc != null && soc < 20);
     }
     const today = solarNum("today");
-    V.foot.textContent = (today != null ? "Today " + today.toFixed(1) + " kWh · " : "") + (load > 0 ? Math.round(Math.min(100, (Math.min(pv, load) / load) * 100)) + "% of the house runs on solar" : "");
+    // what feeds the house: the grid on one side, solar + battery on the other
+    let share = null;
+    if (load > 0) {
+      const fromGrid = grid != null ? Math.max(0, grid) : null;
+      const own = fromGrid != null ? load - fromGrid : Math.min(pv, load) + Math.max(0, batt || 0);
+      share = Math.round(Math.max(0, Math.min(100, (own / load) * 100)));
+    }
+    V.foot.textContent = (today != null ? "Today " + today.toFixed(1) + " kWh · " : "") + (share != null ? "Solar + battery " + share + "% · Grid " + (100 - share) + "%" : "");
   }
 
   if (ents.utilities) {
