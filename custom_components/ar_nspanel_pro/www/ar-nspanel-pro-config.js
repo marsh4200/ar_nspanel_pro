@@ -10602,61 +10602,51 @@ function ArPanelTime({ api: l, host: S, port: d, blocked: F, log: T }) {
       setBusy(!1);
     }
   };
-  const box = { border: "1px solid rgba(18,176,240,.35)", background: "rgba(18,176,240,.05)", borderRadius: 12, padding: 14, margin: "12px 0" };
-  const ck = (bad) => ({ background: "var(--surface2, rgba(127,127,127,.08))", border: "1px solid " + (bad ? "rgba(255,138,122,.5)" : "var(--divider, rgba(127,127,127,.25))"), borderRadius: 10, padding: "8px 12px", flex: 1, minWidth: 150 });
-  const big = { font: "600 20px ui-monospace,Menlo,monospace" };
-  const row = { display: "flex", alignItems: "center", gap: 10, margin: "10px 0", flexWrap: "wrap" };
-  const lab = { minWidth: 96, fontSize: 13, opacity: 0.75 };
+  const [more, setMore] = M.useState(!1);
+  const box = { border: "1px solid var(--divider, rgba(127,127,127,.25))", borderRadius: 12, padding: "12px 14px", margin: "12px 0" };
+  const row = { display: "flex", alignItems: "center", gap: 10, margin: "10px 0 0", flexWrap: "wrap" };
+  const lab = { minWidth: 90, fontSize: 13, opacity: 0.75 };
+  const clock = { font: "600 17px ui-monospace,Menlo,monospace" };
   const off = [];
   if (st && Math.abs(skew) >= 1) off.push((Math.abs(skew) >= 60 ? Math.floor(Math.abs(skew) / 60) + " h " : "") + (Math.abs(skew) % 60) + " min " + (skew < 0 ? "behind" : "ahead"));
   if (tzWrong) off.push("wrong time zone");
   return /* @__PURE__ */ a.jsxs("div", { style: box, children: [
-    /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8, fontWeight: 700, marginBottom: 10 }, children: [
+    /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }, children: [
       /* @__PURE__ */ a.jsx(j, { d: "M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z", size: 18, style: { color: "var(--accent)" } }),
-      "Panel time",
+      /* @__PURE__ */ a.jsx("b", { children: "Panel time" }),
+      /* @__PURE__ */ a.jsxs("span", { className: "hint", children: ["HA ", /* @__PURE__ */ a.jsx("span", { style: clock, children: fmt(now, haTz) })] }),
+      /* @__PURE__ */ a.jsxs("span", { className: "hint", children: ["Panel ", /* @__PURE__ */ a.jsx("span", { style: { ...clock, color: st ? ok ? "#4caf50" : "#ff8a7a" : void 0 }, children: panelMs ? fmt(panelMs, st.tz || "UTC") : "--:--:--" })] }),
+      st && /* @__PURE__ */ a.jsx("span", { style: { fontSize: 12, fontWeight: 600, color: ok ? "#4caf50" : "#ff8a7a" }, children: ok ? "Correct" : off.join(" · ") }),
       /* @__PURE__ */ a.jsx("div", { style: { flex: 1 } }),
-      /* @__PURE__ */ a.jsx("button", { className: "btn ghost", disabled: F || busy, onClick: read, children: busy && !st ? "Reading…" : "Read panel clock" })
+      /* @__PURE__ */ a.jsx("button", { className: "btn ghost", disabled: F || busy, onClick: read, children: busy && !st ? "Reading…" : "Read" }),
+      /* @__PURE__ */ a.jsx("button", { className: "btn primary", disabled: F || busy, onClick: set, children: busy && st ? "Sending…" : "Send time to panel" })
     ] }),
-    /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", gap: 10, flexWrap: "wrap" }, children: [
-      /* @__PURE__ */ a.jsxs("div", { style: ck(!1), children: [
-        /* @__PURE__ */ a.jsx("div", { className: "hint", children: "Home Assistant" }),
-        /* @__PURE__ */ a.jsx("div", { style: big, children: fmt(now, haTz) }),
-        /* @__PURE__ */ a.jsx("div", { className: "hint", children: haTz })
+    err && /* @__PURE__ */ a.jsx("div", { style: { color: "#ff8a7a", fontSize: 13, marginTop: 8, wordBreak: "break-word" }, children: err }),
+    /* @__PURE__ */ a.jsx("button", { className: "btn ghost", style: { marginTop: 8, padding: "4px 10px", fontSize: 12 }, onClick: () => setMore(!more), children: more ? "Fewer options ▴" : "Time zone, set by hand, nightly check ▾" }),
+    more && /* @__PURE__ */ a.jsxs("div", { children: [
+      /* @__PURE__ */ a.jsxs("div", { style: row, children: [
+        /* @__PURE__ */ a.jsx("span", { style: lab, children: "Time zone" }),
+        /* @__PURE__ */ a.jsx("select", { className: "inp", style: { maxWidth: 260 }, value: zone, onChange: (m) => setTz(m.target.value), children: Array.from(new Set([haTz].concat(AR_TZS))).map((z) => /* @__PURE__ */ a.jsx("option", { value: z, children: z + (z === haTz ? " (Home Assistant)" : "") }, z)) })
       ] }),
-      /* @__PURE__ */ a.jsxs("div", { style: ck(st && !ok), children: [
-        /* @__PURE__ */ a.jsx("div", { className: "hint", children: "This panel" }),
-        /* @__PURE__ */ a.jsx("div", { style: big, children: panelMs ? fmt(panelMs, st.tz || "UTC") : "--:--:--" }),
-        /* @__PURE__ */ a.jsx("div", { className: "hint", children: st ? st.tz || "no time zone set" : "Connect, then Read panel clock" }),
-        st && /* @__PURE__ */ a.jsx("div", { style: { fontSize: 12, fontWeight: 600, color: ok ? "#4caf50" : "#ff8a7a" }, children: ok ? "Correct" : off.join(" · ") })
-      ] })
-    ] }),
-    /* @__PURE__ */ a.jsxs("div", { style: row, children: [
-      /* @__PURE__ */ a.jsx("span", { style: lab, children: "Time zone" }),
-      /* @__PURE__ */ a.jsx("select", { className: "inp", style: { maxWidth: 260 }, value: zone, onChange: (m) => setTz(m.target.value), children: Array.from(new Set([haTz].concat(AR_TZS))).map((z) => /* @__PURE__ */ a.jsx("option", { value: z, children: z + (z === haTz ? " (Home Assistant)" : "") }, z)) })
-    ] }),
-    /* @__PURE__ */ a.jsxs("div", { style: row, children: [
-      /* @__PURE__ */ a.jsx("span", { style: lab, children: "Time" }),
-      /* @__PURE__ */ a.jsx("button", { className: "btn " + (hand ? "ghost" : "primary"), onClick: () => setHand(!1), children: "Same as Home Assistant" }),
-      /* @__PURE__ */ a.jsx("button", { className: "btn " + (hand ? "primary" : "ghost"), onClick: () => {
-        setHand(!0);
-        if (!day) {
-          const n = new Date();
-          setDay(n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0") + "-" + String(n.getDate()).padStart(2, "0")), setTm(n.toTimeString().slice(0, 8));
-        }
-      }, children: "Set by hand" })
-    ] }),
-    hand && /* @__PURE__ */ a.jsxs("div", { style: row, children: [
-      /* @__PURE__ */ a.jsx("span", { style: lab }),
-      /* @__PURE__ */ a.jsx("input", { className: "inp", type: "date", style: { maxWidth: 170 }, value: day, onChange: (m) => setDay(m.target.value) }),
-      /* @__PURE__ */ a.jsx("input", { className: "inp", type: "time", step: 1, style: { maxWidth: 140 }, value: tm, onChange: (m) => setTm(m.target.value) })
-    ] }),
-    /* @__PURE__ */ a.jsx(et, { title: "Take the time from the internet as well", sub: "Only if the site has internet", on: auto, onChange: setAuto }),
-    /* @__PURE__ */ a.jsx(et, { title: "Check it every night at 03:00", sub: "Home Assistant puts the panel's clock right over ADB, for sites without internet", on: daily, onChange: setDaily }),
-    /* @__PURE__ */ a.jsxs("div", { style: { ...row, marginTop: 12 }, children: [
-      /* @__PURE__ */ a.jsx("button", { className: "btn primary", disabled: F || busy, onClick: set, children: busy && st ? "Setting…" : "Set panel time" }),
-      err && /* @__PURE__ */ a.jsx("span", { style: { color: "#ff8a7a", fontSize: 13 }, children: err })
-    ] }),
-    /* @__PURE__ */ a.jsx("div", { className: "hint", children: "Sets the panel's Android clock and time zone, so the clock, sleep screen and alarms on the panel are right. Uses the ADB connection above; needs root on the panel, like switching HDL off." })
+      /* @__PURE__ */ a.jsxs("div", { style: row, children: [
+        /* @__PURE__ */ a.jsx("span", { style: lab, children: "Time" }),
+        /* @__PURE__ */ a.jsx("button", { className: "btn " + (hand ? "ghost" : "primary"), onClick: () => setHand(!1), children: "Same as Home Assistant" }),
+        /* @__PURE__ */ a.jsx("button", { className: "btn " + (hand ? "primary" : "ghost"), onClick: () => {
+          setHand(!0);
+          if (!day) {
+            const n = new Date();
+            setDay(n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0") + "-" + String(n.getDate()).padStart(2, "0")), setTm(n.toTimeString().slice(0, 8));
+          }
+        }, children: "Set by hand" })
+      ] }),
+      hand && /* @__PURE__ */ a.jsxs("div", { style: row, children: [
+        /* @__PURE__ */ a.jsx("span", { style: lab }),
+        /* @__PURE__ */ a.jsx("input", { className: "inp", type: "date", style: { maxWidth: 170 }, value: day, onChange: (m) => setDay(m.target.value) }),
+        /* @__PURE__ */ a.jsx("input", { className: "inp", type: "time", step: 1, style: { maxWidth: 140 }, value: tm, onChange: (m) => setTm(m.target.value) })
+      ] }),
+      /* @__PURE__ */ a.jsx(et, { title: "Take the time from the internet as well", sub: "Only if the site has internet", on: auto, onChange: setAuto }),
+      /* @__PURE__ */ a.jsx(et, { title: "Check it every night at 03:00", sub: "Home Assistant puts the panel's clock right over ADB, for sites without internet", on: daily, onChange: setDaily })
+    ] })
   ] });
 }
 function IA({

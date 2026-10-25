@@ -1156,7 +1156,11 @@ def _time_status(d: Any) -> dict[str, Any]:
 
 
 def _set_time(d: Any, tz: str | None, epoch: float | None, auto: bool | None) -> dict[str, Any]:
+    """Set the panel's time zone and clock. Tries every way Android offers, as
+    root, in order (they differ per Android version and panel), and checks the
+    result; the error says what the panel answered when none of them work."""
     log: list[str] = []
+    tried: list[str] = []
     if auto is not None:
         d.shell(f"settings put global auto_time {1 if auto else 0}")
         log.append("Internet time: " + ("on" if auto else "off"))
@@ -1164,32 +1168,48 @@ def _set_time(d: Any, tz: str | None, epoch: float | None, auto: bool | None) ->
         if not _TZ_RE.match(tz):
             raise AdbError("bad_request", f"Not a time zone: {tz}")
         d.shell("settings put global auto_time_zone 0")
-        d.shell(f"su 0 setprop persist.sys.timezone {tz}")
-        d.shell(f"su 0 service call alarm 3 s16 {tz}")  # AlarmManager.setTimeZone: takes effect now
+        for cmd in (
+            f"su 0 cmd alarm set-timezone {tz}",  # Android 11+
+            f"su 0 service call alarm 3 s16 {tz}",  # AlarmManager.setTimeZone (older)
+            f"su 0 setprop persist.sys.timezone {tz}",
+        ):
+            out = (d.shell(cmd) or "").strip()
+            if (d.shell("getprop persist.sys.timezone") or "").strip() == tz:
+                break
+            tried.append(f"{cmd} -> {out[:80] or 'no output'}")
         got = (d.shell("getprop persist.sys.timezone") or "").strip()
         if got != tz:
             raise AdbError(
                 "time_failed",
-                f"The panel didn't take the time zone (it says '{got or 'nothing'}'). "
-                "Setting the time needs root on the panel (su), which this panel doesn't allow.",
+                f"The panel didn't take the time zone (it still says '{got or 'nothing'}'); "
+                "setting it needs root on the panel (su). Tried: " + " | ".join(tried),
             )
         log.append(f"Time zone → {tz}")
-    target = epoch if epoch is not None else time.time()
+
+    def want() -> float:
+        return epoch if epoch is not None else time.time()
+
     if epoch is not None or tz is not None:
-        # AlarmManager.setTime (also updates the hardware clock); `date` as a fallback
-        d.shell(f"su 0 service call alarm 2 i64 {int((target if epoch is not None else time.time()) * 1000)}")
         now = _panel_epoch(d)
-        want = target if epoch is not None else time.time()
-        if now is None or abs(now - want) > 5:
-            stamp = time.strftime("%m%d%H%M%Y.%S", time.gmtime(want if epoch is not None else time.time()))
-            d.shell(f"su 0 date -u {stamp}")
-            now = _panel_epoch(d)
-            want = target if epoch is not None else time.time()
-        if now is None or abs(now - want) > 5:
+        if now is None or abs(now - want()) > 3:
+            for cmd_fn in (
+                lambda: f"su 0 cmd alarm set-time {int(want() * 1000)}",  # Android 11+
+                lambda: f"su 0 service call alarm 2 i64 {int(want() * 1000)}",  # AlarmManager.setTime (older)
+                lambda: f"su 0 /system/bin/toybox date -u @{int(want())}",
+                lambda: "su 0 /system/bin/toybox date -u " + time.strftime("%m%d%H%M%Y.%S", time.gmtime(want())),
+                lambda: "su 0 date -u " + time.strftime("%m%d%H%M%Y.%S", time.gmtime(want())),
+            ):
+                cmd = cmd_fn()
+                out = (d.shell(cmd) or "").strip()
+                now = _panel_epoch(d)
+                if now is not None and abs(now - want()) <= 10:
+                    break
+                tried.append(f"{cmd.split(' @')[0].split(' 1')[0]} -> {out[:80] or 'no output'}")
+        if now is None or abs(now - want()) > 10:
             raise AdbError(
                 "time_failed",
-                "The panel's clock didn't change. Setting the time needs root on the panel (su), "
-                "which this panel doesn't allow.",
+                "The panel's clock didn't change; setting it needs root on the panel (su). Tried: "
+                + " | ".join(tried),
             )
         log.append("Clock → " + time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(now)))
     st = _time_status(d)
