@@ -1690,11 +1690,19 @@ export function buildElegant(cfg, ctx, skin) {
       toast("Pick a playlist or song first, then tap " + nameOf(x) + " again");
       return pages.music.render();
     }
+    // only Sonos (Spotify link) and Google with Spotcast can be started this way
+    const fam = get(x).fam;
+    if (fam !== "sonos" && fam !== "cast") {
+      spWaking = null;
+      toast(nameOf(x) + " isn't in Spotify yet. Open the Spotify app on your phone, pick " + nameOf(x) + " once, then it shows here and plays");
+      return pages.music.render();
+    }
+    const before = get(x).value + "|" + (get(x).title || "");
     send("spplay", { entity: x, uri: uri });
     if (p.is_playing) sp.cmd("PUT", "/me/player/pause").catch(() => {});
     setTimeout(() => {
       spWaking = null;
-      if (get(x).value === "playing") toast("Playing on " + nameOf(x) + " (through the speaker, not Spotify Connect)");
+      if (get(x).value === "playing" && get(x).value + "|" + (get(x).title || "") !== before) toast("Playing on " + nameOf(x) + " (through the speaker, not Spotify Connect)");
       else toast(nameOf(x) + " couldn't start Spotify. Google speakers need Spotcast in HA; Sonos needs Spotify added in the Sonos app; others: pick it once in the Spotify app");
       pages.music.render();
     }, 7000);
