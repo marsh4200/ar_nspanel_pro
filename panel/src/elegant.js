@@ -1675,14 +1675,29 @@ export function buildElegant(cfg, ctx, skin) {
         sp.transfer(d.id).then(() => toast("Spotify now plays on " + d.name), (e) => spErr(e));
         return pages.music.render();
       }
-      if (++n > 8) {
-        spWaking = null;
-        toast(nameOf(x) + " didn't show up in Spotify. Spotify only lists speakers that are awake: open Spotify on your phone, pick " + nameOf(x) + " once, then it shows here");
-        return pages.music.render();
-      }
+      if (++n > 5) return spDirect(x);
       sp.refresh().catch(() => {}).then(() => setTimeout(tick, 2000));
     };
     setTimeout(tick, 1500);
+  }
+  // still not in Spotify Connect: HA plays the same playlist / song on the
+  // speaker through its own integration (Sonos: Spotify link; Google: Spotcast)
+  function spDirect(x) {
+    const p = sp.player || {};
+    const uri = (p.context && p.context.uri) || (p.item && p.item.uri);
+    if (!uri) {
+      spWaking = null;
+      toast("Pick a playlist or song first, then tap " + nameOf(x) + " again");
+      return pages.music.render();
+    }
+    send("spplay", { entity: x, uri: uri });
+    if (p.is_playing) sp.cmd("PUT", "/me/player/pause").catch(() => {});
+    setTimeout(() => {
+      spWaking = null;
+      if (get(x).value === "playing") toast("Playing on " + nameOf(x) + " (through the speaker, not Spotify Connect)");
+      else toast(nameOf(x) + " couldn't start Spotify. Google speakers need Spotcast in HA; Sonos needs Spotify added in the Sonos app; others: pick it once in the Spotify app");
+      pages.music.render();
+    }, 7000);
   }
   let spTab = "playlists";
   let spOpen = null; // {kind, item, tracks, albums, err}

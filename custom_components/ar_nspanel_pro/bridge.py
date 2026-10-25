@@ -1238,6 +1238,24 @@ class PanelBridge:
                 src = next((x for x in srcs if isinstance(x, str) and "spotify" in x.lower()), None)
                 if src:
                     await self._svc("media_player", "select_source", entity, {"source": src})
+            elif action == "spplay" and domain == "media_player" and isinstance(value.get("uri"), str):
+                # the speaker never showed up in Spotify Connect: play the same
+                # thing on it through its own integration instead
+                uri = value["uri"]
+                ent = er.async_get(self.hass).async_get(entity)
+                plat = ent.platform if ent else ""
+                if self.hass.services.has_service("spotcast", "start") and plat == "cast":
+                    # Google / Cast speakers: Spotcast starts Spotify on them
+                    await self._svc("spotcast", "start", entity, {"uri": uri, "force_playback": True})
+                elif plat == "sonos":
+                    # Sonos plays Spotify share links (Spotify added in the Sonos app)
+                    parts = uri.split(":")
+                    link = f"https://open.spotify.com/{parts[1]}/{parts[2]}" if len(parts) == 3 else uri
+                    await self._svc("media_player", "play_media", entity,
+                                    {"media_content_id": link, "media_content_type": "music"})
+                else:
+                    await self._svc("media_player", "play_media", entity,
+                                    {"media_content_id": uri, "media_content_type": "music"})
             elif action == "arm" and value.get("mode") in ("away", "home", "night", "disarm"):
                 svc = "alarm_disarm" if value["mode"] == "disarm" else f"alarm_arm_{value['mode']}"
                 data = {"code": str(value["code"])} if value.get("code") else {}
