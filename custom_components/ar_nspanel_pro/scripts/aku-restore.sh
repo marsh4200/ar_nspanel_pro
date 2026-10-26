@@ -3,7 +3,7 @@
 # Run as root:  su 0 sh /data/local/tmp/aku-restore.sh
 export PATH=/system/bin:/system/xbin:$PATH
 
-rm -f /data/local/tmp/ar_aku_off /data/local/tmp/aku-stop.sh /tmp/kill_ha /tmp/kill_mqtt
+rm -f /data/local/tmp/ar_aku_off /data/local/tmp/aku-stop.sh /data/local/tmp/ar_ledoff.py /tmp/kill_ha /tmp/kill_mqtt
 
 # older versions (2.0.20-2.0.24) edited the boot files: put the originals back
 for bak in $(ls /system/etc/init/*.ar_bak /system/etc/init/hw/*.ar_bak /vendor/etc/init/*.ar_bak /vendor/etc/init/hw/*.ar_bak 2>/dev/null); do

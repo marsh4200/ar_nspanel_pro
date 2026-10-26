@@ -29,8 +29,24 @@ for s in log_debug pmonitor autop lighttpd sipall netcast dclient homeassistant 
 done
 sleep 2
 killall python3.9 knx mosquitto 2>/dev/null
+# bottom RGB light: with the Akubela app off nobody sets it, and the light
+# chip's default is to flash. Send the app's own idle command (off).
+[ -f /data/local/tmp/ar_ledoff.py ] && LD_LIBRARY_PATH=/system/pythonenv/lib PYTHONHOME=/system/pythonenv \
+  /system/pythonenv/bin/python3.9 /data/local/tmp/ar_ledoff.py 2>/dev/null
 STOP
 chmod 755 /data/local/tmp/aku-stop.sh
+
+# Akubela app's idle state for its RGB indicator, as it does it:
+# ioctl(/dev/akmisc, 0x102f, RGB_MODE_DATA all zero) = mode 0, no colour = off
+cat > /data/local/tmp/ar_ledoff.py <<'LED'
+import fcntl, os
+fd = os.open("/dev/akmisc", os.O_RDWR)
+try:
+    fcntl.ioctl(fd, 0x102F, bytes(36))
+    print("bottom light off")
+finally:
+    os.close(fd)
+LED
 touch /data/local/tmp/ar_aku_off
 
 echo "== stopping them now =="
