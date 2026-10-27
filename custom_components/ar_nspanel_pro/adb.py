@@ -279,7 +279,9 @@ def _run_panel_script(device: Any, name: str) -> str:
     for i in range(0, len(data), 3000):
         device.shell(f"echo -n {data[i:i + 3000]} >> {remote}.b64")
     device.shell(f"/system/bin/toybox base64 -d {remote}.b64 > {remote}; rm -f {remote}.b64; chmod 755 {remote}")
-    return (device.shell(f"su 0 sh {remote}", read_timeout_s=60) or "").strip()
+    # as root where the panel has su; scripts that can run without it skip the root parts
+    run = f"if [ -x /system/xbin/su ]; then su 0 sh {remote}; else sh {remote}; fi"
+    return (device.shell(run, read_timeout_s=90) or "").strip()
 
 
 def _installed(device: Any, pkg: str) -> bool:
@@ -588,6 +590,10 @@ class PanelAdb:
             name, pkgs, home = found
             log = [m for m in [_kiosk_unlock(d)] if m]  # the maker's screen can't show while locked
             if name == "Akubela":
+                # "Optimise panel" removes these for the panel's user: put them back first
+                for pkg in AKUBELA_PKGS:
+                    d.shell(f"pm install-existing --user 0 {pkg} >/dev/null 2>&1")
+                pkgs = [p for p in AKUBELA_PKGS if _installed(d, p)]
                 log.append(_run_panel_script(d, "aku-restore.sh"))
                 if _installed(d, "com.android.provision"):
                     d.shell("pm enable com.android.provision")
@@ -595,6 +601,19 @@ class PanelAdb:
             log.append(_set_home(d, home, home.split("/", 1)[0]))
             d.shell("input keyevent 3")
             return {"output": "\n".join(log)}
+
+        return await self._hass.async_add_executor_job(self._run, host, port, signer, fn)
+
+    async def async_optimise(self, host: str, port: int, undo: bool = False) -> dict[str, Any]:
+        """Any panel: switch off what a wall panel never uses (browser, gallery,
+        printing, SMS …), remove the Akubela apps its firmware keeps running
+        although they are off, stop Rockchip's AI-chip server, animations off.
+        Nothing is deleted; ``undo`` puts it all back (scripts/ar-*optimise.sh)."""
+        signer = await self._get_signer()
+
+        def fn(d: Any) -> dict[str, Any]:
+            out = _run_panel_script(d, "ar-unoptimise.sh" if undo else "ar-optimise.sh")
+            return {"output": out}
 
         return await self._hass.async_add_executor_job(self._run, host, port, signer, fn)
 

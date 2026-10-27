@@ -148,6 +148,7 @@ class MainActivity : Activity(), SensorEventListener {
         LanFirst.start(this, { brokerHost() }) { via -> emit("network", "{\"via\":\"$via\"}") }
         grantMic()
         AkuOff.run(this) // Akubela taken over: stop its own services again
+        BootTweaks.run() // "Optimise panel": stop what the boot files start again
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(m: ConsoleMessage): Boolean {
                 android.util.Log.i("ARPanel", "${m.message()} (${m.sourceId()}:${m.lineNumber()})")

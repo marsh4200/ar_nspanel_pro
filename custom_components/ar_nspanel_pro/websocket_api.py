@@ -646,6 +646,8 @@ async def ws_notify(
                 "reboot",
                 "hdl_takeover",
                 "hdl_restore",
+                "optimise",
+                "unoptimise",
                 "uninstall",
                 "reset_app",
                 "kiosk_lock",
@@ -714,6 +716,8 @@ async def ws_adb(
             res = await adb.async_hdl_takeover(host, port)
         elif action == "hdl_restore":
             res = await adb.async_hdl_restore(host, port)
+        elif action in ("optimise", "unoptimise"):
+            res = await adb.async_optimise(host, port, undo=action == "unoptimise")
         elif action == "uninstall":
             res = await adb.async_uninstall(host, port)
         elif action == "reset_app":

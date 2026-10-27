@@ -5869,6 +5869,10 @@ class Ha {
   adbHdlRestore(t, r) {
     return this.hass.callWS({ type: "ar_nspanel_pro/adb", action: "hdl_restore", host: t, port: r });
   }
+  /** Any panel: switch off what a wall panel never uses (undo = put it all back). */
+  adbOptimise(t, r, undo) {
+    return this.hass.callWS({ type: "ar_nspanel_pro/adb", action: undo ? "unoptimise" : "optimise", host: t, port: r });
+  }
   /** Uninstall the app (an HDL Source 10 goes back to the HDL screen first). */
   adbUninstall(t, r) {
     return this.hass.callWS({ type: "ar_nspanel_pro/adb", action: "uninstall", host: t, port: r });
@@ -10775,6 +10779,14 @@ function IA({
     if (!window.confirm(adbType === "akubela" ? "Switch this panel back to the Akubela screen? The Akubela apps and background services are switched back on and the Akubela app becomes Home again. The AR app stays installed." : "Switch this panel back to the HDL screen? HDL's app and launcher are re-enabled and become Home again. The AR app stays installed.")) return;
     await runLogged("restore", () => l.adbHdlRestore(S, d), adbType === "akubela" ? "Back on the Akubela screen." : "Back on the HDL screen.");
   }
+  async function optimisePanel() {
+    if (!window.confirm("Optimise this panel? Apps a wall panel never uses are switched off (browser, gallery, camera, music, calendar, contacts, clock, wallpapers, printing, SMS, screensavers, factory test), Akubela apps that keep running although they are off are removed for the panel's user, Rockchip's AI-chip server is stopped and animations are turned off. Nothing is deleted: \"Undo optimise\" puts it all back.")) return;
+    await runLogged("optimise", () => l.adbOptimise(S, d, !1), "Panel optimised — restart it to check everything still works.");
+  }
+  async function unoptimisePanel() {
+    if (!window.confirm("Undo the optimisation? Every app it switched off comes back on, and animations go back to normal.")) return;
+    await runLogged("unoptimise", () => l.adbOptimise(S, d, !0), "Optimisation undone.");
+  }
   async function resetApp() {
     if (!window.confirm("Reset the app for a new site? It forgets the broker, login, panel ID, saved pages and licence key, then opens on its setup screen.")) return;
     await runLogged("reset", () => l.adbResetApp(S, d), "App reset — enter the new site’s details on the panel.");
@@ -10908,6 +10920,14 @@ function IA({
         (isS10 || adbType === "akubela") && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: hdlRestore, children: [
           /* @__PURE__ */ a.jsx(j, { d: N.reload, size: 18 }),
           u === "restore" ? "Restoring…" : adbType === "akubela" ? "Back to Akubela screen" : "Back to HDL screen"
+        ] }),
+        /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: optimisePanel, title: "Switches off what a wall panel never uses, so only Android and the AR app run. Nothing is deleted.", children: [
+          /* @__PURE__ */ a.jsx(j, { d: N.check, size: 18 }),
+          u === "optimise" ? "Optimising…" : "Optimise panel"
+        ] }),
+        /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: unoptimisePanel, children: [
+          /* @__PURE__ */ a.jsx(j, { d: N.reload, size: 18 }),
+          u === "unoptimise" ? "Undoing…" : "Undo optimise"
         ] }),
         adbType === "source7" && b?.app_installed && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: b?.kiosk ? kioskUnlock : kioskLock, title: "Kiosk lock: install does this by itself", children: [
           /* @__PURE__ */ a.jsx(j, { d: "M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z", size: 18 }),
