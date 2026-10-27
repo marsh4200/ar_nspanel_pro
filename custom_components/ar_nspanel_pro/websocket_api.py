@@ -648,6 +648,7 @@ async def ws_notify(
                 "hdl_restore",
                 "optimise",
                 "unoptimise",
+                "camera_check",
                 "uninstall",
                 "reset_app",
                 "kiosk_lock",
@@ -718,6 +719,12 @@ async def ws_adb(
             res = await adb.async_hdl_restore(host, port)
         elif action in ("optimise", "unoptimise"):
             res = await adb.async_optimise(host, port, undo=action == "unoptimise")
+        elif action == "camera_check":
+            # text = the camera's RTSP URL (as typed in Device Setup > RTSP cameras)
+            if not msg.get("text"):
+                connection.send_error(msg["id"], "bad_request", "camera_check needs the camera's RTSP URL")
+                return
+            res = await adb.async_camera_check(host, port, msg["text"])
         elif action == "uninstall":
             res = await adb.async_uninstall(host, port)
         elif action == "reset_app":

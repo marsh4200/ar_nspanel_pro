@@ -204,23 +204,33 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
                     t = t.cause
                 }
                 val msgs = chain.joinToString(" ") { it.message ?: "" }
+                // the deepest cause, in plain words, so a photo of the tile says what broke
+                val root = chain.last()
+                val why = (root.javaClass.simpleName + (root.message?.let { ": " + it.take(90) } ?: "")).trim()
+                android.util.Log.w("ARRtsp", "camera $id (${masked(c.url)}) failed: ${error.errorCodeName} | " + chain.joinToString(" <- ") { it.javaClass.simpleName + ": " + (it.message ?: "") })
                 c.status.text = when {
                     chain.any { it is java.net.UnknownHostException } -> "Can't find the camera at \"${host(c.url)}\" — check the IP"
                     chain.any { it is java.net.ConnectException || it is java.net.SocketTimeoutException } -> "No answer from ${host(c.url)} — check the IP / port (554)"
                     msgs.contains("401") -> "The camera refused the login — check user / password"
+                    msgs.contains("403") -> "The camera refused this panel (403) — locked out after wrong logins? Wait 30 min or reboot the camera"
                     msgs.contains("404") -> "The camera doesn't know that stream — check the channel (102)"
-                    else -> "Can't play this camera (${error.errorCodeName}) — retrying…"
+                    msgs.contains("461") -> "The camera won't send video over TCP (461)"
+                    chain.any { it is java.net.SocketException } || msgs.contains("reset", true) || msgs.contains("EOF", true) ->
+                        "The camera dropped the connection — locked out after wrong logins (wait 30 min / reboot it), or a wrong channel?\n$why"
+                    else -> "Can't play this camera (${error.errorCodeName}) — retrying…\n$why"
                 }
                 c.status.visibility = View.VISIBLE
                 activity.emit("rtsp", "{\"id\":${MiniJson.quote(id)},\"event\":\"error\",\"msg\":${MiniJson.quote(error.errorCodeName)}}")
-                // try again while it is still on screen
+                // try again while it is still on screen. After a refused login wait a
+                // minute: Hikvision locks a device out after a few wrong logins in a row.
+                val loginRefused = msgs.contains("401") || msgs.contains("403")
                 main.postDelayed({
                     if (cams[id] === c) {
                         c.player?.release()
                         c.player = null
                         start(id, c)
                     }
-                }, 5000)
+                }, if (loginRefused) 60_000L else 5_000L)
             }
         })
         // RTP over TCP: works through panels' and cameras' firewalls, no lost UDP packets

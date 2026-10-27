@@ -604,6 +604,62 @@ class PanelAdb:
 
         return await self._hass.async_add_executor_job(self._run, host, port, signer, fn)
 
+    async def async_camera_check(self, host: str, port: int, url: str) -> dict[str, Any]:
+        """Why won't an RTSP camera play on this panel? Checked from two places at
+        once, so nobody needs to be on site:
+        * the panel (ADB): app version, can IT reach the camera (an RTSP OPTIONS
+          sent from the panel's own network), and the player's errors in its log;
+        * Home Assistant: a full player-style session with the camera (login,
+          stream description, video over TCP, a few seconds of video)."""
+        from .rtsp_probe import parse_url, probe
+
+        try:
+            cam = parse_url(url)
+        except ValueError as err:
+            raise AdbError("bad_request", str(err)) from err
+        if not re.match(r"^[A-Za-z0-9.\-]+$", cam["host"]):
+            raise AdbError("bad_request", "That camera address doesn't look like an IP or host name.")
+        signer = await self._get_signer()
+
+        def panel(d: Any) -> list[str]:
+            out = ["== From the panel =="]
+            ver = d.shell(f"dumpsys package {APP_PACKAGE} | grep -m1 versionName") or ""
+            out.append("App: " + (ver.strip().replace("versionName=", "v") or "not installed"))
+            ips = re.findall(r"^\d+:\s+(\S+)\s+inet\s+(\S+)", d.shell("ip -4 -o addr show 2>/dev/null") or "", re.M)
+            out.append("Panel: " + (d.shell("getprop ro.product.model") or "").strip()
+                       + " · " + (", ".join(f"{i} {a}" for i, a in ips if i != "lo") or "IP ?"))
+            # an RTSP OPTIONS from the panel's own network position: proves it can reach the camera
+            h, p = cam["host"], cam["port"]
+            req = f"OPTIONS rtsp://{h}:{p}/ RTSP/1.0\\r\\nCSeq: 1\\r\\n\\r\\n"
+            ans = d.shell(f"printf '{req}' | toybox timeout 5 toybox nc {h} {p} 2>&1", read_timeout_s=15) or ""
+            first = ans.strip().splitlines()[0] if ans.strip() else ""
+            if first.startswith("RTSP/"):
+                out.append(f"✓ The panel reaches the camera {h}:{p} (it answers \"{first}\")")
+            else:
+                out.append(f"✗ The panel can NOT reach the camera {h}:{p}" + (f" ({first[:80]})" if first else " (no answer)"))
+            log = d.shell("logcat -d -v time ARRtsp:V ExoPlayerImplInternal:V RtspClient:V RtspMediaPeriod:V *:S", read_timeout_s=20) or ""
+            lines = [ln for ln in log.splitlines() if ln.strip() and not ln.startswith("-----")]
+            # keep the start of each error and its causes, not whole Java stack traces
+            keep = [ln for ln in lines if "\tat " not in ln and " at androidx." not in ln and " at java." not in ln and " at android." not in ln]
+            keep = [re.sub(r"(rtsps?://[^:@/\s]*:)[^@\s]*@", r"\1****@", ln) for ln in keep][-25:]
+            out.append("Player log (latest):" if keep else "Player log: nothing logged (has the camera page been opened since the panel started?)")
+            out += ["  " + ln[:220] for ln in keep]
+            return out
+
+        async def from_panel() -> list[str]:
+            try:
+                return await self._hass.async_add_executor_job(self._run, host, port, signer, panel)
+            except AdbError as err:
+                return ["== From the panel ==", f"✗ ADB: {err}"]
+            except Exception as err:  # noqa: BLE001
+                return ["== From the panel ==", f"✗ ADB: {type(err).__name__}: {err}"]
+
+        async def from_ha() -> list[str]:
+            return ["== From Home Assistant =="] + await probe(url)
+
+        a, b = await asyncio.gather(from_panel(), from_ha())
+        return {"output": "\n".join(a + [""] + b)}
+
     async def async_optimise(self, host: str, port: int, undo: bool = False) -> dict[str, Any]:
         """Any panel: switch off what a wall panel never uses (browser, gallery,
         printing, SMS …), remove the Akubela apps its firmware keeps running
