@@ -2733,6 +2733,7 @@ export function buildElegant(cfg, ctx, skin) {
       if (maOn) ma.start();
       clearInterval(tick);
       tick = setInterval(() => {
+        if (window.__arHidden && window.__arHidden()) return; // under the screensaver: nobody sees it
         chrome();
         if (current === "home") pages.home.render();
       }, 20000);

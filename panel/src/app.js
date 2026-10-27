@@ -291,9 +291,39 @@ function render() {
   updateWaiting();
 }
 
+// While the clock / black screensaver covers the pages, nobody can see them:
+// redrawing on every Home Assistant change only keeps the panel busy (a busy
+// house sends several a second). Note what changed and redraw once on wake.
+const pendingKeys = new Set();
+const pagesHidden = () => !awake && saverEl.classList.contains("show");
+window.__arHidden = pagesHidden;
+
 function updateKey(key) {
+  if (pagesHidden()) {
+    pendingKeys.add(key);
+    return;
+  }
   views.forEach((v) => {
     if (v.view.keys && v.view.keys.indexOf(key) >= 0) v.view.update(key);
+  });
+}
+
+function flushPending() {
+  if (!pendingKeys.size) return;
+  const keys = Array.from(pendingKeys);
+  pendingKeys.clear();
+  views.forEach((v) => {
+    if (!v.view.keys) return;
+    const mine = keys.filter((k) => v.view.keys.indexOf(k) >= 0);
+    if (!mine.length) return;
+    try {
+      // Elegant redraws its whole page on any change: once is enough.
+      // Classic pages update only the tile that changed: give them every key.
+      if (v.page.type === "elegant") v.view.update(mine[mine.length - 1]);
+      else mine.forEach((k) => v.view.update(k));
+    } catch (e) {
+      log("update after wake failed", e && e.message);
+    }
   });
 }
 
@@ -515,14 +545,34 @@ function wake(cause) {
   wokeAt = Date.now();
   wokeBy = cause || "";
   manualBrightness = null;
-  saverEl.className = "";
   saverEl.__clock = null;
-  while (saverEl.firstChild) saverEl.removeChild(saverEl.firstChild);
+  // Build the page while the screensaver still covers it, so what lights up is
+  // the finished page, not one being drawn. The screensaver goes a frame later.
+  flushPending();
   const armedIdx = screensaverAlarmPage();
   if (armedIdx >= 0) showPage(armedIdx, false);
   else if (cause !== "notification") showPage(defaultPageIndex(), false);
+  revealPages();
   applyBrightness();
   publishAwake(cause);
+}
+
+let revealT = null;
+function revealPages() {
+  if (!saverEl.classList.contains("show")) return;
+  const raf = window.requestAnimationFrame || ((f) => setTimeout(f, 16));
+  let done = false;
+  const go = () => {
+    if (done) return;
+    done = true;
+    clearTimeout(revealT);
+    if (!awake) return; // went back to sleep meanwhile
+    saverEl.className = "";
+    while (saverEl.firstChild) saverEl.removeChild(saverEl.firstChild);
+  };
+  raf(() => raf(go)); // after the page has been laid out and painted once
+  clearTimeout(revealT);
+  revealT = setTimeout(go, 250); // never keep the screensaver up longer than this
 }
 
 function tick() {
