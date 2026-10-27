@@ -399,8 +399,9 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-dockbtn svg{width:25px;height:25px;margin-bottom:4px}
 .el-dockbtn.on{background:rgba(var(--fg-rgb),.12);color:var(--ink)}
 .el-dockbtn.on svg{color:var(--acc)}
-.el-page{position:absolute;left:0;right:0;top:64px;bottom:94px;padding:6px 26px 0;opacity:0;pointer-events:none;-webkit-transition:opacity .25s;transition:opacity .25s;overflow:hidden}
+.el-page{position:absolute;left:0;right:0;top:64px;bottom:94px;padding:6px 26px 0;opacity:0;pointer-events:none;overflow:hidden}
 .el-page.show{opacity:1;pointer-events:auto}
+.el-page:not(.show){visibility:hidden}
 /* home */
 .el-home{display:grid;grid-template-columns:300px 1fr;grid-gap:16px;height:100%}
 .el-hero{padding:22px 24px;display:flex;flex-direction:column;min-height:0}

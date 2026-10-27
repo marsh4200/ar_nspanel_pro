@@ -402,6 +402,7 @@ function updateStatus() {
 // anything else) woke the screen.
 let swallow = false;
 let swallowT = 0;
+let swallowUp = false; // the eaten gesture has lifted: the next touch is a new one
 let wokeAt = 0;
 let wokeBy = "";
 window.__arWakeSwallow = () => swallow;
@@ -411,18 +412,28 @@ const eatTouch = (e) => {
   if (e.cancelable) e.preventDefault();
 };
 const releaseTouch = () => {
+  swallowUp = true;
   clearTimeout(swallowT);
   swallowT = setTimeout(() => (swallow = false), 400); // the click comes after pointerup
 };
 document.addEventListener(
   "pointerdown",
   (e) => {
+    // Like a phone: the touch that wakes the screen only wakes it, but the very
+    // next tap works. Its click has been eaten by now (it comes before any new
+    // touch), so a new finger down ends the swallowing at once.
+    if (awake && swallow && swallowUp) {
+      swallow = false;
+      clearTimeout(swallowT);
+    }
     if (!awake) {
       swallow = true;
+      swallowUp = false;
       clearTimeout(swallowT);
       wake("touch");
-    } else if (!swallow && wokeBy !== "touch" && Date.now() - wokeAt < 700) {
+    } else if (!swallow && wokeBy !== "touch" && Date.now() - wokeAt < 250) {
       swallow = true; // reached for the screen as it lit up
+      swallowUp = false;
       clearTimeout(swallowT);
       activity();
     } else if (!swallow) {
