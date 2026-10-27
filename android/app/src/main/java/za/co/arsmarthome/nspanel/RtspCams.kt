@@ -61,9 +61,33 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
             val user = if (colon < 0) info else info.substring(0, colon)
             val pass = if (colon < 0) "" else info.substring(colon + 1)
             // decode first, so an already-encoded password isn't encoded twice
-            val auth = Uri.encode(Uri.decode(user)) + (if (colon < 0) "" else ":" + Uri.encode(Uri.decode(pass)))
+            val auth = Uri.encode(unescape(user)) + (if (colon < 0) "" else ":" + Uri.encode(unescape(pass)))
             return "$scheme$auth@$hostPath"
         }
+
+        /** Percent-decode only real %XX escapes: a typed password like "50%off"
+         *  keeps its "%" (a plain decode would turn "%of" into garbage). */
+        private fun unescape(s: String): String {
+            if (!Regex("%[0-9A-Fa-f]{2}").containsMatchIn(s)) return s
+            val out = java.io.ByteArrayOutputStream()
+            var i = 0
+            while (i < s.length) {
+                val c = s[i]
+                if (c == '%' && i + 2 < s.length && s[i + 1].isHexDigitChar() && s[i + 2].isHexDigitChar()) {
+                    out.write(s.substring(i + 1, i + 3).toInt(16))
+                    i += 3
+                } else {
+                    out.write(c.toString().toByteArray(Charsets.UTF_8))
+                    i++
+                }
+            }
+            return String(out.toByteArray(), Charsets.UTF_8)
+        }
+
+        private fun Char.isHexDigitChar() = this in '0'..'9' || this in 'a'..'f' || this in 'A'..'F'
+
+        /** The URL with the password hidden, for the log. */
+        fun masked(url: String): String = url.replace(Regex("^(rtsps?://[^:@/]*:)[^@]*@"), "\$1****@")
 
         /** "http://192.168.88.50:554:554 /x" -> "192.168.88.50:554/x": no spaces, no
          *  scheme typed into the IP box, one port only. */
@@ -200,6 +224,7 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
             }
         })
         // RTP over TCP: works through panels' and cameras' firewalls, no lost UDP packets
+        android.util.Log.i("ARRtsp", "camera $id -> ${masked(c.url)} (host ${host(c.url)})")
         val source = RtspMediaSource.Factory()
             .setForceUseRtpTcp(true)
             .setTimeoutMs(8000)

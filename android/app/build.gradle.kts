@@ -18,7 +18,8 @@ val keyPasswordValue: String = System.getenv("ANDROID_KEY_PASSWORD") ?: keystore
 
 android {
     namespace = "za.co.arsmarthome.nspanel"
-    compileSdk = 34
+    // 35: Media3 1.5+ needs it (targetSdk stays 34)
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "za.co.arsmarthome.nspanel"
@@ -55,9 +56,12 @@ android {
 }
 
 dependencies {
-    // RTSP cameras (Elegant cameras page): played natively, hardware decoding
-    implementation("androidx.media3:media3-exoplayer:1.4.1")
-    implementation("androidx.media3:media3-exoplayer-rtsp:1.4.1")
+    // RTSP cameras (Elegant cameras page): played natively, hardware decoding.
+    // 1.5.1, not 1.4.1: 1.4.1 cuts the camera address at the first "@" of the
+    // DECODED login, so a password with @ in it sent the stream to the wrong host
+    // (androidx/media#1138, fixed in 1.5.0).
+    implementation("androidx.media3:media3-exoplayer:1.5.1")
+    implementation("androidx.media3:media3-exoplayer-rtsp:1.5.1")
 }
 
 // Bundle the built panel UI as assets/app/ (the offline copy the app boots from).
