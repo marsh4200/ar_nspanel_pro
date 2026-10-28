@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Legacy build only (merged into src/main/AndroidManifest.xml). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- "AR Panel Log": shows this app's log on screen, for panels with no ADB.
+             Own process, plain views: opens even when the panel app crashes. -->
+        <activity
+            android:name=".LogActivity"
+            android:exported="true"
+            android:label="AR Panel Log"
+            android:process=":diag"
+            android:theme="@android:style/Theme.Material.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
