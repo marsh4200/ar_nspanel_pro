@@ -33,7 +33,10 @@ class NativeBridge(private val activity: MainActivity) {
     // --- settings + offline cache --------------------------------------------
 
     @JavascriptInterface
-    fun getSettings(): String = prefs.getString("settings", "{}") ?: "{}"
+    fun getSettings(): String {
+        StartupGuard.ok(activity) // the page is up and talking to the app: this start worked
+        return prefs.getString("settings", "{}") ?: "{}"
+    }
 
     @JavascriptInterface
     fun saveSettings(json: String) {

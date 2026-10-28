@@ -42,9 +42,11 @@ final class GeckoEngine implements PanelEngine {
 
     GeckoEngine(MainActivity activity, NativeBridge bridge) {
         this.activity = activity;
+        StartupGuard.INSTANCE.stage(activity, "starting the local bridge (127.0.0.1:" + LocalBridge.PORT + ")");
         local = new LocalBridge(activity.getApplicationContext(), bridge);
         local.start();
 
+        StartupGuard.INSTANCE.stage(activity, "creating GeckoView");
         geckoView = new GeckoView(activity);
         // TextureView: RTSP camera views and the screen-off blackout sit on top of it
         geckoView.setViewBackend(GeckoView.BACKEND_TEXTURE_VIEW);
@@ -61,7 +63,9 @@ final class GeckoEngine implements PanelEngine {
                     .fontInflation(false)         // same sizes as the editor preview
                     .fontSizeFactor(1f)
                     .build();
+            StartupGuard.INSTANCE.stage(c, "starting the Gecko runtime (GeckoRuntime.create)");
             runtime = GeckoRuntime.create(c.getApplicationContext(), s);
+            StartupGuard.INSTANCE.stage(c, "Gecko runtime started");
         }
         return runtime;
     }
@@ -110,8 +114,11 @@ final class GeckoEngine implements PanelEngine {
                 main.post(GeckoEngine.this::restart);
             }
         });
-        session.open(runtime(activity));
+        GeckoRuntime rt = runtime(activity);
+        StartupGuard.INSTANCE.stage(activity, "opening the Gecko session");
+        session.open(rt);
         geckoView.setSession(session);
+        StartupGuard.INSTANCE.stage(activity, "Gecko session open");
     }
 
     private void restart() {
@@ -149,6 +156,7 @@ final class GeckoEngine implements PanelEngine {
             page = local.pageUrl("/app/index.html");
         }
         lastUrl = page;
+        StartupGuard.INSTANCE.stage(activity, "Gecko loading " + page.replaceAll("t=[0-9a-f]+", "t=…"));
         session.loadUri(page);
     }
 

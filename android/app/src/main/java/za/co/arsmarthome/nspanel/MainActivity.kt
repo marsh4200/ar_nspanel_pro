@@ -121,8 +121,17 @@ class MainActivity : Activity(), SensorEventListener {
                 WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
         )
 
+        // Crashed during the last start (no ADB to read why)? Show the report instead.
+        StartupGuard.install(this)
+        val failed = StartupGuard.previousFailure(this)
+        if (failed != null) {
+            StartupGuard.show(this, failed)
+            return
+        }
+        StartupGuard.stage(this, "creating the ${Engines.BUILD} browser engine")
         bridge = NativeBridge(this)
         engine = Engines.create(this, bridge)
+        StartupGuard.stage(this, "engine created; network and services")
         // LAN cable first: with a cable in, everything goes over it, not Wi-Fi
         LanFirst.start(this, { brokerHost() }) { via -> emit("network", "{\"via\":\"$via\"}") }
         grantMic()
@@ -141,6 +150,7 @@ class MainActivity : Activity(), SensorEventListener {
         setContentView(root)
         rtsp = RtspCams(this, root, blackout)
         immersive()
+        StartupGuard.stage(this, "loading the panel UI")
         loadUi()
 
         sensors = getSystemService(Context.SENSOR_SERVICE) as SensorManager?
@@ -175,6 +185,7 @@ class MainActivity : Activity(), SensorEventListener {
 
     override fun onResume() {
         super.onResume()
+        if (!::engine.isInitialized) return // start-up report on screen
         current = this
         hideReturnButton()
         immersive()
@@ -210,7 +221,7 @@ class MainActivity : Activity(), SensorEventListener {
         hideReturnButton()
         sensors?.unregisterListener(this)
         LanFirst.stop(this)
-        engine.destroy()
+        if (::engine.isInitialized) engine.destroy()
         super.onDestroy()
     }
 
@@ -319,7 +330,7 @@ class MainActivity : Activity(), SensorEventListener {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        engine.onPermissionsResult(requestCode, grantResults)
+        if (::engine.isInitialized) engine.onPermissionsResult(requestCode, grantResults)
     }
 
     fun hasSensor(type: Int): Boolean =
@@ -327,11 +338,11 @@ class MainActivity : Activity(), SensorEventListener {
 
     /** Deliver an event to the page: window.__arNative.emit(type, json). */
     fun emit(type: String, json: String) {
-        engine.emit(type, json)
+        if (::engine.isInitialized) engine.emit(type, json)
     }
 
     fun eval(js: String) {
-        engine.eval(js)
+        if (::engine.isInitialized) engine.eval(js)
     }
 
     // --- sensors ------------------------------------------------------------------
