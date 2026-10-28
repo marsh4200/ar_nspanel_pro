@@ -109,15 +109,25 @@ object Updater {
             remember(app, m)
             report(m)
         }
-        if (!allowed(url, homeHosts)) {
-            say("error", mapOf("message" to "Update refused: not a release of this app or a file on your Home Assistant ($url)"))
-            return
-        }
         if (mode == "none") {
+            // Installed from a USB stick / file manager: the app hasn't been
+            // allowed to install apps yet. Open that switch on the panel; once
+            // it is on, the next Install from Home Assistant goes through.
+            val opened = openInstallPermission(app)
             say(
                 "error",
-                mapOf("message" to "This panel doesn't allow the app to install updates. Run the USB setup once more (it grants that), or allow it under Settings > Apps > special access > Install unknown apps."),
+                mapOf(
+                    "message" to if (opened) {
+                        "On the panel: switch on 'Allow from this source' for AR NSPanel Pro (now open), then press Install again."
+                    } else {
+                        "Allow the app to install updates: panel Settings > Apps > Special app access > Install unknown apps > AR NSPanel Pro, then press Install again."
+                    },
+                ),
             )
+            return
+        }
+        if (!allowed(url, homeHosts)) {
+            say("error", mapOf("message" to "Update refused: not a release of this app or a file on your Home Assistant ($url)"))
             return
         }
         synchronized(this) {
@@ -166,6 +176,21 @@ object Updater {
     }
 
     private class UpdateError(msg: String) : Exception(msg)
+
+    /** Android's "Install unknown apps" switch for this app (8.0+). */
+    fun openInstallPermission(ctx: Context): Boolean {
+        if (Build.VERSION.SDK_INT < 26) return false
+        return try {
+            val i = Intent(
+                android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                android.net.Uri.parse("package:" + ctx.packageName),
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            ctx.startActivity(i)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
 
     private fun download(url: String, out: File, tick: (Long, Long) -> Unit) {
         var c = URL(url).openConnection() as HttpURLConnection

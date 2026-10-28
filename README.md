@@ -105,7 +105,7 @@ sensor's `days_remaining` attribute is there to automate renewals.
 
 ## Updating the app without ADB
 
-Every panel has an **App** update entity (app 4.0.0+). When a new release is on GitHub it shows
+Every panel has an **App** update entity (app 4.0.1+). When a new release is on GitHub it shows
 under **Settings → Updates**; *Install* tells the panel (`cmd/update`) to download the APK and
 install it itself. Silent when the app is device owner (the USB setup does that) or on
 Android 12+; otherwise Android asks once on the panel screen (tap *Update*). The entity's

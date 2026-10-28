@@ -87,7 +87,7 @@ is reserved. All payloads are JSON unless noted. QoS 0 throughout.
 | `notify` | `{id, title, message, icon, image, level, priority, sound, actions:[{id,label,icon}], timeoutS}` | banner (normal) or full screen (high priority, or any actions); `timeoutS` 0 = until answered, default 60 |
 | `notify_clear` | `{id?}` | close it (reported as `dismissed`) |
 | `ma_auth` | `{url, username, password}` | Music Assistant credentials (memory only, never retained) |
-| `update` | `{url, version?, sha256?, force?}` | download and install a new app version (app 4.0.0+). `url` must be a release APK of this project on GitHub, or on the broker / UI host. Progress on `sys/update` |
+| `update` | `{url, version?, sha256?, force?}` | download and install a new app version (app 4.0.1+). `url` must be a release APK of this project on GitHub, or on the broker / UI host. Progress on `sys/update` |
 
 Built-in sound names (synthesised on the panel): `siren`, `alarmo`, `alarm_beep`, `alarm`, `chime`, `ding`.
 

@@ -6,7 +6,7 @@ from here (Settings → Updates, or ``update.install``). HA tells the panel
 which release APK to fetch (``cmd/update``); the panel downloads and installs
 it itself and reports progress on ``sys/update``.
 
-Works on every panel with app 4.0.0 or newer, whatever way it was installed.
+Works on every panel with app 4.0.1 or newer, whatever way it was installed.
 How quiet the install is comes from the panel (``sys/info.updater``):
 ``silent`` (device owner / Android 12+ self-installer) or ``prompt`` (someone
 taps *Update* on the panel once).
@@ -195,13 +195,17 @@ class ARAppUpdateEntity(ARPanelEntity, UpdateEntity):
         mode = info.get("updater")
         if mode is None:
             raise HomeAssistantError(
-                "This panel's app is too old to update itself. Install v4.0.0 or newer "
+                "This panel's app is too old to update itself. Install v4.0.1 or newer "
                 "once (USB setup, or Setup/Update in the sidebar); after that it updates from here."
             )
         if mode == "none":
+            # Installed from a USB stick: the app may not install apps yet. The
+            # panel opens Android's "Install unknown apps" switch for it.
+            await self.bridge.async_cmd("update", {"url": "", "permission": True})
             raise HomeAssistantError(
-                "The panel doesn't allow the app to install updates. Run the USB setup once "
-                "more: it grants that."
+                "The panel isn't allowed to install updates yet. Its 'Install unknown apps' "
+                "setting is now open on the panel screen: switch on 'Allow from this source', "
+                "then press Install again."
             )
         rel = await _latest(self.hass, force=True)
         if not rel:
