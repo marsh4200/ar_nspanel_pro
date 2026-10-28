@@ -1,14 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Legacy build only (merged into src/main/AndroidManifest.xml). -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- The UI runs in Chrome: the backlight is set system-wide (granted at install on Android 5) -->
+    <uses-permission
+        android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+
     <application>
+        <!-- Chrome's "Add to Home screen" for the panel page: kept, so the panel
+             opens full screen from then on (ChromeEngine / ShortcutCatcher) -->
+        <receiver
+            android:name=".ShortcutCatcher"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.android.launcher.action.INSTALL_SHORTCUT" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Keeps the bridge / sensors / backlight running while Chrome is in front -->
+        <service
+            android:name=".KeepAlive"
+            android:exported="false" />
+
         <!-- "AR Panel Log": shows this app's log on screen, for panels with no ADB.
-             Own process, plain views: opens even when the panel app crashes. -->
+             Own process, plain views: opens even when the panel app crashes.
+             Own task too, so it never sits on top of the panel app's screen. -->
         <activity
             android:name=".LogActivity"
             android:exported="true"
             android:label="AR Panel Log"
             android:process=":diag"
+            android:taskAffinity="za.co.arsmarthome.nspanel.log"
+            android:launchMode="singleTask"
             android:theme="@android:style/Theme.Material.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
