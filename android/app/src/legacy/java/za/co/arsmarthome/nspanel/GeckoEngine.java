@@ -57,6 +57,7 @@ final class GeckoEngine implements PanelEngine {
     private static synchronized GeckoRuntime runtime(Context c) {
         if (runtime == null) {
             GeckoRuntimeSettings s = new GeckoRuntimeSettings.Builder()
+                    .configFilePath(writeConfig(c))      // Gecko prefs for old hardware
                     .javaScriptEnabled(true)
                     .remoteDebuggingEnabled(true) // about:debugging over ADB
                     .consoleOutput(true)          // console.log -> logcat
@@ -68,6 +69,34 @@ final class GeckoEngine implements PanelEngine {
             StartupGuard.INSTANCE.stage(c, "Gecko runtime started");
         }
         return runtime;
+    }
+
+    /**
+     * Gecko preferences for old, small panels (Android 5, Mali-400 GPU with only
+     * OpenGL ES 2.0, 1 GB RAM): draw in software instead of the GPU renderer
+     * that wants newer graphics, keep everything in as few processes as
+     * possible, and let sounds play without a tap.
+     */
+    private static String writeConfig(Context c) {
+        File f = new File(c.getFilesDir(), "geckoview-config.yaml");
+        String yaml = "prefs:\n"
+                + "  gfx.webrender.software: true\n"
+                + "  gfx.webrender.all: false\n"
+                + "  layers.acceleration.disabled: true\n"
+                + "  fission.autostart: false\n"
+                + "  dom.ipc.processCount: 1\n"
+                + "  dom.ipc.processPrelaunch.enabled: false\n"
+                + "  media.autoplay.default: 0\n"
+                + "  media.autoplay.blocking_policy: 0\n";
+        try {
+            java.io.FileOutputStream out = new java.io.FileOutputStream(f);
+            out.write(yaml.getBytes("UTF-8"));
+            out.close();
+            return f.getAbsolutePath();
+        } catch (Exception e) {
+            Log.w(TAG, "couldn't write the Gecko config", e);
+            return null;
+        }
     }
 
     private void newSession() {

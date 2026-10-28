@@ -42,8 +42,10 @@ android {
         create("legacy") {
             dimension = "engine"
             minSdk = 21
-            // GeckoView ships native code per CPU; the old panels are 64-bit ARM
-            ndk { abiFilters += listOf("arm64-v8a") }
+            // GeckoView ships native code per CPU. 32-bit ARM only: the app then
+            // runs as a 32-bit process, which early 64-bit Android 5 boards (HDL S10
+            // touch, Allwinner A64) handle better; every ARM panel runs it.
+            ndk { abiFilters += listOf("armeabi-v7a") }
         }
     }
 
@@ -86,7 +88,7 @@ dependencies {
     // Legacy build only: Gecko (Firefox) engine. 115 (2023 ESR): 140 crashed natively
     // at start-up on the HDL S10 touch (Android 5.1, kernel 3.10, 1 GB RAM: SIGSEGV
     // right after JNI_READY). The newest 115.x on maven.mozilla.org is picked.
-    "legacyImplementation"("org.mozilla.geckoview:geckoview:115.+") // abiFilters keeps arm64 only
+    "legacyImplementation"("org.mozilla.geckoview:geckoview:115.+") // abiFilters keeps 32-bit ARM only
 }
 
 // Bundle the built panel UI as assets/app/ (the offline copy the app boots from).
