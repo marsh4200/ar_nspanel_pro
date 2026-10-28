@@ -698,6 +698,8 @@ function info() {
     uptimeS: i.uptimeS,
     freeMemMB: i.freeMemMB,
     webview: i.webview,
+    versionCode: i.versionCode,
+    updater: i.updater || null, // silent | prompt | none; null = app too old to update itself
     screen: fitInfo().w + "x" + fitInfo().h,
     uiSize: "480x" + fitInfo().stageH,
     scale: fitInfo().scale,
@@ -977,6 +979,16 @@ function remoteTouch(p) {
   }, Math.max(20, Math.min(2000, p.ms || 80)));
 }
 
+// --- over-the-air app update: progress to Home Assistant ----------------------------
+
+native.on("update", (d) => {
+  if (d && typeof d === "object") publish("sys/update", d, true);
+});
+function publishUpdateState() {
+  const st = native.updateState();
+  if (st && st.last) publish("sys/update", st.last, true);
+}
+
 // --- commands ------------------------------------------------------------------------
 
 function handleCmd(name, p) {
@@ -1050,6 +1062,12 @@ function handleCmd(name, p) {
       break;
     case "sp_token":
       spotify.setToken(p);
+      break;
+    case "update":
+      // Home Assistant asks the app to update itself (USB-only panels: no ADB needed)
+      if (!native.updateApp(p.url, p.sha256, p.force)) {
+        publish("sys/update", { state: "error", mode: "none", message: "This app build can't update itself: install the new version once over USB", ts: Date.now() }, true);
+      }
       break;
     case "ma_auth":
       ma.configure({ url: p.url || (device.musicAssistant || {}).url, username: p.username, password: p.password });
@@ -1198,6 +1216,7 @@ function connect() {
       publishAwake("connect");
       publishAlarmClock();
       publishMedia();
+      publishUpdateState();
       if (licence && licence.reason) publish("sys/license", licence, true);
       notifyState({});
       updateWaiting();

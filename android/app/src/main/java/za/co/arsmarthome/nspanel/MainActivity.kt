@@ -201,6 +201,7 @@ class MainActivity : Activity(), SensorEventListener {
 
         sensors = getSystemService(Context.SENSOR_SERVICE) as SensorManager?
         AdbHelper.keepOn(this) // no-op until HA's installer granted WRITE_SECURE_SETTINGS
+        Updater.markInstalledIfUpdated(this) // "installing" before a restart = it worked
     }
 
     fun loadUi() {

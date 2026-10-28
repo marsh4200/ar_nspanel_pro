@@ -20,6 +20,11 @@
          app open its screen from the boot receiver with this, which is how the
          panel starts after a reboot when another launcher (HDL) is Home. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Over-the-air updates (Updater.kt): the app installs its own new version.
+         Silent when it is device owner (USB setup) or, on Android 12+, its own
+         installer of record; otherwise Android asks once on screen. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
@@ -80,8 +85,14 @@
             <intent-filter>
                 <action android:name="za.co.arsmarthome.nspanel.KIOSK_LOCK" />
                 <action android:name="za.co.arsmarthome.nspanel.KIOSK_UNLOCK" />
+                <action android:name="za.co.arsmarthome.nspanel.KIOSK_OWNER_ONLY" />
             </intent-filter>
         </receiver>
+
+        <!-- PackageInstaller's result for an over-the-air update (Updater.kt) -->
+        <receiver
+            android:name=".UpdateReceiver"
+            android:exported="false" />
 
         <receiver
             android:name=".BootReceiver"

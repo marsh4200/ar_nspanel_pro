@@ -18,7 +18,7 @@ is reserved. All payloads are JSON unless noted. QoS 0 throughout.
 |---|---|---|
 | `~/avail` | yes | `online` / `offline` (plain text; `offline` is the MQTT last will). HA auto-discovers panels from this topic. |
 | `~/event` | no | `{button, action, page, value?, state?}` — see below |
-| `~/sys/info` | yes | `{deviceId, model, version, uiVersion, fwVersion, serial, serverId, ip, rssi, uptimeS, freeMemMB, webview}` on connect, every `sysInfoIntervalS` (default 60 s) and on `cmd/info` |
+| `~/sys/info` | yes | `{deviceId, model, version, versionCode, updater, uiVersion, fwVersion, serial, serverId, ip, rssi, uptimeS, freeMemMB, webview}` (`updater`: how a `cmd/update` installs: `silent`, `prompt`, `none`; absent = app too old) on connect, every `sysInfoIntervalS` (default 60 s) and on `cmd/info` |
 | `~/sys/awake` | yes | `{awake: bool, cause: "touch"\|"proximity"\|"timeout"\|"command"\|"notification"\|"alarm"\|"media"\|"siren"\|"connect", ts}` |
 | `~/sys/light` | yes | `{raw: <lux>}` (throttled: on >15 % change or every 60 s) |
 | `~/sys/motion` | yes | `{motion: bool}` (proximity presence, cleared after `motion.clearS`) |
@@ -28,6 +28,7 @@ is reserved. All payloads are JSON unless noted. QoS 0 throughout.
 | `~/sys/license` | yes | `{valid, reason, serial, features, exp, client?, license_id?, product}` (see Licensing) |
 | `~/sys/pong` | no | `{id, ts}` reply to `cmd/ping` |
 | `~/sys/screenshot` | no | `{id, data: <base64 PNG>, ts}` reply to `cmd/screenshot` |
+| `~/sys/update` | yes | `{state: downloading\|installing\|waiting\|done\|error, pct?, message?, version?, mode, ts}` app self-update progress; `mode` = `silent` (device owner / Android 12+) or `prompt` (someone taps Update on the panel) |
 | `~/sys/discovery` | no | `{deviceId, model, ip, version}` reply to the shared `ar-nspanel-pro/panel/discover` broadcast |
 
 ### `event` actions
@@ -86,6 +87,7 @@ is reserved. All payloads are JSON unless noted. QoS 0 throughout.
 | `notify` | `{id, title, message, icon, image, level, priority, sound, actions:[{id,label,icon}], timeoutS}` | banner (normal) or full screen (high priority, or any actions); `timeoutS` 0 = until answered, default 60 |
 | `notify_clear` | `{id?}` | close it (reported as `dismissed`) |
 | `ma_auth` | `{url, username, password}` | Music Assistant credentials (memory only, never retained) |
+| `update` | `{url, version?, sha256?, force?}` | download and install a new app version (app 4.0.0+). `url` must be a release APK of this project on GitHub, or on the broker / UI host. Progress on `sys/update` |
 
 Built-in sound names (synthesised on the panel): `siren`, `alarmo`, `alarm_beep`, `alarm`, `chime`, `ding`.
 

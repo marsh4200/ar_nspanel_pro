@@ -209,6 +209,10 @@ class NativeBridge(private val activity: MainActivity) {
             "uptimeS" to SystemClock.elapsedRealtime() / 1000,
             "freeMemMB" to mi.availMem / (1024 * 1024),
             "webview" to webview,
+            "versionCode" to Updater.versionCode(activity),
+            // how an over-the-air update would install: silent | prompt | none
+            "updater" to Updater.mode(activity),
+            "owner" to Kiosk.isOwner(activity),
         )
         return toJson(m)
     }
@@ -235,6 +239,38 @@ class NativeBridge(private val activity: MainActivity) {
 
     @JavascriptInterface
     fun openAdbSettings(): Boolean = AdbHelper.openSettings(activity)
+
+    // --- over-the-air app update (no ADB) -------------------------------------------
+
+    /** Hosts that count as "this panel's own Home Assistant": the broker and the UI URL. */
+    private fun homeHosts(): Set<String> {
+        val out = HashSet<String>()
+        try {
+            val m = MiniJson.parse(getSettings()) as? Map<*, *>
+            for (k in listOf("brokerUrl", "uiUrl")) {
+                val v = m?.get(k) as? String ?: continue
+                java.net.URI(v.trim()).host?.let { out.add(it.lowercase()) }
+            }
+        } catch (e: Exception) {
+        }
+        return out
+    }
+
+    /** Download and install a new app version; progress arrives as the "update" event. */
+    @JavascriptInterface
+    fun updateApp(url: String, sha256: String, force: Boolean) {
+        Updater.start(activity, url, sha256.ifBlank { null }, force, homeHosts()) { m ->
+            activity.emit("update", MiniJson.stringify(m))
+        }
+    }
+
+    /** {mode: silent|prompt|none, versionCode, last: <last status or null>} */
+    @JavascriptInterface
+    fun updateState(): String {
+        val last = Updater.last(activity)
+        return "{\"mode\":${MiniJson.quote(Updater.mode(activity))},\"versionCode\":${Updater.versionCode(activity)}," +
+            "\"last\":${if (last.isEmpty()) "null" else last}}"
+    }
 
     @JavascriptInterface
     fun getSensors(): String =

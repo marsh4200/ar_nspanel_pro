@@ -443,7 +443,10 @@ class PanelAdb:
                 # an HDL launcher present → the SPA picks that panel type
                 "hdl": hdl,
                 "hdl_launcher": found[1] if found else None,
-                "kiosk": _kiosk_owner(device) == APP_PACKAGE,
+                # device owner AND actually locked: the USB setup makes the app
+                # device owner on the S10 only for silent updates, unlocked
+                "kiosk": _kiosk_owner(device) == APP_PACKAGE
+                and "mLockTaskModeState=NONE" not in (device.shell("dumpsys activity activities | grep mLockTaskModeState") or "mLockTaskModeState=NONE"),
                 "hdl_disabled": bool(found) and f"package:{found[1]}" in disabled,
                 "panel_type": ("source10" if found[1] == HDL_LAUNCHER else "source7") if found
                 else ("akubela" if _installed(device, AKUBELA_APP) else "nspanel"),
@@ -897,6 +900,11 @@ class PanelAdb:
         )
         return {"tag": tag, "asset": name, "version": version, "package": APP_PACKAGE}
 
+    async def async_latest_release(self) -> tuple[str, str, str]:
+        """(apk download URL, tag, asset name) of the latest GitHub release.
+        Used by the update entity, which installs over MQTT (no ADB)."""
+        return await self._fetch_latest_apk_url()
+
     async def async_latest_version(self) -> dict[str, Any]:
         """Latest available app version from the GitHub release (no ADB needed)."""
         _url, tag, name = await self._fetch_latest_apk_url()
@@ -1200,6 +1208,11 @@ class PanelAdb:
                 # Start on boot even when another launcher is Home (Android 10+
                 # blocks a boot receiver from opening a screen without this).
                 device.shell(f"appops set {APP_PACKAGE} SYSTEM_ALERT_WINDOW allow")
+                # Over-the-air updates from HA's update entity (no ADB next time):
+                # may install packages, and is its own installer of record
+                # (Android 12+ then updates without asking).
+                device.shell(f"appops set {APP_PACKAGE} REQUEST_INSTALL_PACKAGES allow")
+                device.shell(f"pm set-installer {APP_PACKAGE} {APP_PACKAGE}")
                 cur = (device.shell("getprop service.adb.tcp.port") or "").strip()
                 if cur.isdigit() and int(cur) > 0:
                     device.shell(f"su 0 setprop persist.adb.tcp.port {cur}")

@@ -171,6 +171,18 @@ object MiniJson {
         return sb.append('"').toString()
     }
 
+    /** Map / List / String / Number / Boolean / null → JSON text. */
+    fun stringify(v: Any?): String = when (v) {
+        null -> "null"
+        is Boolean -> v.toString()
+        is Double -> if (v.isFinite()) v.toString() else "null"
+        is Float -> if (v.isFinite()) v.toString() else "null"
+        is Number -> v.toString()
+        is Map<*, *> -> v.entries.joinToString(",", "{", "}") { quote(it.key.toString()) + ":" + stringify(it.value) }
+        is List<*> -> v.joinToString(",", "[", "]") { stringify(it) }
+        else -> quote(v.toString())
+    }
+
     fun parse(s: String): Any? {
         val p = Parser(s)
         val v = p.value()

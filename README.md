@@ -47,6 +47,10 @@ Assistant sidebar. The panel shows them and talks to Home Assistant over MQTT.
    (ADB over network must be enabled on the panel), tap *Allow USB debugging* on the panel, then
    **Install latest**. Optionally **Set as Home** so it replaces the stock launcher.
    (Or sideload: `adb install ar-nspanel-pro-X.Y.Z.apk`.)
+   **USB-debugging-only panels (HDL S10 touch):** there is no network ADB, so do the first
+   install over USB with [`tools/usb-setup`](tools/usb-setup/README.md) (Windows: double-click
+   `install.bat`, or `takeover.bat` to replace HDL's screen). From then on the app updates over
+   MQTT from Home Assistant (**Settings → Updates**), no cable needed.
 4. **Panel setup screen** (opens on first start; later, press and hold the top-left corner for 3 s):
    - Broker: `ws://<home-assistant-ip>:1884`, plus MQTT username and password
    - Panel ID: e.g. `panel-kitchen`
@@ -98,6 +102,14 @@ The same request can come from the panel (tap the watermark) or from an automati
 into the Licence card. The panel verifies the key offline against the AR Smart Home public key (baked into
 the app in `Licence.kt`). An unlicensed panel works fully but shows a watermark. The Licence
 sensor's `days_remaining` attribute is there to automate renewals.
+
+## Updating the app without ADB
+
+Every panel has an **App** update entity (app 4.0.0+). When a new release is on GitHub it shows
+under **Settings → Updates**; *Install* tells the panel (`cmd/update`) to download the APK and
+install it itself. Silent when the app is device owner (the USB setup does that) or on
+Android 12+; otherwise Android asks once on the panel screen (tap *Update*). The entity's
+`install_mode` attribute says which.
 
 ## Releasing a new panel app
 

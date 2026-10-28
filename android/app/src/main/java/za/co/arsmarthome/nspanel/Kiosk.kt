@@ -31,8 +31,38 @@ object Kiosk {
     const val ACTION_UNLOCK = "za.co.arsmarthome.nspanel.KIOSK_UNLOCK"
     private val ALLOWED = arrayOf("com.spotify.music")
 
+    /** Device owner WITHOUT the lock: the USB setup on panels like the HDL S10
+     *  makes the app device owner only so it can update itself silently. */
+    const val ACTION_OWNER_ONLY = "za.co.arsmarthome.nspanel.KIOSK_OWNER_ONLY"
+
     private fun dpm(c: Context) = c.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
     private fun admin(c: Context) = ComponentName(c, KioskAdmin::class.java)
+
+    private fun prefs(c: Context) = c.getSharedPreferences("kiosk", Context.MODE_PRIVATE)
+
+    /** Lock when device owner? Default yes (the Source 7 install, and every
+     *  panel locked before this switch existed). */
+    fun lockWanted(c: Context): Boolean = prefs(c).getBoolean("lock", true)
+
+    fun setLockWanted(c: Context, on: Boolean) {
+        prefs(c).edit().putBoolean("lock", on).commit()
+    }
+
+    /** Stay device owner, but no lock task / status bar block. */
+    fun release(c: Context, activity: Activity?) {
+        setLockWanted(c, false)
+        try {
+            if (activity != null && isLocked(activity)) activity.stopLockTask()
+        } catch (e: Exception) {
+            Log.w(TAG, "stopLockTask failed", e)
+        }
+        if (!isOwner(c)) return
+        try {
+            dpm(c).setStatusBarDisabled(admin(c), false)
+        } catch (e: Exception) {
+            Log.w(TAG, "release failed", e)
+        }
+    }
 
     fun isOwner(c: Context): Boolean = try {
         dpm(c).isDeviceOwnerApp(c.packageName)
@@ -52,7 +82,7 @@ object Kiosk {
 
     /** Lock the activity in (only when we are device owner). */
     fun lock(a: Activity) {
-        if (!isOwner(a)) return
+        if (!isOwner(a) || !lockWanted(a)) return
         try {
             val d = dpm(a)
             val ad = admin(a)
@@ -118,8 +148,13 @@ class KioskControl : BroadcastReceiver() {
                 resultData = "unlocked"
             }
             Kiosk.ACTION_LOCK -> {
+                Kiosk.setLockWanted(context, true)
                 act?.runOnUiThread { Kiosk.lock(act) }
                 resultData = if (Kiosk.isOwner(context)) "locked" else "not_owner"
+            }
+            Kiosk.ACTION_OWNER_ONLY -> {
+                if (act != null) act.runOnUiThread { Kiosk.release(context, act) } else Kiosk.release(context, null)
+                resultData = if (Kiosk.isOwner(context)) "owner_unlocked" else "not_owner_lock_off"
             }
         }
     }

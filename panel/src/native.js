@@ -190,6 +190,23 @@ export function openAdbSettings() {
   return !!call("openAdbSettings");
 }
 
+// --- over-the-air app update (no ADB; see Updater.kt) -----------------------------
+/** Can this app build update itself? (older APKs can't) */
+export function canUpdate() {
+  return !!(N && typeof N.updateApp === "function");
+}
+/** Start an update; progress arrives as the "update" event. */
+export function updateApp(url, sha256, force) {
+  if (!canUpdate()) return false;
+  call("updateApp", String(url || ""), String(sha256 || ""), !!force);
+  return true;
+}
+/** {mode: "silent"|"prompt"|"none", versionCode, last} or null */
+export function updateState() {
+  if (!N || typeof N.updateState !== "function") return null;
+  return parse(call("updateState"), null);
+}
+
 // --- other apps -----------------------------------------------------------------
 /** Is an Android app installed? (false in a browser) */
 export function appInstalled(pkg) {
