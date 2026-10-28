@@ -83,9 +83,10 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.5.1")
     implementation("androidx.media3:media3-exoplayer-rtsp:1.5.1")
 
-    // Legacy build only: Gecko (Firefox) engine. 140 is the last line that still
-    // runs on Android 5.0; the newest 140.x on maven.mozilla.org is picked.
-    "legacyImplementation"("org.mozilla.geckoview:geckoview:140.+") // abiFilters keeps arm64 only
+    // Legacy build only: Gecko (Firefox) engine. 115 (2023 ESR): 140 crashed natively
+    // at start-up on the HDL S10 touch (Android 5.1, kernel 3.10, 1 GB RAM: SIGSEGV
+    // right after JNI_READY). The newest 115.x on maven.mozilla.org is picked.
+    "legacyImplementation"("org.mozilla.geckoview:geckoview:115.+") // abiFilters keeps arm64 only
 }
 
 // Bundle the built panel UI as assets/app/ (the offline copy the app boots from).
