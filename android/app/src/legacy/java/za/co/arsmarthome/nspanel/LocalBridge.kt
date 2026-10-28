@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Legacy build: Gecko has no WebView-style `addJavascriptInterface`, so the
+ * Legacy build: the UI runs in Chrome, which has no `addJavascriptInterface`, so the
  * page reaches [NativeBridge] through this tiny HTTP server, on 127.0.0.1 only.
  *
  *   GET  /app/...         the UI bundled in the APK (assets/app)
@@ -38,7 +38,12 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 class LocalBridge(private val ctx: Context, bridge: NativeBridge) {
     private val tag = "ARBridge"
-    val token: String = ByteArray(16).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
+    /** Kept across restarts: Chrome's home-screen shortcut (full screen) starts at a URL with it. */
+    val token: String = run {
+        val p = ctx.getSharedPreferences("bridge", Context.MODE_PRIVATE)
+        p.getString("token", null) ?: ByteArray(16).also { SecureRandom().nextBytes(it) }
+            .joinToString("") { "%02x".format(it) }.also { p.edit().putString("token", it).commit() }
+    }
     private val methods: Map<String, Method> = bridge.javaClass.methods
         .filter { it.isAnnotationPresent(JavascriptInterface::class.java) }
         .associateBy { it.name }
@@ -80,7 +85,7 @@ class LocalBridge(private val ctx: Context, bridge: NativeBridge) {
         pool.shutdownNow()
     }
 
-    /** URL Gecko loads for a page under /app or /ui. */
+    /** URL Chrome loads for a page under /app or /ui. */
     fun pageUrl(path: String): String = "http://127.0.0.1:$port$path?t=$token"
 
     /** Native -> page: window.__arNative.emit(type, json). */
@@ -168,6 +173,13 @@ class LocalBridge(private val ctx: Context, bridge: NativeBridge) {
                 if (authed(r)) send(out, 200, "application/json", call(String(r.body, Charsets.UTF_8)).toByteArray()) else send(out, 403, "text/plain", "no".toByteArray())
             r.path == "/__ar/events" ->
                 if (authed(r)) stream(out) else send(out, 403, "text/plain", "no".toByteArray())
+            // web-app bits so Chrome can open the panel full screen from a home-screen shortcut
+            r.method == "GET" && (r.path == "/app/manifest.webmanifest" || r.path == "/ui/manifest.webmanifest") ->
+                send(out, 200, "application/manifest+json", manifest(r.path.substringBeforeLast('/')).toByteArray())
+            r.method == "GET" && (r.path == "/app/sw.js" || r.path == "/ui/sw.js") ->
+                send(out, 200, "application/javascript", SW.toByteArray())
+            r.method == "GET" && r.path.endsWith("/ar-icon-192.png") -> send(out, 200, "image/png", icon(192))
+            r.method == "GET" && r.path.endsWith("/ar-icon-512.png") -> send(out, 200, "image/png", icon(512))
             r.method == "GET" && r.path.startsWith("/app/") -> file(r, out, asset(r.path.removePrefix("/")))
             r.method == "GET" && r.path.startsWith("/ui/") -> file(r, out, uiFile(r.path.removePrefix("/ui/")))
             else -> send(out, 404, "text/plain", "not found".toByteArray())
@@ -199,9 +211,33 @@ class LocalBridge(private val ctx: Context, bridge: NativeBridge) {
     private fun inject(html: String): String {
         val names = methods.keys.sorted().joinToString(",") { MiniJson.quote(it) }
         val js = SHIM.replace("__TOKEN__", token).replace("__METHODS__", names)
-        val tagged = "<script>$js</script>"
+        val tagged = "<link rel=\"manifest\" href=\"manifest.webmanifest\">" +
+            "<meta name=\"theme-color\" content=\"#000000\"><script>$js</script>"
         val i = html.indexOf("<script")
         return if (i >= 0) html.substring(0, i) + tagged + html.substring(i) else html.replace("</body>", "$tagged</body>")
+    }
+
+    private fun manifest(dir: String): String =
+        "{\"name\":\"AR NSPanel Pro\",\"short_name\":\"AR Panel\"," +
+            "\"start_url\":${MiniJson.quote("$dir/index.html?t=$token")},\"scope\":${MiniJson.quote("$dir/")}," +
+            "\"display\":\"fullscreen\",\"orientation\":\"any\",\"background_color\":\"#000000\",\"theme_color\":\"#000000\"," +
+            "\"icons\":[{\"src\":\"ar-icon-192.png\",\"sizes\":\"192x192\",\"type\":\"image/png\"}," +
+            "{\"src\":\"ar-icon-512.png\",\"sizes\":\"512x512\",\"type\":\"image/png\"}]}"
+
+    /** The app's launcher icon drawn at [size] px, as PNG. */
+    private fun icon(size: Int): ByteArray {
+        val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        try {
+            @Suppress("DEPRECATION")
+            val d = ctx.resources.getDrawable(R.drawable.ic_launcher)
+            d.setBounds(0, 0, size, size)
+            d.draw(android.graphics.Canvas(bmp))
+        } catch (e: Exception) {
+            bmp.eraseColor(android.graphics.Color.rgb(20, 22, 26))
+        }
+        val bos = java.io.ByteArrayOutputStream()
+        bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, bos)
+        return bos.toByteArray()
     }
 
     private fun mime(p: String): String = when (p.substringAfterLast('.', "").lowercase()) {
@@ -308,6 +344,12 @@ class LocalBridge(private val ctx: Context, bridge: NativeBridge) {
     companion object {
         const val PORT = 18555
 
+        /** Minimal service worker: Chrome only offers a full-screen web app with one.
+         *  It handles nothing itself, so the bridge calls and events go straight through. */
+        private const val SW = "self.addEventListener('install',function(){self.skipWaiting();});" +
+            "self.addEventListener('activate',function(e){e.waitUntil(self.clients.claim());});" +
+            "self.addEventListener('fetch',function(e){});"
+
         /** window.ARNative over sync XHR, events over EventSource. Plain ES5. */
         private val SHIM = """
 (function(){
@@ -323,6 +365,7 @@ if(!window.__arNative)return false;window.__arNative.emit(m.t,m.j);return true;}
 function flush(){while(P.length&&run(P[0]))P.shift();if(P.length)setTimeout(flush,50);}
 var es=new EventSource("/__ar/events?t="+T);
 es.onmessage=function(e){var m;try{m=JSON.parse(e.data);}catch(_){return;}P.push(m);flush();};
+if(navigator.serviceWorker){try{navigator.serviceWorker.register("sw.js");}catch(_){}}
 })();
 """.trimIndent().replace("\n", "")
     }
