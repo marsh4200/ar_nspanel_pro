@@ -24,7 +24,7 @@ import android.widget.FrameLayout
 
 /**
  * Full-screen kiosk hosting the panel UI in a [PanelEngine]: Android's
- * WebView (standard build) or a bundled Gecko engine (legacy build, Android 5).
+ * WebView (standard build) or Chrome via a local bridge (legacy build, Android 5).
  *
  * The UI is the web app the integration ships (www/app). It boots from the copy
  * bundled in this APK (works with HA down), or from Home Assistant when a UI URL
@@ -303,6 +303,7 @@ class MainActivity : Activity(), SensorEventListener {
 
     /** 0..1; 0 = backlight off (plus a black view so nothing leaks through). */
     fun applyBrightness(level: Float) {
+        if (::engine.isInitialized && engine.applyBrightness(level)) return // UI shown by another app (Chrome)
         val lp = window.attributes
         lp.screenBrightness = if (level <= 0f) 0.0f else level.coerceIn(0.01f, 1f)
         window.attributes = lp
@@ -310,6 +311,7 @@ class MainActivity : Activity(), SensorEventListener {
     }
 
     fun keepOn(on: Boolean) {
+        if (::engine.isInitialized && engine.keepScreenOn(on)) return
         if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }

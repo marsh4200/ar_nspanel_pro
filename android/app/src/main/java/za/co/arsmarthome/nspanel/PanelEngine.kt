@@ -7,9 +7,10 @@ import android.view.View
  * What draws the panel UI. Two builds of the app, one interface:
  *
  *  * standard (Android 7+): Android's own WebView      -> src/standard/.../Engines.kt
- *  * legacy   (Android 5+): a bundled Gecko (Firefox)  -> src/legacy/.../Engines.kt
- *    engine, for panels whose system WebView is too old for the UI (the
- *    HDL S10 touch on Android 5.1 ships Chrome 39).
+ *  * legacy   (Android 5+): Chrome (installed separately,  -> src/legacy/.../Engines.kt
+ *    e.g. Chrome 95, the last for Android 5) shows the UI, for panels whose
+ *    system WebView is too old (the HDL S10 touch on Android 5.1 ships
+ *    Chrome 39). Bundled engines (GeckoView) crashed natively on that board.
  *
  * Both give the page the same `window.ARNative` ([NativeBridge]) and the same
  * `window.__arNative.emit(type, json)` events, so the panel UI, the MQTT
@@ -38,6 +39,12 @@ interface PanelEngine {
     fun onResume() {}
     fun onPause() {}
     fun destroy() {}
+
+    /** Backlight, when the UI is shown outside this activity's window (Chrome). True = handled. */
+    fun applyBrightness(level: Float): Boolean = false
+
+    /** Keep the screen on, likewise. True = handled. */
+    fun keepScreenOn(on: Boolean): Boolean = false
 
     /** Forwarded from the activity (the WebView build asks for the microphone this way). */
     fun onPermissionsResult(requestCode: Int, grantResults: IntArray) {}

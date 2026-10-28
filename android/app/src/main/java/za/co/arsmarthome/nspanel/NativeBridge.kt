@@ -212,7 +212,7 @@ class NativeBridge(private val activity: MainActivity) {
             "webview" to webview,
             "versionCode" to Updater.versionCode(activity),
             // which APK this is: "standard" (WebView, Android 7+) or "legacy"
-            // (bundled Gecko, Android 5+). HA updates each panel with its own kind.
+            // (UI in Chrome, Android 5+). HA updates each panel with its own kind.
             "build" to Engines.BUILD,
             "engine" to activity.engine.kind,
             // how an over-the-air update would install: silent | prompt | none
