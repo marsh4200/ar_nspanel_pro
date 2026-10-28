@@ -31,8 +31,8 @@ android {
 
     // Two APKs, same app id and key, same UI and protocol:
     //   standard: Android 7+, the system WebView         -> ar-nspanel-pro-X.Y.Z.apk
-    //   legacy:   Android 5+, a bundled Gecko engine,     -> ar-nspanel-pro-legacy-X.Y.Z.apk
-    //             for panels whose WebView is too old (HDL S10 touch on Android 5.1)
+    //   legacy:   Android 5+, the UI runs in Chrome       -> ar-nspanel-pro-legacy-X.Y.Z.apk
+    //             (Chrome 95), for panels whose WebView is too old (HDL S10 touch, Android 5.1)
     flavorDimensions += "engine"
     productFlavors {
         create("standard") {
@@ -42,10 +42,7 @@ android {
         create("legacy") {
             dimension = "engine"
             minSdk = 21
-            // GeckoView ships native code per CPU. 32-bit ARM only: the app then
-            // runs as a 32-bit process, which early 64-bit Android 5 boards (HDL S10
-            // touch, Allwinner A64) handle better; every ARM panel runs it.
-            ndk { abiFilters += listOf("armeabi-v7a") }
+            // UI shown by Chrome (installed separately): no engine bundled, no native code
         }
     }
 
@@ -85,10 +82,6 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.5.1")
     implementation("androidx.media3:media3-exoplayer-rtsp:1.5.1")
 
-    // Legacy build only: Gecko (Firefox) engine. 115 (2023 ESR): 140 crashed natively
-    // at start-up on the HDL S10 touch (Android 5.1, kernel 3.10, 1 GB RAM: SIGSEGV
-    // right after JNI_READY). The newest 115.x on maven.mozilla.org is picked.
-    "legacyImplementation"("org.mozilla.geckoview:geckoview:115.+") // abiFilters keeps 32-bit ARM only
 }
 
 // Bundle the built panel UI as assets/app/ (the offline copy the app boots from).
