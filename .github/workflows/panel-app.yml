@@ -1,7 +1,8 @@
 # Builds the panel UI and the Android wrapper APK.
 #
 #   * every push / PR: build + upload the APK as a workflow artifact
-#   * a tag "vX.Y.Z":  also attach  ar-nspanel-pro-X.Y.Z.apk  to the GitHub
+#   * a tag "vX.Y.Z":  also attach  ar-nspanel-pro-X.Y.Z.apk  (and the
+#                      Android 5 build ar-nspanel-pro-legacy-X.Y.Z.apk)  to the GitHub
 #     Release — which is exactly what the config panel's ADB Setup/Update tool
 #     installs (const.GITHUB_OWNER / GITHUB_REPO).
 #
@@ -56,9 +57,12 @@ jobs:
       - name: Build APK
         run: |
           V="${{ steps.ver.outputs.version }}"
-          gradle -p android assembleRelease -PversionName="$V" -PversionCode="${GITHUB_RUN_NUMBER}" --no-daemon
+          # two APKs: standard (Android 7+, system WebView) and legacy
+          # (Android 5+, bundled Gecko engine). HA picks the right one per panel.
+          gradle -p android assembleStandardRelease assembleLegacyRelease -PversionName="$V" -PversionCode="${GITHUB_RUN_NUMBER}" --no-daemon
           mkdir -p dist
-          cp android/app/build/outputs/apk/release/app-release.apk "dist/ar-nspanel-pro-$V.apk"
+          cp android/app/build/outputs/apk/standard/release/app-standard-release.apk "dist/ar-nspanel-pro-$V.apk"
+          cp android/app/build/outputs/apk/legacy/release/app-legacy-release.apk "dist/ar-nspanel-pro-legacy-$V.apk"
           ls -la dist
 
       - uses: actions/upload-artifact@v4
