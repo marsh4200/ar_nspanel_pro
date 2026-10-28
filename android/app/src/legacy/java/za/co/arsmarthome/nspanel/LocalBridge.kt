@@ -28,6 +28,11 @@ import java.util.concurrent.atomic.AtomicInteger
  *   POST /__ar/call?t=    {"m": method, "a": [args]} -> {"v": result}   (sync XHR)
  *   GET  /__ar/events?t=  server-sent events: native -> page (emit / eval)
  *
+ * Full screen: Chrome only lets a page go full screen after a touch, and on
+ * panels without Google services "Add to Home screen" makes a plain bookmark
+ * (no full-screen web app). So the injected script switches the page to
+ * full screen on the first tap (tab bar, address bar and status bar gone).
+ *
  * index.html is only served with the secret token (?t=), and gets a small
  * script put in front of the app that defines `window.ARNative` with exactly
  * the [NativeBridge] methods — so the panel UI is unchanged. Other apps on the
@@ -366,6 +371,10 @@ function flush(){while(P.length&&run(P[0]))P.shift();if(P.length)setTimeout(flus
 var es=new EventSource("/__ar/events?t="+T);
 es.onmessage=function(e){var m;try{m=JSON.parse(e.data);}catch(_){return;}P.push(m);flush();};
 if(navigator.serviceWorker){try{navigator.serviceWorker.register("sw.js");}catch(_){}}
+function fs(){var d=document,e=d.documentElement;if(d.fullscreenElement||d.webkitFullscreenElement)return;
+var r=e.requestFullscreen||e.webkitRequestFullscreen;if(!r)return;
+try{var q=r.call(e,{navigationUI:"hide"});if(q&&q.catch)q.catch(function(){});}catch(_){}}
+["touchend","click","keydown"].forEach(function(t){document.addEventListener(t,fs,true);});
 })();
 """.trimIndent().replace("\n", "")
     }
