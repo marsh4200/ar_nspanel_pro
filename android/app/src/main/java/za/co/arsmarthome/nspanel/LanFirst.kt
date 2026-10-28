@@ -49,7 +49,7 @@ object LanFirst {
             val want = if (network != null) "lan" else "wifi"
             if (via == want) return
             try {
-                cm.bindProcessToNetwork(network)
+                bind(cm, network)
             } catch (e: Exception) {
                 Log.w(TAG, "bind failed", e)
                 return
@@ -106,13 +106,20 @@ object LanFirst {
         }
     }
 
+    /** Android 6+: bindProcessToNetwork; Android 5: its older name. */
+    @Suppress("DEPRECATION")
+    private fun bind(cm: ConnectivityManager, network: Network?) {
+        if (android.os.Build.VERSION.SDK_INT >= 23) cm.bindProcessToNetwork(network)
+        else ConnectivityManager.setProcessDefaultNetwork(network)
+    }
+
     fun stop(c: Context) {
         val callback = cb ?: return
         cb = null
         val cm = c.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         try {
             cm.unregisterNetworkCallback(callback)
-            cm.bindProcessToNetwork(null)
+            bind(cm, null)
         } catch (e: Exception) {
             Log.w(TAG, "stop failed", e)
         }

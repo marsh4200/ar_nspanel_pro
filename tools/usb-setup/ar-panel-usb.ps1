@@ -7,8 +7,10 @@
 #   .\ar-panel-usb.ps1 -Restore        back to HDL's screen (app stays installed)
 #   .\ar-panel-usb.ps1 -Uninstall      remove the app, HDL screen back
 #
-#   -Apk FILE    use this APK (default: newest ar-nspanel-pro-*.apk next to this
-#                script, else the latest GitHub release is downloaded)
+#   -Apk FILE    use this APK (default: the newest matching APK next to this script,
+#                else it is downloaded from the latest GitHub release. Android 7+
+#                gets ar-nspanel-pro-X.Y.Z.apk, Android 5/6 gets
+#                ar-nspanel-pro-legacy-X.Y.Z.apk (own browser engine))
 #   -NoOwner     don't make the app device owner (updates then need a tap)
 #   -Kiosk       also lock the panel in (no Home / Recents). Off by default.
 #   -NoTcpip     don't switch on network ADB (port 5555) at the end
@@ -84,6 +86,10 @@ $state = A get-state
 if ($state -ne "device") { Die "Panel says '$state' - accept the USB debugging prompt on the panel and run again" }
 $MODEL = S getprop ro.product.model; $SDK = [int](S getprop ro.build.version.sdk); $REL = S getprop ro.build.version.release
 Ok "Found $MODEL (Android $REL, SDK $SDK)"
+# Android 5/6 (SDK < 24): the legacy APK with its own browser engine
+$LEGACY = ($SDK -gt 0 -and $SDK -lt 24)
+$KIND = if ($LEGACY) { "legacy" } else { "standard" }
+Ok "This panel needs the $KIND APK"
 $HDL_L = HdlLauncher
 if ($HDL_L) { Ok "HDL software found ($HDL_L)" }
 
@@ -106,14 +112,15 @@ if ($Restore -or $Uninstall) {
 # --- APK --------------------------------------------------------------------------
 Step "Getting the app..."
 if (-not $Apk) {
-  $f = Get-ChildItem -Path $HERE -Filter "ar-nspanel-pro-*.apk" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  $f = Get-ChildItem -Path $HERE -Filter "ar-nspanel-pro-*.apk" -ErrorAction SilentlyContinue |
+    Where-Object { ($_.Name -like "*-legacy-*") -eq $LEGACY } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
   if ($f) { $Apk = $f.FullName }
 }
 if (-not $Apk) {
   try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     $rel = Invoke-RestMethod -UseBasicParsing -Headers @{ "User-Agent" = "ar-panel-usb" } "https://api.github.com/repos/$REPO/releases/latest"
-    $asset = $rel.assets | Where-Object { $_.name -like "*.apk" } | Select-Object -First 1
+    $asset = $rel.assets | Where-Object { $_.name -like "*.apk" -and (($_.name -like "*-legacy-*") -eq $LEGACY) } | Select-Object -First 1
     if (-not $asset) { throw "no apk in $($rel.tag_name)" }
     $Apk = Join-Path $HERE $asset.name
     Write-Host "  downloading $($asset.name)..."
@@ -125,7 +132,8 @@ Ok (Split-Path -Leaf $Apk)
 
 # --- install -------------------------------------------------------------------------
 Step "Installing over USB..."
-$out = A install -r -d -g "$Apk"
+# -g (grant runtime permissions) exists from Android 6; Android 5 grants them at install anyway
+if ($SDK -ge 23) { $out = A install -r -d -g "$Apk" } else { $out = A install -r -d "$Apk" }
 if ($out -notmatch "Success") {
   if ($out -match "(?i)signatures do not match|UPDATE_INCOMPATIBLE|INCONSISTENT_CERTIFICATES") {
     Die "A copy signed with a different key is on the panel. Run uninstall.bat first (wipes its settings), then again."

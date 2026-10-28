@@ -103,6 +103,21 @@ into the Licence card. The panel verifies the key offline against the AR Smart H
 the app in `Licence.kt`). An unlicensed panel works fully but shows a watermark. The Licence
 sensor's `days_remaining` attribute is there to automate renewals.
 
+## Two APKs: standard and legacy
+
+Each release has two builds of the same app (same ID, same key, same UI):
+
+| APK | For | Draws the UI with |
+|---|---|---|
+| `ar-nspanel-pro-X.Y.Z.apk` | Android 7 and newer (NSPanel Pro, HDL Source 10 on Android 11, …) | the panel's own system WebView |
+| `ar-nspanel-pro-legacy-X.Y.Z.apk` | Android 5–6 (e.g. HDL S10 touch on Android 5.1, whose WebView is Chrome 39) | a bundled Gecko (Firefox) engine, ~60 MB larger, 64-bit ARM |
+
+Home Assistant picks the right one by itself: Setup/Update reads the panel's Android version,
+and the update entity follows the build the panel reports (`sys/info.build`). The USB scripts
+do the same. Only when you install from a memory stick do you pick the file yourself; the
+wrong one either refuses to install (standard on Android 5) or just works (legacy on a newer
+panel).
+
 ## Updating the app without ADB
 
 Every panel has an **App** update entity (app 4.0.1+). When a new release is on GitHub it shows

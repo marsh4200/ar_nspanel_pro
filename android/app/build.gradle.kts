@@ -23,10 +23,28 @@ android {
 
     defaultConfig {
         applicationId = "za.co.arsmarthome.nspanel"
-        minSdk = 24
+        minSdk = 21 // per build below
         targetSdk = 34
         versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
         versionName = (project.findProperty("versionName") as String?) ?: "1.0.0"
+    }
+
+    // Two APKs, same app id and key, same UI and protocol:
+    //   standard: Android 7+, the system WebView         -> ar-nspanel-pro-X.Y.Z.apk
+    //   legacy:   Android 5+, a bundled Gecko engine,     -> ar-nspanel-pro-legacy-X.Y.Z.apk
+    //             for panels whose WebView is too old (HDL S10 touch on Android 5.1)
+    flavorDimensions += "engine"
+    productFlavors {
+        create("standard") {
+            dimension = "engine"
+            minSdk = 24
+        }
+        create("legacy") {
+            dimension = "engine"
+            minSdk = 21
+            // GeckoView ships native code per CPU; the old panels are 64-bit ARM
+            ndk { abiFilters += listOf("arm64-v8a") }
+        }
     }
 
     signingConfigs {
@@ -52,6 +70,8 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+        // GeckoView's AndroidX dependencies may be built with a newer Kotlin
+        freeCompilerArgs += listOf("-Xskip-metadata-version-check")
     }
 }
 
@@ -62,6 +82,10 @@ dependencies {
     // (androidx/media#1138, fixed in 1.5.0).
     implementation("androidx.media3:media3-exoplayer:1.5.1")
     implementation("androidx.media3:media3-exoplayer-rtsp:1.5.1")
+
+    // Legacy build only: Gecko (Firefox) engine. 140 is the last line that still
+    // runs on Android 5.0; the newest 140.x on maven.mozilla.org is picked.
+    "legacyImplementation"("org.mozilla.geckoview:geckoview:140.+") // abiFilters keeps arm64 only
 }
 
 // Bundle the built panel UI as assets/app/ (the offline copy the app boots from).

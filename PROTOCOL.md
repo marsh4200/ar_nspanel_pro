@@ -18,7 +18,7 @@ is reserved. All payloads are JSON unless noted. QoS 0 throughout.
 |---|---|---|
 | `~/avail` | yes | `online` / `offline` (plain text; `offline` is the MQTT last will). HA auto-discovers panels from this topic. |
 | `~/event` | no | `{button, action, page, value?, state?}` — see below |
-| `~/sys/info` | yes | `{deviceId, model, version, versionCode, updater, uiVersion, fwVersion, serial, serverId, ip, rssi, uptimeS, freeMemMB, webview}` (`updater`: how a `cmd/update` installs: `silent`, `prompt`, `none`; absent = app too old) on connect, every `sysInfoIntervalS` (default 60 s) and on `cmd/info` |
+| `~/sys/info` | yes | `{deviceId, model, version, versionCode, build, engine, updater, uiVersion, fwVersion, serial, serverId, ip, rssi, uptimeS, freeMemMB, webview}` (`build`: `standard` or `legacy` APK; `engine`: `webview` or `gecko`; `updater`: how a `cmd/update` installs: `silent`, `prompt`, `none`; absent = app too old) on connect, every `sysInfoIntervalS` (default 60 s) and on `cmd/info` |
 | `~/sys/awake` | yes | `{awake: bool, cause: "touch"\|"proximity"\|"timeout"\|"command"\|"notification"\|"alarm"\|"media"\|"siren"\|"connect", ts}` |
 | `~/sys/light` | yes | `{raw: <lux>}` (throttled: on >15 % change or every 60 s) |
 | `~/sys/motion` | yes | `{motion: bool}` (proximity presence, cleared after `motion.clearS`) |

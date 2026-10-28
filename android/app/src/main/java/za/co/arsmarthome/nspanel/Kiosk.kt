@@ -58,7 +58,7 @@ object Kiosk {
         }
         if (!isOwner(c)) return
         try {
-            dpm(c).setStatusBarDisabled(admin(c), false)
+            if (Build.VERSION.SDK_INT >= 23) dpm(c).setStatusBarDisabled(admin(c), false)
         } catch (e: Exception) {
             Log.w(TAG, "release failed", e)
         }
@@ -91,7 +91,7 @@ object Kiosk {
                 // no Home, no Recents, no notifications, no global actions
                 d.setLockTaskFeatures(ad, DevicePolicyManager.LOCK_TASK_FEATURE_NONE)
             }
-            d.setStatusBarDisabled(ad, true)
+            if (Build.VERSION.SDK_INT >= 23) d.setStatusBarDisabled(ad, true)
             if (!isLocked(a)) a.startLockTask()
         } catch (e: Exception) {
             Log.w(TAG, "lock failed", e)
@@ -125,7 +125,7 @@ object Kiosk {
         if (!isOwner(c)) return
         try {
             val d = dpm(c)
-            d.setStatusBarDisabled(admin(c), false)
+            if (Build.VERSION.SDK_INT >= 23) d.setStatusBarDisabled(admin(c), false)
             d.setLockTaskPackages(admin(c), arrayOf())
             @Suppress("DEPRECATION")
             d.clearDeviceOwnerApp(c.packageName)

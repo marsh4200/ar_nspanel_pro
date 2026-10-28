@@ -699,6 +699,8 @@ function info() {
     freeMemMB: i.freeMemMB,
     webview: i.webview,
     versionCode: i.versionCode,
+    build: i.build || null, // "standard" | "legacy" APK: HA updates the panel with the same kind
+    engine: i.engine || null,
     updater: i.updater || null, // silent | prompt | none; null = app too old to update itself
     screen: fitInfo().w + "x" + fitInfo().h,
     uiSize: "480x" + fitInfo().stageH,

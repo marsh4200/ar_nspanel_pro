@@ -20,17 +20,11 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
-import android.webkit.ConsoleMessage
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceError
-import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.FrameLayout
 
 /**
- * Full-screen kiosk hosting the panel UI in a WebView.
+ * Full-screen kiosk hosting the panel UI in a [PanelEngine]: Android's
+ * WebView (standard build) or a bundled Gecko engine (legacy build, Android 5).
  *
  * The UI is the web app the integration ships (www/app). It boots from the copy
  * bundled in this APK (works with HA down), or from Home Assistant when a UI URL
@@ -41,7 +35,7 @@ import android.widget.FrameLayout
 @androidx.media3.common.util.UnstableApi
 class MainActivity : Activity(), SensorEventListener {
 
-    lateinit var webView: WebView
+    lateinit var engine: PanelEngine
         private set
     private lateinit var blackout: View
     private lateinit var bridge: NativeBridge
@@ -49,7 +43,6 @@ class MainActivity : Activity(), SensorEventListener {
     private var sensors: SensorManager? = null
     private var lastLightAt = 0L
     private var lastLux = -1f
-    private var loadedFallback = false
     private var returnButton: View? = null
     /** RTSP cameras laid over the page (Elegant cameras page). */
     lateinit var rtsp: RtspCams
@@ -128,62 +121,13 @@ class MainActivity : Activity(), SensorEventListener {
                 WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
         )
 
-        WebView.setWebContentsDebuggingEnabled(true) // chrome://inspect over ADB
-        webView = WebView(this)
-        webView.setBackgroundColor(Color.BLACK)
-        val s = webView.settings
-        s.javaScriptEnabled = true
-        s.domStorageEnabled = true
-        s.mediaPlaybackRequiresUserGesture = false
-        s.allowFileAccess = true
-        s.loadWithOverviewMode = true
-        s.useWideViewPort = false
-        s.cacheMode = WebSettings.LOAD_DEFAULT
-        s.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-        s.textZoom = 100
-
         bridge = NativeBridge(this)
-        webView.addJavascriptInterface(bridge, "ARNative")
+        engine = Engines.create(this, bridge)
         // LAN cable first: with a cable in, everything goes over it, not Wi-Fi
         LanFirst.start(this, { brokerHost() }) { via -> emit("network", "{\"via\":\"$via\"}") }
         grantMic()
         AkuOff.run(this) // Akubela taken over: stop its own services again
         BootTweaks.run() // "Optimise panel": stop what the boot files start again
-        webView.webChromeClient = object : WebChromeClient() {
-            override fun onConsoleMessage(m: ConsoleMessage): Boolean {
-                android.util.Log.i("ARPanel", "${m.message()} (${m.sourceId()}:${m.lineNumber()})")
-                return true
-            }
-
-            // Intercom: the page asks for the microphone (getUserMedia)
-            override fun onPermissionRequest(request: android.webkit.PermissionRequest) {
-                main.post {
-                    if (!request.resources.contains(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
-                        request.deny()
-                        return@post
-                    }
-                    val mic = arrayOf(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE)
-                    if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                        request.grant(mic)
-                    } else {
-                        pendingMic?.deny()
-                        pendingMic = request
-                        requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), REQ_MIC)
-                    }
-                }
-            }
-        }
-        webView.webViewClient = object : WebViewClient() {
-            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-                // The HA-served UI is unreachable: boot the bundled copy instead.
-                if (request.isForMainFrame && !loadedFallback) {
-                    loadedFallback = true
-                    main.post { view.loadUrl(BUNDLED_UI) }
-                }
-            }
-
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = false
-        }
 
         blackout = View(this)
         blackout.setBackgroundColor(Color.BLACK)
@@ -192,7 +136,7 @@ class MainActivity : Activity(), SensorEventListener {
 
         val root = FrameLayout(this)
         root.setBackgroundColor(Color.BLACK)
-        root.addView(webView, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        root.addView(engine.view, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         root.addView(blackout, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         setContentView(root)
         rtsp = RtspCams(this, root, blackout)
@@ -205,16 +149,15 @@ class MainActivity : Activity(), SensorEventListener {
     }
 
     fun loadUi() {
-        loadedFallback = false
         val url = bridge.uiUrl()
         if (url.isNullOrBlank()) {
-            webView.loadUrl(BUNDLED_UI)
+            engine.load(BUNDLED_UI)
             return
         }
         // http UI: run a copy on the panel so the intercom may use the mic
         Thread {
             val go = UiCache.resolve(this, url)
-            main.post { webView.loadUrl(go) }
+            main.post { engine.load(go) }
         }.start()
     }
 
@@ -237,7 +180,7 @@ class MainActivity : Activity(), SensorEventListener {
         immersive()
         Kiosk.lock(this) // only when HA made the app device owner
         emit("resume", "{}")
-        webView.onResume()
+        engine.onResume()
         sensors?.let { sm ->
             sm.getDefaultSensor(Sensor.TYPE_LIGHT)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
             if (proximityOk) sm.getDefaultSensor(Sensor.TYPE_PROXIMITY)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
@@ -267,7 +210,7 @@ class MainActivity : Activity(), SensorEventListener {
         hideReturnButton()
         sensors?.unregisterListener(this)
         LanFirst.stop(this)
-        webView.destroy()
+        engine.destroy()
         super.onDestroy()
     }
 
@@ -360,11 +303,9 @@ class MainActivity : Activity(), SensorEventListener {
         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
-    private var pendingMic: android.webkit.PermissionRequest? = null
-
     /** Device owner (kiosk): grant itself the microphone, so a call never asks. */
     private fun grantMic() {
-        if (!Kiosk.isOwner(this)) return
+        if (!Kiosk.isOwner(this) || Build.VERSION.SDK_INT < 23) return // older Android: granted at install
         try {
             val d = getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
             d.setPermissionGrantState(
@@ -378,14 +319,7 @@ class MainActivity : Activity(), SensorEventListener {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode != REQ_MIC) return
-        val req = pendingMic ?: return
-        pendingMic = null
-        if (grantResults.isNotEmpty() && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            req.grant(arrayOf(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE))
-        } else {
-            req.deny()
-        }
+        engine.onPermissionsResult(requestCode, grantResults)
     }
 
     fun hasSensor(type: Int): Boolean =
@@ -393,16 +327,11 @@ class MainActivity : Activity(), SensorEventListener {
 
     /** Deliver an event to the page: window.__arNative.emit(type, json). */
     fun emit(type: String, json: String) {
-        main.post {
-            webView.evaluateJavascript(
-                "window.__arNative&&window.__arNative.emit(${MiniJson.quote(type)},${MiniJson.quote(json)})",
-                null,
-            )
-        }
+        engine.emit(type, json)
     }
 
     fun eval(js: String) {
-        main.post { webView.evaluateJavascript(js, null) }
+        engine.eval(js)
     }
 
     // --- sensors ------------------------------------------------------------------
@@ -432,6 +361,5 @@ class MainActivity : Activity(), SensorEventListener {
         var current: MainActivity? = null
 
         const val BUNDLED_UI = "file:///android_asset/app/index.html"
-        private const val REQ_MIC = 7101
     }
 }

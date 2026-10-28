@@ -316,6 +316,16 @@ def _github_session() -> aiohttp.ClientSession:
     return aiohttp.ClientSession(max_line_size=65536, max_field_size=65536)
 
 
+#: Android versions below this get the legacy APK (bundled Gecko engine):
+#: the standard one needs Android 7 (SDK 24) and a modern system WebView.
+LEGACY_BELOW_SDK = 24
+
+
+def _is_legacy_apk(name: str) -> bool:
+    """ar-nspanel-pro-legacy-X.Y.Z.apk = the Android 5 build."""
+    return "legacy" in name.lower()
+
+
 class PanelAdb:
     """Runs ADB-over-TCP actions against a panel from Home Assistant."""
 
@@ -820,13 +830,21 @@ class PanelAdb:
             return f"{n / 1048576:.1f} MB"
 
         bar(1, "Finding the latest release")
+        signer = await self._get_signer()
+        # Which APK: Android 5/6 panels get the legacy build (own browser engine)
+        sdk_raw = await self._hass.async_add_executor_job(
+            self._shell_blk, host, port, signer, "getprop ro.build.version.sdk"
+        )
+        sdk = int(sdk_raw.strip()) if sdk_raw.strip().isdigit() else 99
+        legacy = sdk < LEGACY_BELOW_SDK
+        if legacy:
+            say(f"Android SDK {sdk}: this panel gets the legacy build (bundled browser engine).")
         say("Finding the latest release on GitHub…")
-        url, tag, name = await self._fetch_latest_apk_url()
+        url, tag, name = await self._fetch_latest_apk_url(legacy=legacy)
         total = await self._asset_size(url)
         say(f"Latest release {tag} — {name}" + (f" ({mb(total)})." if total else "."), "ok")
         bar(5, "Connecting to the panel")
 
-        signer = await self._get_signer()
         say(f"Panel is downloading {name} from GitHub…")
         bar(6, "Panel is downloading the app", f"0 / {mb(total)}" if total else None)
         try:
@@ -900,10 +918,11 @@ class PanelAdb:
         )
         return {"tag": tag, "asset": name, "version": version, "package": APP_PACKAGE}
 
-    async def async_latest_release(self) -> tuple[str, str, str]:
-        """(apk download URL, tag, asset name) of the latest GitHub release.
-        Used by the update entity, which installs over MQTT (no ADB)."""
-        return await self._fetch_latest_apk_url()
+    async def async_latest_release(self, legacy: bool = False) -> tuple[str, str, str]:
+        """(apk download URL, tag, asset name) of the latest GitHub release,
+        the standard or the legacy (Android 5) APK. Used by the update entity,
+        which installs over MQTT (no ADB)."""
+        return await self._fetch_latest_apk_url(legacy=legacy)
 
     async def async_latest_version(self) -> dict[str, Any]:
         """Latest available app version from the GitHub release (no ADB needed)."""
@@ -911,7 +930,7 @@ class PanelAdb:
         version = tag[1:] if tag.startswith("v") else tag
         return {"tag": tag, "version": version or None, "asset": name}
 
-    async def _fetch_latest_apk_url(self) -> tuple[str, str, str]:
+    async def _fetch_latest_apk_url(self, legacy: bool = False) -> tuple[str, str, str]:
         """Return (download_url, tag, asset_name) for the latest release APK.
 
         Tries GitHub's REST API first, then falls back to the public release
@@ -921,7 +940,7 @@ class PanelAdb:
         """
         session = async_get_clientsession(self._hass)
         try:
-            return await self._latest_from_api(session)
+            return await self._latest_from_api(session, legacy)
         except AdbError as err:
             if err.code == "no_asset":
                 raise
@@ -932,13 +951,13 @@ class PanelAdb:
         # with room for them.
         try:
             async with _github_session() as big:
-                return await self._latest_from_web(big)
+                return await self._latest_from_web(big, legacy)
         except AdbError as err:
             if err.code in ("no_asset", "no_release"):
                 raise
             raise AdbError("github", f"{err} (GitHub API: {api_err})") from err
 
-    async def _latest_from_api(self, session: aiohttp.ClientSession) -> tuple[str, str, str]:
+    async def _latest_from_api(self, session: aiohttp.ClientSession, legacy: bool = False) -> tuple[str, str, str]:
         api = (
             f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}"
             "/releases/latest"
@@ -969,12 +988,14 @@ class PanelAdb:
                 a
                 for a in (data.get("assets") or [])
                 if str(a.get("name", "")).lower().endswith(".apk")
+                and _is_legacy_apk(str(a.get("name", ""))) == legacy
             ),
             None,
         )
         if not asset:
+            kind = "legacy (Android 5) " if legacy else ""
             raise AdbError(
-                "no_asset", f"The latest release ({tag}) has no .apk asset attached."
+                "no_asset", f"The latest release ({tag}) has no {kind}.apk asset attached."
             )
         return (
             str(asset.get("browser_download_url")),
@@ -982,7 +1003,7 @@ class PanelAdb:
             str(asset.get("name") or "app-release.apk"),
         )
 
-    async def _latest_from_web(self, session: aiohttp.ClientSession) -> tuple[str, str, str]:
+    async def _latest_from_web(self, session: aiohttp.ClientSession, legacy: bool = False) -> tuple[str, str, str]:
         """No-API lookup: /releases/latest redirects to /releases/tag/<tag>, and
         the release's asset list is served at /releases/expanded_assets/<tag>."""
         base = f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}"
@@ -1013,14 +1034,17 @@ class PanelAdb:
         except aiohttp.ClientError as err:
             raise AdbError("github", f"Couldn't reach GitHub: {err}") from err
 
-        match = re.search(
-            r'href="(/[^"]+/releases/download/[^"]+?\.apk)"', html, re.IGNORECASE
-        )
-        if not match:
+        paths = [
+            p
+            for p in re.findall(r'href="(/[^"]+/releases/download/[^"]+?\.apk)"', html, re.IGNORECASE)
+            if _is_legacy_apk(p.rsplit("/", 1)[-1]) == legacy
+        ]
+        if not paths:
+            kind = "legacy (Android 5) " if legacy else ""
             raise AdbError(
-                "no_asset", f"The latest release ({tag}) has no .apk asset attached."
+                "no_asset", f"The latest release ({tag}) has no {kind}.apk asset attached."
             )
-        path = match.group(1)
+        path = paths[0]
         return (
             "https://github.com" + path,
             tag,

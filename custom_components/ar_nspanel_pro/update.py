@@ -53,14 +53,18 @@ async def async_setup_entry(
     async_add_entities([ARAppUpdateEntity(entry.runtime_data)])
 
 
-async def _latest(hass: HomeAssistant, force: bool = False) -> dict[str, Any] | None:
-    """Latest release {url, tag, version, asset}; cached for every panel."""
-    cache = hass.data.setdefault(_CACHE_KEY, {"ts": 0.0, "data": None, "lock": asyncio.Lock()})
+async def _latest(hass: HomeAssistant, force: bool = False, legacy: bool = False) -> dict[str, Any] | None:
+    """Latest release {url, tag, version, asset} of the standard or the legacy
+    (Android 5) APK; cached for every panel."""
+    caches = hass.data.setdefault(_CACHE_KEY, {})
+    cache = caches.setdefault(
+        "legacy" if legacy else "standard", {"ts": 0.0, "data": None, "lock": asyncio.Lock()}
+    )
     async with cache["lock"]:
         if not force and cache["data"] and time.monotonic() - cache["ts"] < _CHECK_EVERY.total_seconds() - 60:
             return cache["data"]
         try:
-            url, tag, name = await get_adb(hass).async_latest_release()
+            url, tag, name = await get_adb(hass).async_latest_release(legacy=legacy)
         except AdbError as err:
             _LOGGER.debug("Latest app release lookup failed: %s", err)
             return cache["data"]
@@ -95,6 +99,13 @@ class ARAppUpdateEntity(ARPanelEntity, UpdateEntity):
         self._installing = False
         self._wait: asyncio.Future[dict[str, Any]] | None = None
         self._target: str | None = None
+        #: which APK self._release is for (None = not looked up yet)
+        self._release_legacy: bool | None = None
+
+    @property
+    def _legacy(self) -> bool:
+        """The panel runs the legacy APK (Android 5, bundled Gecko): update it with that one."""
+        return self.bridge.sys_info.get("build") == "legacy"
 
     # --- state ----------------------------------------------------------------
 
@@ -131,6 +142,8 @@ class ARAppUpdateEntity(ARPanelEntity, UpdateEntity):
         return {
             # silent | prompt (tap Update on the panel) | none | None = app too old
             "install_mode": mode,
+            # standard (system WebView) | legacy (Android 5, bundled engine)
+            "app_build": self.bridge.sys_info.get("build") or "standard",
             "last_status": self._status.get("state"),
             "last_message": self._status.get("message"),
         }
@@ -157,9 +170,11 @@ class ARAppUpdateEntity(ARPanelEntity, UpdateEntity):
         self.hass.async_create_task(self._async_refresh())
 
     async def _async_refresh(self, force: bool = False) -> None:
-        rel = await _latest(self.hass, force)
+        legacy = self._legacy
+        rel = await _latest(self.hass, force, legacy)
         if rel:
             self._release = rel
+            self._release_legacy = legacy
             self.async_write_ha_state()
 
     @callback
@@ -167,6 +182,10 @@ class ARAppUpdateEntity(ARPanelEntity, UpdateEntity):
         # the app restarts as the new version after an update: that's success
         if self._wait and not self._wait.done() and self._target and _norm(data.get("version")) == self._target:
             self._wait.set_result({"state": "done"})
+        # first sys/info (or a panel moved to the other build): look up its APK
+        if self._release_legacy is not None and self._release_legacy != self._legacy:
+            self._release_legacy = None
+            self.hass.async_create_task(self._async_refresh())
         self.async_write_ha_state()
 
     @callback
@@ -207,12 +226,13 @@ class ARAppUpdateEntity(ARPanelEntity, UpdateEntity):
                 "setting is now open on the panel screen: switch on 'Allow from this source', "
                 "then press Install again."
             )
-        rel = await _latest(self.hass, force=True)
+        rel = await _latest(self.hass, force=True, legacy=self._legacy)
         if not rel:
             raise HomeAssistantError("Couldn't find the latest app release on GitHub.")
         if version and _norm(version) != rel["version"]:
             raise HomeAssistantError(f"Only the latest release ({rel['version']}) can be installed.")
         self._release = rel
+        self._release_legacy = self._legacy
         self._target = rel["version"]
         self._installing = True
         self._status = {"state": "starting", "pct": 0}

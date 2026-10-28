@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.hardware.Sensor
 import android.media.AudioManager
 import android.net.wifi.WifiManager
@@ -13,7 +12,6 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.util.Base64
 import android.webkit.JavascriptInterface
-import android.webkit.WebView
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.HttpURLConnection
@@ -195,7 +193,7 @@ class NativeBridge(private val activity: MainActivity) {
         } catch (e: Exception) {
             null
         }
-        val webview = if (Build.VERSION.SDK_INT >= 26) WebView.getCurrentWebViewPackage()?.versionName else null
+        val webview = activity.engine.version
         val m = linkedMapOf<Any?, Any?>(
             "model" to (Build.MANUFACTURER + " " + Build.MODEL).trim(),
             "version" to version,
@@ -210,6 +208,10 @@ class NativeBridge(private val activity: MainActivity) {
             "freeMemMB" to mi.availMem / (1024 * 1024),
             "webview" to webview,
             "versionCode" to Updater.versionCode(activity),
+            // which APK this is: "standard" (WebView, Android 7+) or "legacy"
+            // (bundled Gecko, Android 5+). HA updates each panel with its own kind.
+            "build" to Engines.BUILD,
+            "engine" to activity.engine.kind,
             // how an over-the-air update would install: silent | prompt | none
             "updater" to Updater.mode(activity),
             "owner" to Kiosk.isOwner(activity),
@@ -317,20 +319,20 @@ class NativeBridge(private val activity: MainActivity) {
     fun screenshot(id: String) {
         activity.runOnUiThread {
             try {
-                val wv = activity.webView
-                val w = wv.width.coerceAtLeast(1)
-                val h = wv.height.coerceAtLeast(1)
-                val full = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-                wv.draw(Canvas(full))
-                // 480x480 is the panel's native size; bigger screens get scaled down
-                val scale = Math.min(1f, 480f / Math.max(w, h))
-                val out = if (scale < 1f) Bitmap.createScaledBitmap(full, (w * scale).toInt(), (h * scale).toInt(), true) else full
-                Thread {
-                    val bos = ByteArrayOutputStream()
-                    out.compress(Bitmap.CompressFormat.PNG, 100, bos)
-                    val b64 = Base64.encodeToString(bos.toByteArray(), Base64.NO_WRAP)
-                    activity.emit("screenshot", "{\"id\":${MiniJson.quote(id)},\"data\":\"$b64\"}")
-                }.start()
+                activity.engine.capture { full ->
+                    if (full == null) return@capture
+                    val w = full.width
+                    val h = full.height
+                    // 480x480 is the panel's native size; bigger screens get scaled down
+                    val scale = Math.min(1f, 480f / Math.max(w, h))
+                    val out = if (scale < 1f) Bitmap.createScaledBitmap(full, (w * scale).toInt(), (h * scale).toInt(), true) else full
+                    Thread {
+                        val bos = ByteArrayOutputStream()
+                        out.compress(Bitmap.CompressFormat.PNG, 100, bos)
+                        val b64 = Base64.encodeToString(bos.toByteArray(), Base64.NO_WRAP)
+                        activity.emit("screenshot", "{\"id\":${MiniJson.quote(id)},\"data\":\"$b64\"}")
+                    }.start()
+                }
             } catch (e: Exception) {
                 android.util.Log.w("ARPanel", "screenshot failed", e)
             }

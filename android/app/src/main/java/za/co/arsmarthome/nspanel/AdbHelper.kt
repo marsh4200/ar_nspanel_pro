@@ -38,7 +38,7 @@ object AdbHelper {
     private const val A_STLS = 0x534c5453
 
     fun canWriteSecure(ctx: Context): Boolean =
-        ctx.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") == PackageManager.PERMISSION_GRANTED
+        ctx.checkCallingOrSelfPermission("android.permission.WRITE_SECURE_SETTINGS") == PackageManager.PERMISSION_GRANTED
 
     fun status(ctx: Context): Map<String, Any?> {
         val cr = ctx.contentResolver

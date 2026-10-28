@@ -9,8 +9,10 @@
 #   ./ar-panel-usb.sh --uninstall     remove the app, HDL screen back
 #
 # Options:
-#   --apk FILE      use this APK (default: newest ar-nspanel-pro-*.apk next to
-#                   this script, else the latest GitHub release is downloaded)
+#   --apk FILE      use this APK (default: the newest matching APK next to this
+#                   script, else it is downloaded from the latest GitHub release.
+#                   Android 7+ gets ar-nspanel-pro-X.Y.Z.apk, Android 5/6 gets
+#                   ar-nspanel-pro-legacy-X.Y.Z.apk (own browser engine))
 #   --no-owner      don't make the app device owner (updates then need a tap
 #                   on the panel, on Android 11 and older)
 #   --kiosk         also lock the panel in (no Home / Recents). Off by default.
@@ -92,6 +94,9 @@ STATE="$(adb_ get-state 2>&1)"
 [ "$STATE" = "device" ] || die "Panel says '$STATE' — accept the USB debugging prompt on the panel and run again"
 MODEL="$(sh_ getprop ro.product.model)"; SDK="$(sh_ getprop ro.build.version.sdk)"; REL="$(sh_ getprop ro.build.version.release)"
 ok "Found $MODEL (Android $REL, SDK $SDK)"
+# Android 5/6 (SDK < 24): the legacy APK with its own browser engine
+if [ "${SDK:-99}" -lt 24 ] 2>/dev/null; then LEGACY=1; KIND="legacy"; else LEGACY=0; KIND="standard"; fi
+ok "This panel needs the $KIND APK"
 HDL_L="$(hdl_launcher)"; [ -n "$HDL_L" ] && ok "HDL software found ($HDL_L)"
 
 # --- restore / uninstall ----------------------------------------------------------
@@ -112,10 +117,14 @@ fi
 # --- APK ----------------------------------------------------------------------------
 step "Getting the app…"
 if [ -z "$APK" ]; then
-  APK="$(ls -t "$HERE"/ar-nspanel-pro-*.apk 2>/dev/null | head -1)"
+  if [ "$LEGACY" = 1 ]; then
+    APK="$(ls -t "$HERE"/ar-nspanel-pro-legacy-*.apk 2>/dev/null | head -1)"
+  else
+    APK="$(ls -t "$HERE"/ar-nspanel-pro-*.apk 2>/dev/null | grep -v -- '-legacy-' | head -1)"
+  fi
 fi
 if [ -z "$APK" ]; then
-  URL="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | grep -o '"browser_download_url": *"[^"]*\.apk"' | head -1 | sed 's/.*"\(http[^"]*\)"/\1/')"
+  URL="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | grep -o '"browser_download_url": *"[^"]*\.apk"' | if [ "$LEGACY" = 1 ]; then grep -- '-legacy-'; else grep -v -- '-legacy-'; fi | head -1 | sed 's/.*"\(http[^"]*\)"/\1/')"
   [ -z "$URL" ] && die "Couldn't find the latest release on GitHub. Download the APK and pass --apk FILE"
   APK="$HERE/$(basename "$URL")"
   echo "  downloading $(basename "$URL")…"
@@ -126,7 +135,9 @@ ok "$(basename "$APK")"
 
 # --- install ----------------------------------------------------------------------
 step "Installing over USB…"
-OUT="$(adb_ install -r -d -g "$APK" 2>&1)"
+# -g (grant runtime permissions) exists from Android 6; Android 5 grants them at install anyway
+GFLAG=""; [ "${SDK:-0}" -ge 23 ] 2>/dev/null && GFLAG="-g"
+OUT="$(adb_ install -r -d $GFLAG "$APK" 2>&1)"
 if ! echo "$OUT" | grep -q Success; then
   if echo "$OUT" | grep -qiE 'signatures do not match|UPDATE_INCOMPATIBLE|INCONSISTENT_CERTIFICATES'; then
     die "A copy signed with a different key is on the panel. Run with --uninstall first (wipes its settings), then again."

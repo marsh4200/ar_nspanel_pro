@@ -13,6 +13,15 @@ Assistant updates the app over MQTT, with no cable and no ADB.
 - Optional: the APK (`ar-nspanel-pro-X.Y.Z.apk`) in this folder. If it isn't there, the script
   downloads the latest release from GitHub.
 
+The scripts pick the right APK from the panel's Android version: Android 7+ gets
+`ar-nspanel-pro-X.Y.Z.apk`, Android 5–6 gets `ar-nspanel-pro-legacy-X.Y.Z.apk`.
+
+**Installing from a USB memory stick instead** (the panel's USB port only takes a stick): copy
+the right APK onto the stick, open it on the panel and tap Install, allowing "Unknown sources"
+if Android asks. Then the first time you press Install in Home Assistant, the panel opens
+"Install unknown apps" for AR NSPanel Pro: switch it on once. On Android 5 there is no such
+switch; "Unknown sources" covers it. Updates then ask for one tap on the panel.
+
 ## Run it
 
 | Windows (double-click) | Mac / Linux | What it does |
