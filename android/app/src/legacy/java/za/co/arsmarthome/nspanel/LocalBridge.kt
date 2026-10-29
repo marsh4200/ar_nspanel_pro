@@ -35,6 +35,9 @@ import java.util.concurrent.atomic.AtomicInteger
  * first tap instead (tab bar, address bar and status bar gone). If Chrome
  * sometimes doesn't stretch the page over where the navigation bar was (a
  * white strip at the bottom), the page leaves full screen and goes back in.
+ * Chrome 95 on Android 5 also keeps a stale zoom / visible area after going
+ * full screen (the page drawn short, a white strip below, until a two-finger
+ * touch); a tiny change of the page's zoom setting makes it recalculate.
  *
  * index.html is only served with the secret token (?t=), and gets a small
  * script put in front of the app that defines `window.ARNative` with exactly
@@ -413,6 +416,12 @@ function check(){if(!isFs())return;if(gap()<=6){fixes=0;return;}if(fixes>=3)retu
 var x=d.exitFullscreen||d.webkitExitFullscreen;if(x){try{var q=x.call(d);if(q&&q.catch)q.catch(function(){});}catch(_){}}}
 document.addEventListener("fullscreenchange",function(){if(isFs()){setTimeout(check,1500);setTimeout(check,4000);}});
 window.addEventListener("resize",function(){setTimeout(check,1500);});setInterval(check,15000);
+function nudge(){var m=document.querySelector("meta[name=viewport]");if(!m)return;var c=m.getAttribute("content")||"";
+var t=/initial-scale=/.test(c)?c.replace(/initial-scale=[0-9.]+/,"initial-scale=0.9999"):c+",initial-scale=0.9999";
+m.setAttribute("content",t);setTimeout(function(){m.setAttribute("content",c);window.scrollTo(0,0);},150);}
+function nudges(){[300,1000,2500].forEach(function(ms){setTimeout(nudge,ms);});}
+document.addEventListener("fullscreenchange",nudges);
+window.addEventListener("resize",function(){setTimeout(nudge,400);});
 })();
 """.trimIndent().replace("\n", "")
     }
