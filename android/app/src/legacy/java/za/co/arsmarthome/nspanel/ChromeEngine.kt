@@ -147,7 +147,10 @@ class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : P
             i.putExtras(extras)
             i.putExtra("android.support.customtabs.extra.TOOLBAR_COLOR", Color.BLACK)
             i.putExtra("android.support.customtabs.extra.TITLE_VISIBILITY", 0)
-            i.putExtra("android.support.customtabs.extra.ENABLE_URLBAR_HIDING", true)
+            // Never let Chrome slide its toolbar away on scroll: with that on, going full
+            // screen sometimes left the page shifted up by the toolbar's height (a white
+            // strip at the bottom until you dragged the page). The panel never scrolls.
+            i.putExtra("android.support.customtabs.extra.ENABLE_URLBAR_HIDING", false)
             i.putExtra(Browser.EXTRA_APPLICATION_ID, activity.packageName)
             activity.startActivity(i) // no NEW_TASK: it opens on top of this app, in its task
             StartupGuard.ok(activity)
