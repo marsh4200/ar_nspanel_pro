@@ -36,9 +36,9 @@ import java.io.File
  * stays running behind Chrome ([KeepAlive]) for the backlight, sensors,
  * start-on-boot and updates.
  *
- * Full screen: the first time, Chrome opens as a normal tab. ⋮ → "Add to Home
- * screen" once; [ShortcutCatcher] keeps the shortcut Chrome makes, and from
- * then on the panel opens through it — full screen, no address bar.
+ * Chrome shows it as a Custom Tab (owned by this app: no tab pile-up, nothing
+ * restored after a power cut). Full screen comes from the page itself: on the
+ * first tap, or by itself with the accessibility helper ([FullscreenHelper]).
  */
 class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : PanelEngine {
     private val tag = "ARChrome"
@@ -138,12 +138,18 @@ class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : P
             }
         }
         try {
-            activity.startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                    .setPackage(chrome)
-                    .putExtra(Browser.EXTRA_APPLICATION_ID, activity.packageName) // reuse the same tab
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
+            // A Chrome Custom Tab, not a normal tab: it belongs to this app's task,
+            // never shows up in Chrome's tab list and isn't restored after a restart
+            // or power cut, so the panel never piles up as extra tabs.
+            val i = Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage(chrome)
+            val extras = android.os.Bundle()
+            extras.putBinder("android.support.customtabs.extra.SESSION", null) // = "this is a Custom Tab"
+            i.putExtras(extras)
+            i.putExtra("android.support.customtabs.extra.TOOLBAR_COLOR", Color.BLACK)
+            i.putExtra("android.support.customtabs.extra.TITLE_VISIBILITY", 0)
+            i.putExtra("android.support.customtabs.extra.ENABLE_URLBAR_HIDING", true)
+            i.putExtra(Browser.EXTRA_APPLICATION_ID, activity.packageName)
+            activity.startActivity(i) // no NEW_TASK: it opens on top of this app, in its task
             StartupGuard.ok(activity)
             info.text = "" // nothing in between: black, then the panel
             buttons.visibility = View.GONE
