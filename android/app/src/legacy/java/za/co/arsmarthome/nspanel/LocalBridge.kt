@@ -32,7 +32,9 @@ import java.util.concurrent.atomic.AtomicInteger
  * worker), so Chrome's ⋮ → "Install app" makes a real full-screen app, which
  * ChromeEngine then always opens. Until that's done (or if Chrome only makes a
  * bookmark), the injected script switches the page to full screen on the
- * first tap instead (tab bar, address bar and status bar gone).
+ * first tap instead (tab bar, address bar and status bar gone). If Chrome
+ * sometimes doesn't stretch the page over where the navigation bar was (a
+ * white strip at the bottom), the page leaves full screen and goes back in.
  *
  * index.html is only served with the secret token (?t=), and gets a small
  * script put in front of the app that defines `window.ARNative` with exactly
@@ -397,6 +399,11 @@ function auto(ms){setTimeout(function(){if(isFs())return;btn();
 var x=new XMLHttpRequest();x.open("GET","/__ar/autofs?t="+T,true);x.send();},ms);}
 window.addEventListener("load",function(){btn();auto(8000);});
 document.addEventListener("fullscreenchange",function(){if(!isFs())auto(3000);});
+var fixes=0;function gap(){var s=screen,w=window.innerWidth,h=window.innerHeight;
+var full=w>h?Math.min(s.width,s.height):Math.max(s.width,s.height);return full-h;}
+function check(){if(!isFs()||fixes>=3||gap()<=6)return;fixes++;var d=document;
+var x=d.exitFullscreen||d.webkitExitFullscreen;if(x){try{var q=x.call(d);if(q&&q.catch)q.catch(function(){});}catch(_){}}}
+document.addEventListener("fullscreenchange",function(){if(isFs()){setTimeout(check,1500);setTimeout(check,4000);}});
 })();
 """.trimIndent().replace("\n", "")
     }
