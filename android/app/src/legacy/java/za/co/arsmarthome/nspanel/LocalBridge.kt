@@ -28,16 +28,12 @@ import java.util.concurrent.atomic.AtomicInteger
  *   POST /__ar/call?t=    {"m": method, "a": [args]} -> {"v": result}   (sync XHR)
  *   GET  /__ar/events?t=  server-sent events: native -> page (emit / eval)
  *
- * Full screen: the page is an installable web app (manifest, icons, service
- * worker), so Chrome's ⋮ → "Install app" makes a real full-screen app, which
- * ChromeEngine then always opens. Until that's done (or if Chrome only makes a
- * bookmark), the injected script switches the page to full screen on the
- * first tap instead (tab bar, address bar and status bar gone). If Chrome
- * sometimes doesn't stretch the page over where the navigation bar was (a
- * white strip at the bottom), the page leaves full screen and goes back in.
- * Chrome 95 on Android 5 also keeps a stale zoom / visible area after going
- * full screen (the page drawn short, a white strip below, until a two-finger
- * touch); a tiny change of the page's zoom setting makes it recalculate.
+ * Full screen: the injected script switches the page to full screen on the
+ * first tap, or by itself through the accessibility helper (FullscreenHelper).
+ * Only one panel page at a time: a newer one makes older ones close
+ * (BroadcastChannel), and [pageAlive] tells ChromeEngine not to open another.
+ * Test menu: hold the bottom-right corner 2.5 s — screen measurements and
+ * buttons to try layout fixes (for the white strip Chrome sometimes leaves).
  *
  * index.html is only served with the secret token (?t=), and gets a small
  * script put in front of the app that defines `window.ARNative` with exactly
@@ -62,6 +58,17 @@ class LocalBridge(private val ctx: Context, bridge: NativeBridge) {
     private val pool = Executors.newCachedThreadPool()
     private val events = LinkedBlockingDeque<String>(2000)
     private val streamGen = AtomicInteger(0)
+    @Volatile
+    private var streaming = false
+    @Volatile
+    private var lastSeen = 0L
+
+    /** Test menu button 6: the app flashes an invisible screen over Chrome (ChromeEngine). */
+    @Volatile
+    var onNudge: (() -> Unit)? = null
+
+    /** A panel page is open and talking to the app right now (or was a moment ago). */
+    fun pageAlive(): Boolean = streaming || android.os.SystemClock.elapsedRealtime() - lastSeen < 5000
     private val server: ServerSocket = openServer()
     val port: Int get() = server.localPort
 
@@ -186,6 +193,13 @@ class LocalBridge(private val ctx: Context, bridge: NativeBridge) {
             r.path == "/__ar/autofs" ->
                 if (authed(r)) send(out, 200, "text/plain", (if (FullscreenHelper.request()) "1" else "0").toByteArray())
                 else send(out, 403, "text/plain", "no".toByteArray())
+            r.path == "/__ar/nudge" ->
+                if (authed(r)) {
+                    onNudge?.invoke()
+                    send(out, 200, "text/plain", "1".toByteArray())
+                } else {
+                    send(out, 403, "text/plain", "no".toByteArray())
+                }
             r.path == "/__ar/events" ->
                 if (authed(r)) stream(out) else send(out, 403, "text/plain", "no".toByteArray())
             // web-app bits so Chrome can open the panel full screen from a home-screen shortcut
@@ -297,6 +311,7 @@ class LocalBridge(private val ctx: Context, bridge: NativeBridge) {
     // --- bridge calls ------------------------------------------------------------------
 
     private fun call(body: String): String {
+        lastSeen = android.os.SystemClock.elapsedRealtime()
         return try {
             val req = MiniJson.parse(body) as? Map<*, *> ?: return err("bad request")
             val name = req["m"] as? String ?: return err("no method")
@@ -342,6 +357,17 @@ class LocalBridge(private val ctx: Context, bridge: NativeBridge) {
 
     private fun stream(out: OutputStream) {
         val gen = streamGen.incrementAndGet() // a new page takes over from the old one
+        streaming = true
+        lastSeen = android.os.SystemClock.elapsedRealtime()
+        try {
+            streamLoop(out, gen)
+        } finally {
+            if (gen == streamGen.get()) streaming = false
+            lastSeen = android.os.SystemClock.elapsedRealtime()
+        }
+    }
+
+    private fun streamLoop(out: OutputStream, gen: Int) {
         out.write(
             ("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\n" +
                 "Connection: keep-alive\r\n\r\nretry: 1000\n\n").toByteArray(),
@@ -383,7 +409,7 @@ class LocalBridge(private val ctx: Context, bridge: NativeBridge) {
         /** window.ARNative over sync XHR, events over EventSource. Plain ES5. */
         private val SHIM = """
 (function(){
-var T="__TOKEN__",M=[__METHODS__],P=[];
+var T="__TOKEN__",M=[__METHODS__],P=[],START=Date.now(),RW=__REALW__,RH=__REALH__;
 function call(n,a){var x=new XMLHttpRequest();x.open("POST","/__ar/call?t="+T,false);
 x.setRequestHeader("Content-Type","text/plain;charset=UTF-8");x.send(JSON.stringify({m:n,a:a}));
 if(x.status!==200)throw new Error("ARNative."+n+": HTTP "+x.status);
@@ -396,11 +422,17 @@ function flush(){while(P.length&&run(P[0]))P.shift();if(P.length)setTimeout(flus
 var es=new EventSource("/__ar/events?t="+T);
 es.onmessage=function(e){var m;try{m=JSON.parse(e.data);}catch(_){return;}P.push(m);flush();};
 if(navigator.serviceWorker){try{navigator.serviceWorker.register("sw.js");}catch(_){}}
-function fs(){var d=document,e=d.documentElement;if(d.fullscreenElement||d.webkitFullscreenElement)return;
+try{var BC=new BroadcastChannel("ar-panel");
+BC.onmessage=function(e){var m=e.data||{};if(m.t!=="hi")return;
+if(m.at>START){try{es.close();}catch(_){}window.close();setTimeout(function(){location.replace("about:blank");},1500);}else if(m.at<START){BC.postMessage({t:"hi",at:START});}};
+BC.postMessage({t:"hi",at:START});}catch(_){}
+function isFs(){return !!(document.fullscreenElement||document.webkitFullscreenElement);}
+function fs(){var d=document,e=d.documentElement;if(isFs())return;
 var r=e.requestFullscreen||e.webkitRequestFullscreen;if(!r)return;
 try{var q=r.call(e,{navigationUI:"hide"});if(q&&q.catch)q.catch(function(){});}catch(_){}}
+function unfs(){var d=document,x=d.exitFullscreen||d.webkitExitFullscreen;
+if(x&&isFs()){try{var q=x.call(d);if(q&&q.catch)q.catch(function(){});}catch(_){}}}
 ["touchend","pointerup","mousedown","click","keydown"].forEach(function(t){window.addEventListener(t,fs,true);});
-function isFs(){return !!(document.fullscreenElement||document.webkitFullscreenElement);}
 function btn(){if(document.getElementById("ar-fs")||!document.body)return;var b=document.createElement("div");
 b.id="ar-fs";b.setAttribute("role","button");b.setAttribute("aria-label","AR full screen");b.tabIndex=0;
 b.style.cssText="position:fixed;left:0;bottom:0;width:4px;height:4px;opacity:0.01;z-index:2147483647";
@@ -409,19 +441,34 @@ function auto(ms){setTimeout(function(){if(isFs())return;btn();
 var x=new XMLHttpRequest();x.open("GET","/__ar/autofs?t="+T,true);x.send();},ms);}
 window.addEventListener("load",function(){btn();auto(8000);});
 document.addEventListener("fullscreenchange",function(){if(!isFs())auto(3000);});
-var RW=__REALW__,RH=__REALH__,fixes=0;
-function gap(){var w=window.innerWidth,h=window.innerHeight,a=RW||screen.width,b=RH||screen.height;
-var full=w>h?Math.min(a,b):Math.max(a,b);return full-h;}
-function check(){if(!isFs())return;if(gap()<=6){fixes=0;return;}if(fixes>=3)return;fixes++;var d=document;
-var x=d.exitFullscreen||d.webkitExitFullscreen;if(x){try{var q=x.call(d);if(q&&q.catch)q.catch(function(){});}catch(_){}}}
-document.addEventListener("fullscreenchange",function(){if(isFs()){setTimeout(check,1500);setTimeout(check,4000);}});
-window.addEventListener("resize",function(){setTimeout(check,1500);});setInterval(check,15000);
-function nudge(){var m=document.querySelector("meta[name=viewport]");if(!m)return;var c=m.getAttribute("content")||"";
-var t=/initial-scale=/.test(c)?c.replace(/initial-scale=[0-9.]+/,"initial-scale=0.9999"):c+",initial-scale=0.9999";
-m.setAttribute("content",t);setTimeout(function(){m.setAttribute("content",c);window.scrollTo(0,0);},150);}
-function nudges(){[300,1000,2500].forEach(function(ms){setTimeout(nudge,ms);});}
-document.addEventListener("fullscreenchange",nudges);
-window.addEventListener("resize",function(){setTimeout(nudge,400);});
+var TM=null,TT=null;
+function meas(){var v=window.visualViewport,de=document.documentElement;
+return "page "+innerWidth+"x"+innerHeight+"  html "+de.clientWidth+"x"+de.clientHeight+
+"\nChrome screen "+screen.width+"x"+screen.height+"  real "+RW+"x"+RH+"  dpr "+(window.devicePixelRatio||1)+
+"\nvisual "+(v?Math.round(v.width)+"x"+Math.round(v.height)+" top "+Math.round(v.offsetTop)+" scale "+v.scale.toFixed(3):"n/a")+
+"\nfull screen: "+(isFs()?"yes":"no");}
+function zoom(){var m=document.querySelector("meta[name=viewport]");if(!m)return;var c=m.getAttribute("content")||"";
+m.setAttribute("content",/initial-scale=/.test(c)?c.replace(/initial-scale=[0-9.]+/,"initial-scale=0.9999"):c+",initial-scale=0.9999");
+setTimeout(function(){m.setAttribute("content",c);},150);}
+function resz(){var de=document.documentElement,h=de.style.height;de.style.height="101%";setTimeout(function(){de.style.height=h;},150);}
+function scrl(){var de=document.documentElement,o=de.style.overflow;de.style.overflow="auto";
+window.scrollTo(0,1);setTimeout(function(){window.scrollTo(0,0);de.style.overflow=o;},150);}
+function menu(){if(TM)return;TM=document.createElement("div");
+TM.style.cssText="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:2147483646;background:rgba(0,0,0,.88);"+
+"color:#fff;font:12px monospace;padding:10px;border:1px solid #f2b866;border-radius:8px;white-space:pre;max-width:96vw";
+var txt=document.createElement("div");TM.appendChild(txt);
+function upd(){txt.textContent="AR test menu\n"+meas();}upd();var iv=setInterval(upd,500);
+[["1 Zoom nudge",zoom],["2 Exit + back to full screen",function(){unfs();setTimeout(fs,600);auto(1200);}],
+["3 Resize nudge",resz],["4 Scroll nudge",scrl],["5 Reload page",function(){location.reload();}],
+["6 App screen flash",function(){var x=new XMLHttpRequest();x.open("GET","/__ar/nudge?t="+T,true);x.send();}],
+["Close",function(){clearInterval(iv);TM.parentNode.removeChild(TM);TM=null;}]].forEach(function(b){
+var k=document.createElement("div");k.textContent=b[0];
+k.style.cssText="margin-top:6px;padding:9px 12px;background:#2a2d33;border-radius:6px;font:14px sans-serif";
+k.addEventListener("click",function(e){e.stopPropagation();b[1]();});TM.appendChild(k);});
+document.body.appendChild(TM);}
+window.addEventListener("touchstart",function(e){var t=e.touches[0];if(!t)return;
+if(t.clientX>innerWidth-70&&t.clientY>innerHeight-70){clearTimeout(TT);TT=setTimeout(menu,2500);}},true);
+["touchend","touchmove","touchcancel"].forEach(function(n){window.addEventListener(n,function(){clearTimeout(TT);},true);});
 })();
 """.trimIndent().replace("\n", "")
     }

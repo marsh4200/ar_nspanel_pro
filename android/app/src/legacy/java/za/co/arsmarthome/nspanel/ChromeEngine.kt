@@ -36,9 +36,11 @@ import java.io.File
  * stays running behind Chrome ([KeepAlive]) for the backlight, sensors,
  * start-on-boot and updates.
  *
- * Chrome shows it as a Custom Tab (owned by this app: no tab pile-up, nothing
- * restored after a power cut). Full screen comes from the page itself: on the
- * first tap, or by itself with the accessibility helper ([FullscreenHelper]).
+ * Chrome shows it in a normal tab (a Custom Tab left a white strip after full
+ * screen on Chrome 95). No pile-up of tabs: Chrome is brought forward first and
+ * the panel tab it already has is reused; a new tab only opens if none comes
+ * back. Full screen comes from the page: on the first tap, or by itself with the
+ * accessibility helper ([FullscreenHelper]).
  */
 class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : PanelEngine {
     private val tag = "ARChrome"
@@ -92,6 +94,16 @@ class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : P
         }
 
     init {
+        // test menu button 6: flash an invisible screen over Chrome so it redoes its layout
+        local.onNudge = {
+            main.post {
+                try {
+                    activity.startActivity(Intent(activity, NudgeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                } catch (e: Exception) {
+                    Log.w(tag, "nudge: ${e.message}")
+                }
+            }
+        }
         try {
             activity.startService(Intent(activity, KeepAlive::class.java))
         } catch (e: Exception) {
@@ -137,25 +149,41 @@ class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : P
                 forgetShortcut(activity)
             }
         }
+        // No duplicate tabs: a panel page that is already open is reused.
+        //  * one is open and talking to the app: just bring Chrome to the front.
+        //  * none yet (app start, power cut): bring Chrome forward too. Chrome
+        //    restores its last tab, which is the panel, and that reconnects.
+        //    Only if no panel page shows up within a while is a new one opened.
+        //  (If two ever load anyway, the older one closes itself: LocalBridge.)
         try {
-            // A Chrome Custom Tab, not a normal tab: it belongs to this app's task,
-            // never shows up in Chrome's tab list and isn't restored after a restart
-            // or power cut, so the panel never piles up as extra tabs.
-            val i = Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage(chrome)
-            val extras = android.os.Bundle()
-            extras.putBinder("android.support.customtabs.extra.SESSION", null) // = "this is a Custom Tab"
-            i.putExtras(extras)
-            i.putExtra("android.support.customtabs.extra.TOOLBAR_COLOR", Color.BLACK)
-            i.putExtra("android.support.customtabs.extra.TITLE_VISIBILITY", 0)
-            // Never let Chrome slide its toolbar away on scroll: with that on, going full
-            // screen sometimes left the page shifted up by the toolbar's height (a white
-            // strip at the bottom until you dragged the page). The panel never scrolls.
-            i.putExtra("android.support.customtabs.extra.ENABLE_URLBAR_HIDING", false)
-            i.putExtra(Browser.EXTRA_APPLICATION_ID, activity.packageName)
-            activity.startActivity(i) // no NEW_TASK: it opens on top of this app, in its task
+            val front = activity.packageManager.getLaunchIntentForPackage(chrome)
+            if (front != null) {
+                activity.startActivity(front.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
             StartupGuard.ok(activity)
             info.text = "" // nothing in between: black, then the panel
             buttons.visibility = View.GONE
+            if (local.pageAlive()) return
+            main.removeCallbacks(openTab)
+            main.postDelayed(openTab, if (front == null) 0L else REUSE_WAIT_MS)
+        } catch (e: Exception) {
+            buttons.visibility = View.VISIBLE
+            info.text = "Couldn't open Chrome: ${e.message}"
+        }
+    }
+
+    /** No panel page came back by itself: open one (a normal Chrome tab). */
+    private val openTab = Runnable {
+        if (local.pageAlive()) return@Runnable
+        val url = page ?: return@Runnable
+        val chrome = chromePackage() ?: return@Runnable
+        try {
+            activity.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    .setPackage(chrome)
+                    .putExtra(Browser.EXTRA_APPLICATION_ID, activity.packageName) // same tab while Chrome runs
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
         } catch (e: Exception) {
             buttons.visibility = View.VISIBLE
             info.text = "Couldn't open Chrome: ${e.message}"
@@ -253,6 +281,7 @@ class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : P
     }
 
     override fun destroy() {
+        main.removeCallbacks(openTab)
         hideDim()
         keepScreenOn(false)
         local.stop()
@@ -260,6 +289,8 @@ class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : P
 
     companion object {
         private const val PREFS = "chrome"
+        /** How long Chrome gets to bring back the panel tab it had (slow panels) before a new one opens. */
+        private const val REUSE_WAIT_MS = 12000L
 
         fun savedShortcut(c: Context): Intent? {
             val s = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("shortcut", null) ?: return null
