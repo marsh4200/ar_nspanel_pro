@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="fullscreen_helper_label">AR NSPanel Pro full screen</string>
+    <string name="fullscreen_helper_description">Puts the AR NSPanel Pro panel into full screen in Chrome by itself, with no tap. It only presses the panel page\'s own full-screen button and reads nothing else.</string>
+</resources>

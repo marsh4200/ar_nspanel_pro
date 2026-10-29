@@ -55,6 +55,9 @@ class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : P
         gravity = Gravity.CENTER
     }
 
+    /** Only shown when something needs a hand (no Chrome, Chrome won't open). */
+    private val buttons = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
+
     override val view: View = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER
@@ -62,11 +65,12 @@ class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : P
         val d = activity.resources.displayMetrics.density
         setPadding((24 * d).toInt(), 0, (24 * d).toInt(), 0)
         addView(info)
-        addView(Button(activity).apply {
+        addView(buttons)
+        buttons.addView(Button(activity).apply {
             text = "Open the panel"
             setOnClickListener { open(force = true) }
         })
-        addView(Button(activity).apply {
+        buttons.addView(Button(activity).apply {
             text = "Android settings"
             setOnClickListener {
                 try {
@@ -116,6 +120,7 @@ class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : P
         val chrome = chromePackage()
         if (chrome == null) {
             StartupGuard.ok(activity)
+            buttons.visibility = View.VISIBLE
             info.text = "Chrome isn't installed.\n\nInstall Chrome 95 (arm-v7a, Android 5.0+) on this panel " +
                 "from a USB stick, then open AR NSPanel Pro again."
             return
@@ -140,8 +145,10 @@ class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : P
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             )
             StartupGuard.ok(activity)
-            info.text = "" // nothing in between: the panel just appears
+            info.text = "" // nothing in between: black, then the panel
+            buttons.visibility = View.GONE
         } catch (e: Exception) {
+            buttons.visibility = View.VISIBLE
             info.text = "Couldn't open Chrome: ${e.message}"
         }
     }

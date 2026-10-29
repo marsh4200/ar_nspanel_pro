@@ -177,6 +177,10 @@ class LocalBridge(private val ctx: Context, bridge: NativeBridge) {
         when {
             r.path == "/__ar/call" && r.method == "POST" ->
                 if (authed(r)) send(out, 200, "application/json", call(String(r.body, Charsets.UTF_8)).toByteArray()) else send(out, 403, "text/plain", "no".toByteArray())
+            // the page isn't full screen: the accessibility helper presses its button
+            r.path == "/__ar/autofs" ->
+                if (authed(r)) send(out, 200, "text/plain", (if (FullscreenHelper.request()) "1" else "0").toByteArray())
+                else send(out, 403, "text/plain", "no".toByteArray())
             r.path == "/__ar/events" ->
                 if (authed(r)) stream(out) else send(out, 403, "text/plain", "no".toByteArray())
             // web-app bits so Chrome can open the panel full screen from a home-screen shortcut
@@ -383,7 +387,16 @@ if(navigator.serviceWorker){try{navigator.serviceWorker.register("sw.js");}catch
 function fs(){var d=document,e=d.documentElement;if(d.fullscreenElement||d.webkitFullscreenElement)return;
 var r=e.requestFullscreen||e.webkitRequestFullscreen;if(!r)return;
 try{var q=r.call(e,{navigationUI:"hide"});if(q&&q.catch)q.catch(function(){});}catch(_){}}
-["touchend","click","keydown"].forEach(function(t){document.addEventListener(t,fs,true);});
+["touchend","pointerup","mousedown","click","keydown"].forEach(function(t){window.addEventListener(t,fs,true);});
+function isFs(){return !!(document.fullscreenElement||document.webkitFullscreenElement);}
+function btn(){if(document.getElementById("ar-fs")||!document.body)return;var b=document.createElement("div");
+b.id="ar-fs";b.setAttribute("role","button");b.setAttribute("aria-label","AR full screen");b.tabIndex=0;
+b.style.cssText="position:fixed;left:0;bottom:0;width:4px;height:4px;opacity:0.01;z-index:2147483647";
+b.addEventListener("click",fs);document.body.appendChild(b);}
+function auto(ms){setTimeout(function(){if(isFs())return;btn();
+var x=new XMLHttpRequest();x.open("GET","/__ar/autofs?t="+T,true);x.send();},ms);}
+window.addEventListener("load",function(){btn();auto(8000);});
+document.addEventListener("fullscreenchange",function(){if(!isFs())auto(3000);});
 })();
 """.trimIndent().replace("\n", "")
     }
