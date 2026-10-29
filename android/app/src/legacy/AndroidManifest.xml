@@ -34,6 +34,15 @@
                 android:resource="@xml/fullscreen_helper" />
         </service>
 
+        <!-- Invisible for a moment over Chrome: makes it redo its layout (test menu button 6) -->
+        <activity
+            android:name=".NudgeActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="za.co.arsmarthome.nspanel.nudge"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <!-- Keeps the bridge / sensors / backlight running while Chrome is in front -->
         <service
             android:name=".KeepAlive"
