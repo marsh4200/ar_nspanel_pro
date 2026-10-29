@@ -28,10 +28,11 @@ import java.util.concurrent.atomic.AtomicInteger
  *   POST /__ar/call?t=    {"m": method, "a": [args]} -> {"v": result}   (sync XHR)
  *   GET  /__ar/events?t=  server-sent events: native -> page (emit / eval)
  *
- * Full screen: Chrome only lets a page go full screen after a touch, and on
- * panels without Google services "Add to Home screen" makes a plain bookmark
- * (no full-screen web app). So the injected script switches the page to
- * full screen on the first tap (tab bar, address bar and status bar gone).
+ * Full screen: the page is an installable web app (manifest, icons, service
+ * worker), so Chrome's ⋮ → "Install app" makes a real full-screen app, which
+ * ChromeEngine then always opens. Until that's done (or if Chrome only makes a
+ * bookmark), the injected script switches the page to full screen on the
+ * first tap instead (tab bar, address bar and status bar gone).
  *
  * index.html is only served with the secret token (?t=), and gets a small
  * script put in front of the app that defines `window.ARNative` with exactly
@@ -349,11 +350,19 @@ class LocalBridge(private val ctx: Context, bridge: NativeBridge) {
     companion object {
         const val PORT = 18555
 
-        /** Minimal service worker: Chrome only offers a full-screen web app with one.
-         *  It handles nothing itself, so the bridge calls and events go straight through. */
-        private const val SW = "self.addEventListener('install',function(){self.skipWaiting();});" +
+        /** Service worker: Chrome only offers "Install app" (a real full-screen web
+         *  app, no tab) for a page whose service worker answers requests and can
+         *  open the start page offline. So it serves the page's own files from the
+         *  network, keeping a copy to fall back on; the bridge calls and events
+         *  (/__ar/) are never touched. */
+        private const val SW = "var C='ar-panel-v1';" +
+            "self.addEventListener('install',function(){self.skipWaiting();});" +
             "self.addEventListener('activate',function(e){e.waitUntil(self.clients.claim());});" +
-            "self.addEventListener('fetch',function(e){});"
+            "self.addEventListener('fetch',function(e){var r=e.request;" +
+            "if(r.method!=='GET'||r.url.indexOf('/__ar/')>=0||r.url.indexOf(self.location.origin)!==0)return;" +
+            "e.respondWith(fetch(r).then(function(res){if(res&&res.ok){var c=res.clone();" +
+            "caches.open(C).then(function(k){k.put(r,c);});}return res;})" +
+            ".catch(function(){return caches.match(r).then(function(m){return m||new Response('',{status:503});});}));});"
 
         /** window.ARNative over sync XHR, events over EventSource. Plain ES5. */
         private val SHIM = """

@@ -125,7 +125,7 @@ class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : P
             try {
                 activity.startActivity(shortcut)
                 StartupGuard.ok(activity)
-                info.text = "The panel is open in Chrome (full screen)."
+                info.text = ""
                 return
             } catch (e: Exception) {
                 Log.w(tag, "saved shortcut failed; opening a tab", e)
@@ -140,8 +140,7 @@ class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : P
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             )
             StartupGuard.ok(activity)
-            info.text = "The panel is open in Chrome.\n\nFor full screen: in Chrome tap ⋮ → \"Add to Home screen\" " +
-                "(or \"Install app\") once. After that it always opens full screen."
+            info.text = "" // nothing in between: the panel just appears
         } catch (e: Exception) {
             info.text = "Couldn't open Chrome: ${e.message}"
         }
@@ -248,11 +247,25 @@ class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : P
 
         fun savedShortcut(c: Context): Intent? {
             val s = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("shortcut", null) ?: return null
-            return try {
+            val i = try {
                 Intent.parseUri(s, Intent.URI_INTENT_SCHEME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             } catch (e: Exception) {
                 null
             }
+            // a bookmark kept by an older version opens a tab: drop it, use the normal path
+            if (i == null || !isWebApp(i)) {
+                forgetShortcut(c)
+                return null
+            }
+            return i
+        }
+
+        /** Chrome's web-app launch (full screen), not a bookmark. */
+        fun isWebApp(i: Intent): Boolean {
+            val a = i.action ?: ""
+            if (a.contains("WEBAPP", ignoreCase = true)) return true
+            val extras = i.extras ?: return false
+            return extras.keySet().any { it.contains("webapp", ignoreCase = true) }
         }
 
         fun saveShortcut(c: Context, i: Intent) {
@@ -277,6 +290,12 @@ class ShortcutCatcher : BroadcastReceiver() {
         val text = target.toUri(Intent.URI_INTENT_SCHEME)
         // the URL sits in the intent percent-encoded (127.0.0.1%3A18555): match the parts
         if (!text.contains("127.0.0.1") || !text.contains(LocalBridge.PORT.toString())) return // some other shortcut
+        // "Install app" makes a web-app shortcut (opens full screen); "Add to Home
+        // screen" on a non-installable page only a bookmark (opens a tab): skip that
+        if (!ChromeEngine.isWebApp(target)) {
+            Log.i("ARChrome", "Chrome made a plain bookmark, not a web app: ignored")
+            return
+        }
         ChromeEngine.saveShortcut(context, target)
         Log.i("ARChrome", "kept Chrome's full-screen shortcut for the panel")
         try {
