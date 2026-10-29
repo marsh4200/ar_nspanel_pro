@@ -222,7 +222,14 @@ class LocalBridge(private val ctx: Context, bridge: NativeBridge) {
 
     private fun inject(html: String): String {
         val names = methods.keys.sorted().joinToString(",") { MiniJson.quote(it) }
+        // the panel's real screen size in CSS px: on Android 5 Chrome's screen.height
+        // leaves out the navigation bar, so it can't see the strip left where it was
+        val dm = android.util.DisplayMetrics()
+        (ctx.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.getRealMetrics(dm)
+        val d = if (dm.density > 0f) dm.density else 1f
         val js = SHIM.replace("__TOKEN__", token).replace("__METHODS__", names)
+            .replace("__REALW__", Math.round(dm.widthPixels / d).toString())
+            .replace("__REALH__", Math.round(dm.heightPixels / d).toString())
         val tagged = "<link rel=\"manifest\" href=\"manifest.webmanifest\">" +
             "<meta name=\"theme-color\" content=\"#000000\"><script>$js</script>"
         val i = html.indexOf("<script")
@@ -399,11 +406,13 @@ function auto(ms){setTimeout(function(){if(isFs())return;btn();
 var x=new XMLHttpRequest();x.open("GET","/__ar/autofs?t="+T,true);x.send();},ms);}
 window.addEventListener("load",function(){btn();auto(8000);});
 document.addEventListener("fullscreenchange",function(){if(!isFs())auto(3000);});
-var fixes=0;function gap(){var s=screen,w=window.innerWidth,h=window.innerHeight;
-var full=w>h?Math.min(s.width,s.height):Math.max(s.width,s.height);return full-h;}
-function check(){if(!isFs()||fixes>=3||gap()<=6)return;fixes++;var d=document;
+var RW=__REALW__,RH=__REALH__,fixes=0;
+function gap(){var w=window.innerWidth,h=window.innerHeight,a=RW||screen.width,b=RH||screen.height;
+var full=w>h?Math.min(a,b):Math.max(a,b);return full-h;}
+function check(){if(!isFs())return;if(gap()<=6){fixes=0;return;}if(fixes>=3)return;fixes++;var d=document;
 var x=d.exitFullscreen||d.webkitExitFullscreen;if(x){try{var q=x.call(d);if(q&&q.catch)q.catch(function(){});}catch(_){}}}
 document.addEventListener("fullscreenchange",function(){if(isFs()){setTimeout(check,1500);setTimeout(check,4000);}});
+window.addEventListener("resize",function(){setTimeout(check,1500);});setInterval(check,15000);
 })();
 """.trimIndent().replace("\n", "")
     }
