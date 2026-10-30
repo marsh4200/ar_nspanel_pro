@@ -29,7 +29,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
 
-from . import PanelConfigEntry
+from . import PanelConfigEntry, release_access
 from .adb import AdbError, get_adb
 from .bridge import PanelBridge
 from .const import GITHUB_OWNER, GITHUB_REPO, signal_info, topic_sys
@@ -240,7 +240,16 @@ class ARAppUpdateEntity(ARPanelEntity, UpdateEntity):
         loop = asyncio.get_running_loop()
         self._wait = loop.create_future()
         try:
-            await self.bridge.async_cmd("update", {"url": rel["url"], "version": rel["version"]})
+            cmd: dict[str, Any] = {"url": rel["url"], "version": rel["version"]}
+            if release_access.is_private_asset_url(rel["url"]):
+                # Private release: HA downloads it with the saved token and the
+                # panel fetches it from HA, checked against this sha256.
+                try:
+                    staged = await release_access.async_stage_apk(self.hass, rel["url"], rel["asset"])
+                except release_access.ReleaseError as err:
+                    raise HomeAssistantError(f"Couldn't get the app release: {err}") from err
+                cmd = {"url": staged.url, "version": rel["version"], "sha256": staged.sha256}
+            await self.bridge.async_cmd("update", cmd)
             try:
                 result = await asyncio.wait_for(asyncio.shield(self._wait), _INSTALL_TIMEOUT)
             except asyncio.TimeoutError as err:

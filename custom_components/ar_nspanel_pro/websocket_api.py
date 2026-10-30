@@ -40,7 +40,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from . import panel_config
+from . import panel_config, release_access
 from .timesync import get_timesync
 from .adb import AdbError, get_adb
 from .const import (
@@ -77,6 +77,9 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_adb)
     websocket_api.async_register_command(hass, ws_adb_install)
     websocket_api.async_register_command(hass, ws_app_latest)
+    websocket_api.async_register_command(hass, ws_release_access)
+    websocket_api.async_register_command(hass, ws_integration_latest)
+    websocket_api.async_register_command(hass, ws_integration_update)
     websocket_api.async_register_command(hass, ws_delete_panel)
     websocket_api.async_register_command(hass, ws_set_license)
     websocket_api.async_register_command(hass, ws_request_license)
@@ -855,6 +858,84 @@ async def ws_app_latest(
         connection.send_error(msg["id"], "github", str(err))
         return
     connection.send_result(msg["id"], {"ok": True, **res})
+
+
+# --- private release access (ADMIN) ------------------------------------------
+#
+# The GitHub token for a private repo. Stored in HA only; the config UI shows it
+# behind a hidden unlock and never gets the token back, only a masked form.
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "ar_nspanel_pro/release_access",
+        vol.Required("action"): vol.In(["status", "set", "clear"]),
+        vol.Optional("token"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_release_access(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    try:
+        if msg["action"] == "set":
+            res = await release_access.async_set_token(hass, msg.get("token") or "")
+        elif msg["action"] == "clear":
+            res = await release_access.async_clear_token(hass)
+        else:
+            res = release_access.status(hass)
+    except release_access.ReleaseError as err:
+        connection.send_error(msg["id"], err.code, str(err))
+        return
+    connection.send_result(msg["id"], res)
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): "ar_nspanel_pro/integration_latest"})
+@websocket_api.async_response
+async def ws_integration_latest(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Installed integration version, and the latest private release (if a token is saved)."""
+    try:
+        res = await release_access.async_integration_latest(hass)
+    except release_access.ReleaseError:
+        res = {
+            "installed": await release_access.async_installed_version(hass),
+            "latest": None,
+            "tag": None,
+            "update": False,
+        }
+    connection.send_result(msg["id"], res)
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): "ar_nspanel_pro/integration_update"})
+@websocket_api.async_response
+async def ws_integration_update(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Install the latest private release of this integration (restart needed)."""
+    try:
+        res = await release_access.async_update_integration(hass)
+    except release_access.ReleaseError as err:
+        # Same wording with or without a token, so the screen gives nothing away.
+        if err.code in ("no_token", "bad_token", "no_release", "github"):
+            connection.send_error(msg["id"], "unreachable", "Couldn't reach the integration release. Try again later.")
+        else:
+            connection.send_error(msg["id"], err.code, str(err))
+        return
+    except OSError as err:
+        connection.send_error(msg["id"], "install", f"Couldn't replace the integration files: {err}")
+        return
+    connection.send_result(msg["id"], res)
 
 
 # --- delete a panel (ADMIN, explicit confirmation) ---------------------------

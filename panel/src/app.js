@@ -1433,8 +1433,9 @@ function openSettings() {
       settingsEl.appendChild(h("label", null, "Panel recovery"));
       settingsEl.appendChild(recInfo);
       settingsEl.appendChild(h("div.row", null, unlockBtn, wipeBtn));
-      wifiSection(settingsEl, native);
     }
+    // Wi-Fi: on every panel, so a panel can move to a new site's Wi-Fi from here
+    wifiSection(settingsEl, native);
   }
   settingsEl.appendChild(
     h(

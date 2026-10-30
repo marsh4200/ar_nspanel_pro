@@ -37,6 +37,7 @@ import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from . import release_access
 from .const import ADB_KEY_FILE, APP_ACTIVITY, APP_PACKAGE, GITHUB_OWNER, GITHUB_REPO
 
 _LOGGER = logging.getLogger(__name__)
@@ -841,11 +842,29 @@ class PanelAdb:
             say(f"Android SDK {sdk}: this panel gets the legacy build (bundled browser engine).")
         say("Finding the latest release on GitHub…")
         url, tag, name = await self._fetch_latest_apk_url(legacy=legacy)
-        total = await self._asset_size(url)
-        say(f"Latest release {tag} — {name}" + (f" ({mb(total)})." if total else "."), "ok")
+        staged: release_access.StagedApk | None = None
+        if release_access.is_private_asset_url(url):
+            # Private release: Home Assistant fetches it with the saved token
+            # and the panel downloads it from Home Assistant (never the token).
+            say(f"Latest release {tag} — {name}. Home Assistant is downloading it…")
+
+            def stage_tick(got: int, tot: int) -> None:
+                bar(1 + 4 * (got / tot if tot else 0.5), "Home Assistant is downloading the app",
+                    f"{mb(got)} / {mb(tot)}" if tot else mb(got))
+
+            try:
+                staged = await release_access.async_stage_apk(self._hass, url, name, stage_tick)
+            except release_access.ReleaseError as err:
+                raise AdbError(err.code, str(err)) from err
+            url = staged.url
+            total = staged.size
+            say(f"Downloaded {name} ({mb(total)}) in Home Assistant.", "ok")
+        else:
+            total = await self._asset_size(url)
+            say(f"Latest release {tag} — {name}" + (f" ({mb(total)})." if total else "."), "ok")
         bar(5, "Connecting to the panel")
 
-        say(f"Panel is downloading {name} from GitHub…")
+        say(f"Panel is downloading {name} from " + ("Home Assistant…" if staged else "GitHub…"))
         bar(6, "Panel is downloading the app", f"0 / {mb(total)}" if total else None)
         try:
             dl = asyncio.ensure_future(
@@ -875,7 +894,7 @@ class PanelAdb:
             def dl_tick(got: int, tot: int) -> None:
                 bar(6 + 24 * (got / tot if tot else 0.5), "Home Assistant is downloading the app", f"{mb(got)} / {mb(tot)}" if tot else mb(got))
 
-            data = await self._download_in_ha(url, dl_tick)
+            data = staged.data if staged else await self._download_in_ha(url, dl_tick)
             say(f"Downloaded {len(data):,} bytes in Home Assistant. Sending to the panel…", "ok")
 
             def push_tick(sent: int, tot: int) -> None:
@@ -939,6 +958,11 @@ class PanelAdb:
         403); the web pages have no such limit.
         """
         session = async_get_clientsession(self._hass)
+        if release_access.has_token(self._hass):
+            # Private repo: only the authenticated API can see it (no web
+            # fallback). The returned URL is the API asset URL, which needs the
+            # token — callers stage it in HA (release_access.async_stage_apk).
+            return await self._latest_from_api(session, legacy, private=True)
         try:
             return await self._latest_from_api(session, legacy)
         except AdbError as err:
@@ -957,20 +981,29 @@ class PanelAdb:
                 raise
             raise AdbError("github", f"{err} (GitHub API: {api_err})") from err
 
-    async def _latest_from_api(self, session: aiohttp.ClientSession, legacy: bool = False) -> tuple[str, str, str]:
+    async def _latest_from_api(
+        self, session: aiohttp.ClientSession, legacy: bool = False, private: bool = False
+    ) -> tuple[str, str, str]:
         api = (
             f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}"
             "/releases/latest"
         )
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "ar-nspanel-pro-integration",
-        }
+        headers = (
+            release_access.auth_headers(self._hass)
+            if private
+            else {
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "ar-nspanel-pro-integration",
+            }
+        )
         try:
             async with session.get(
                 api, headers=headers, timeout=aiohttp.ClientTimeout(total=30)
             ) as resp:
                 if resp.status != 200:
+                    if private:
+                        # Don't say why: the token stays a secret on screen.
+                        raise AdbError("github", "Couldn't reach the app release. Try again later.")
                     raise AdbError(
                         "github", f"GitHub API returned HTTP {resp.status}."
                     )
@@ -998,7 +1031,7 @@ class PanelAdb:
                 "no_asset", f"The latest release ({tag}) has no {kind}.apk asset attached."
             )
         return (
-            str(asset.get("browser_download_url")),
+            str(asset.get("url") if private else asset.get("browser_download_url")),
             tag,
             str(asset.get("name") or "app-release.apk"),
         )
@@ -1229,6 +1262,10 @@ class PanelAdb:
                 device.shell(f"pm grant {APP_PACKAGE} android.permission.WRITE_SECURE_SETTINGS")
                 # Intercom: the microphone, so a call never stops to ask
                 device.shell(f"pm grant {APP_PACKAGE} android.permission.RECORD_AUDIO")
+                # Wi-Fi on the setup screen: finding networks needs location
+                # access (Android 6+), so it never stops to ask on the panel
+                device.shell(f"pm grant {APP_PACKAGE} android.permission.ACCESS_FINE_LOCATION")
+                device.shell(f"pm grant {APP_PACKAGE} android.permission.ACCESS_COARSE_LOCATION")
                 # Start on boot even when another launcher is Home (Android 10+
                 # blocks a boot receiver from opening a screen without this).
                 device.shell(f"appops set {APP_PACKAGE} SYSTEM_ALERT_WINDOW allow")

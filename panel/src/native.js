@@ -259,3 +259,13 @@ export function wifiConnect(ssid, pass) {
 export function wifiKeepOnly(ssid) {
   call("wifiKeepOnly", ssid);
 }
+/** Join on any panel: "ok" | "dialog" | "settings" | "fail"; older apps: "ok"/"fail" via wifiConnect. */
+export function wifiJoin(ssid, pass) {
+  const r = call("wifiJoin", ssid, pass || "");
+  if (typeof r === "string" && r) return r;
+  return wifiConnect(ssid, pass) ? "ok" : "fail";
+}
+/** Open Android's own Wi-Fi screen (false if the app is too old or Android has none). */
+export function wifiSettings() {
+  return call("wifiSettings") === true;
+}

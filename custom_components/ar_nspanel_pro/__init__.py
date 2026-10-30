@@ -17,7 +17,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
-from . import panel_config, websocket_api
+from . import panel_config, release_access, websocket_api
 from .bridge import PanelBridge
 from .const import DOMAIN
 from .frontend import async_register_frontend
@@ -55,6 +55,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await async_setup_services(hass)
     websocket_api.async_register(hass)
     async_register_clip_view(hass)  # serves TTS clips padded for the panel
+    await release_access.async_setup(hass)  # private release token + APK view
     await async_register_frontend(hass)
     await async_setup_timesync(hass)  # nightly panel clock check
     return True

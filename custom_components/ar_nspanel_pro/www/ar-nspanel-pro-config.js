@@ -5904,6 +5904,18 @@ class Ha {
   appLatest() {
     return this.hass.callWS({ type: "ar_nspanel_pro/app_latest" });
   }
+  /** Private release token: status / set (tested first) / clear. Admin. */
+  releaseAccess(action, token) {
+    const m = { type: "ar_nspanel_pro/release_access", action };
+    if (token !== void 0) m.token = token;
+    return this.hass.callWS(m);
+  }
+  integrationLatest() {
+    return this.hass.callWS({ type: "ar_nspanel_pro/integration_latest" });
+  }
+  integrationUpdate() {
+    return this.hass.callWS({ type: "ar_nspanel_pro/integration_update" });
+  }
   /** Evict a panel entirely: remove its config entry, clear every retained MQTT
    *  topic under its namespace, and delete its config files. `confirm` MUST
    *  equal `deviceId` (typed by the operator) or the server rejects it. Admin. */
@@ -9482,6 +9494,12 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
       /* @__PURE__ */ a.jsx(et, { title: "Intercom", sub: "A phone button next to the clock to call other panels (live voice). This panel can be called too.", on: !cfg.intercomOff, onChange: (m) => save({ intercomOff: m ? void 0 : !0 }) }),
       !cfg.intercomOff && /* @__PURE__ */ a.jsx(et, { title: "Answer calls automatically", sub: "Intercom style: an incoming call connects by itself after one ring, no need to tap Answer.", on: !!cfg.autoAnswer, onChange: (m) => save({ autoAnswer: m || void 0 }) }),
       /* @__PURE__ */ a.jsx(et, { title: "Curtains & shades as switches", sub: "An open / close switch instead of a slider. Curtains that can only open or close are always a switch.", on: !!cfg.coverSwitch, onChange: (m) => save({ coverSwitch: m || void 0 }) }),
+      !cfg.coverSwitch && /* @__PURE__ */ a.jsx(X, { label: "Knob curtain step", hint: "How far one click of the knob moves a curtain. Every click moves exactly this much, even on a fast turn.", children: /* @__PURE__ */ a.jsxs("select", { className: "inp", value: String([2, 3, 4].includes(Number(cfg.knobShade)) ? Number(cfg.knobShade) : 5), onChange: (m) => save({ knobShade: m.target.value === "5" ? void 0 : Number(m.target.value) }), children: [
+        /* @__PURE__ */ a.jsx("option", { value: "2", children: "2% per click" }),
+        /* @__PURE__ */ a.jsx("option", { value: "3", children: "3% per click" }),
+        /* @__PURE__ */ a.jsx("option", { value: "4", children: "4% per click" }),
+        /* @__PURE__ */ a.jsx("option", { value: "5", children: "5% per click (default)" })
+      ] }) }),
       /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Whole house (same in every room)" }),
       EL_HOUSE_CATS.filter((c) => c.key !== "utilities").map((c) => field(c, elList(cfg[c.key]), (v) => save({ [c.key]: v.length ? (c.max === 1 ? v[0] : v) : void 0 }), -1)),
       /* @__PURE__ */ a.jsx(et, { title: "Utilities section", sub: "Adds a Utilities page to the panel for pumps, irrigation, geyser and the like.", on: !!cfg.utilitiesOn, onChange: (m) => save({ utilitiesOn: m || void 0 }) }),
@@ -11048,7 +11066,111 @@ function IA({
     /* @__PURE__ */ a.jsx("div", { className: "modal-f", children: /* @__PURE__ */ a.jsx("button", { className: "btn ghost", onClick: r, children: "Close" }) })
   ] }) });
 }
+
+/* Settings (gear): About, plus the hidden "Private release access" fold.
+ * The fold opens only after 5 taps on the integration version within 2 s;
+ * nothing on screen hints at it. The token is never sent back to the browser. */
+function ArSettings({ api: l, onClose: c }) {
+  const [ver, setVer] = M.useState(null), [busy, setBusy] = M.useState(""), [msg, setMsg] = M.useState(null), [open, setOpen] = M.useState(!1), [st, setSt] = M.useState(null), [tok, setTok] = M.useState(""), [show, setShow] = M.useState(!1), [vmsg, setVmsg] = M.useState(null), taps = M.useRef({ n: 0, t: null }), tokRef = M.useRef(null);
+  const loadVer = async () => {
+    try { setVer(await l.integrationLatest()); } catch { setVer({ installed: null }); }
+  };
+  M.useEffect(() => { loadVer(); }, []);
+  M.useEffect(() => {
+    const k = (e) => { e.key === "Escape" && c(); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [c]);
+  M.useEffect(() => { open && tokRef.current && tokRef.current.focus(); }, [open, st?.has_token]);
+  const tap = async () => {
+    const t = taps.current;
+    t.n++, clearTimeout(t.t), t.t = setTimeout(() => { t.n = 0; }, 2e3);
+    if (t.n < 5) return;
+    t.n = 0, setVmsg(null);
+    try { setSt(await l.releaseAccess("status")); } catch { setSt({ has_token: !1 }); }
+    setOpen(!0);
+  };
+  const save = async () => {
+    if (tok.trim().length < 20) { setVmsg({ k: "err", t: "Paste the whole token, then press Save & test." }); return; }
+    setBusy("save"), setVmsg(null);
+    try {
+      const r = await l.releaseAccess("set", tok.trim());
+      setSt(r), setTok(""), setShow(!1), setVmsg({ k: "ok", t: "Token works: can read releases on " + r.repo + "." }), loadVer();
+    } catch (e) {
+      setVmsg({ k: "err", t: e?.message || "Couldn't save the token." });
+    } finally { setBusy(""); }
+  };
+  const clear = async () => {
+    setBusy("clear");
+    try { setSt(await l.releaseAccess("clear")), setVmsg({ k: "", t: "Token removed." }), loadVer(); } catch (e) { setVmsg({ k: "err", t: e?.message || "Couldn't remove the token." }); } finally { setBusy(""); }
+  };
+  const updInt = async () => {
+    setBusy("int"), setMsg(null);
+    try {
+      const r = await l.integrationUpdate();
+      setMsg(r.updated ? { k: "ok", t: "Integration updated to v" + r.latest + ". Restart Home Assistant to load it." } : { k: "ok", t: "The integration is up to date." });
+      r.updated && setVer((v) => ({ ...v, update: !1, pendingRestart: r.latest }));
+    } catch (e) {
+      setMsg({ k: "err", t: e?.message || "Couldn't reach the integration release. Try again later." });
+    } finally { setBusy(""); }
+  };
+  const S = { color: "var(--text2)" }, row = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, minHeight: 44, padding: "0 14px", fontSize: 13, flexWrap: "wrap" }, sep = { borderTop: "1px solid var(--divider)" }, mono = { fontFamily: "ui-monospace,Menlo,monospace", fontSize: 12, fontVariantNumeric: "tabular-nums" };
+  return /* @__PURE__ */ a.jsx("div", { className: "overlay", onClick: c, children: /* @__PURE__ */ a.jsxs("div", { className: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Settings", onClick: (e) => e.stopPropagation(), children: [
+    /* @__PURE__ */ a.jsxs("div", { className: "modal-h", children: [
+      /* @__PURE__ */ a.jsx(j, { d: N.cog, size: 20 }),
+      /* @__PURE__ */ a.jsx("span", { className: "mt", children: "Settings" }),
+      /* @__PURE__ */ a.jsx("span", { className: "sp" }),
+      /* @__PURE__ */ a.jsx("button", { className: "iconbtn", title: "Close", "aria-label": "Close settings", onClick: c, children: /* @__PURE__ */ a.jsx(j, { d: N.close, size: 18 }) })
+    ] }),
+    /* @__PURE__ */ a.jsxs("div", { className: "modal-b", children: [
+      /* @__PURE__ */ a.jsx("div", { className: "sec-h", children: "About" }),
+      /* @__PURE__ */ a.jsxs("div", { className: "card", style: { overflow: "hidden" }, children: [
+        /* @__PURE__ */ a.jsxs("div", { style: row, children: [
+          /* @__PURE__ */ a.jsx("span", { style: S, children: "Integration" }),
+          /* @__PURE__ */ a.jsx("span", {
+            onClick: tap,
+            "aria-hidden": "true",
+            style: { ...mono, padding: "10px 0", cursor: "default", userSelect: "none", WebkitUserSelect: "none", WebkitTapHighlightColor: "transparent" },
+            children: ver ? ver.installed ? "v" + ver.installed + (ver.pendingRestart ? " → v" + ver.pendingRestart + " after restart" : "") : "unknown" : "…"
+          })
+        ] }),
+        /* @__PURE__ */ a.jsxs("div", { style: { ...row, ...sep }, children: [
+          /* @__PURE__ */ a.jsx("span", { style: S, children: ver?.update ? "Update available: v" + ver.latest : "Integration update" }),
+          /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: !!busy, onClick: updInt, children: [
+            /* @__PURE__ */ a.jsx(j, { d: N.download, size: 18 }),
+            busy === "int" ? "Updating…" : "Update integration"
+          ] })
+        ] })
+      ] }),
+      msg && /* @__PURE__ */ a.jsx("div", { className: "hint" + (msg.k === "err" ? " err" : ""), role: "status", style: msg.k === "ok" ? { color: "var(--success)" } : void 0, children: msg.t }),
+      open && /* @__PURE__ */ a.jsxs(a.Fragment, { children: [
+        /* @__PURE__ */ a.jsx("div", { className: "sec-h", children: "Private release access" }),
+        /* @__PURE__ */ a.jsxs("div", { className: "card", style: { padding: 14, display: "flex", flexDirection: "column", gap: 10 }, children: [
+          st?.has_token ? /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: 13 }, children: [
+            /* @__PURE__ */ a.jsxs("span", { children: ["Token saved ", /* @__PURE__ */ a.jsx("code", { style: { ...mono, color: "var(--text2)" }, children: st.mask })] }),
+            /* @__PURE__ */ a.jsx("span", { style: { flex: 1 } }),
+            /* @__PURE__ */ a.jsx("button", { className: "btn ghost", disabled: !!busy, onClick: () => { setSt({ ...st, has_token: !1 }), setVmsg(null); }, children: "Replace" }),
+            /* @__PURE__ */ a.jsx("button", { className: "btn danger", disabled: !!busy, onClick: clear, children: busy === "clear" ? "Removing…" : "Remove" })
+          ] }) : /* @__PURE__ */ a.jsxs("div", { className: "field", children: [
+            /* @__PURE__ */ a.jsx("label", { htmlFor: "ar-rel-tok", children: "GitHub access token" }),
+            /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", gap: 8 }, children: [
+              /* @__PURE__ */ a.jsx("input", { id: "ar-rel-tok", ref: tokRef, className: "inp", type: show ? "text" : "password", autoComplete: "off", spellCheck: !1, placeholder: "github_pat_…", value: tok, onChange: (e) => setTok(e.target.value), onKeyDown: (e) => { e.key === "Enter" && save(); }, style: { ...mono, flex: 1, minWidth: 0 } }),
+              /* @__PURE__ */ a.jsx("button", { className: "btn ghost", type: "button", "aria-label": show ? "Hide token" : "Show token", onClick: () => setShow(!show), children: show ? "Hide" : "Show" })
+            ] }),
+            /* @__PURE__ */ a.jsx("div", { className: "hint", children: "Read-only Contents access to the app's repo. Saved in Home Assistant only; panels never receive it." }),
+            /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: [
+              /* @__PURE__ */ a.jsx("button", { className: "btn primary", disabled: !!busy, onClick: save, children: busy === "save" ? "Testing…" : "Save & test" }),
+              /* @__PURE__ */ a.jsx("button", { className: "btn ghost", onClick: () => { setOpen(!1), setTok(""), setVmsg(null); }, children: "Hide" })
+            ] })
+          ] }),
+          vmsg && /* @__PURE__ */ a.jsx("div", { className: "hint" + (vmsg.k === "err" ? " err" : ""), role: "status", style: vmsg.k === "ok" ? { color: "var(--success)" } : void 0, children: vmsg.t })
+        ] })
+      ] })
+    ] })
+  ] }) });
+}
 function wA({ hass: e, narrow: t }) {
+  const [arSettings, setArSettings] = M.useState(!1);
   const r = M.useRef(e);
   M.useEffect(() => {
     r.current = e;
@@ -11229,6 +11351,7 @@ function wA({ hass: e, narrow: t }) {
             ]
           }
         ),
+        /* @__PURE__ */ a.jsx("button", { className: "iconbtn", title: "Settings", "aria-label": "Settings", onClick: () => setArSettings(!0), children: /* @__PURE__ */ a.jsx(j, { d: N.cog, size: 20 }) }),
         /* @__PURE__ */ a.jsxs("div", { className: "picker", ref: Ir, children: [
           /* @__PURE__ */ a.jsxs("button", { className: "pickbtn", onClick: () => O((R) => !R), children: [
             /* @__PURE__ */ a.jsx("span", { className: "dot " + (Me?.online ? "on" : "off") }),
@@ -11396,6 +11519,7 @@ function wA({ hass: e, narrow: t }) {
       ] }),
       F && /* @__PURE__ */ a.jsx("div", { className: "center-note", children: "Loading…" }),
       /* @__PURE__ */ a.jsx(IA, { hass: e, open: G, onClose: () => L(!1), onToast: (R, I) => Ke({ kind: I, text: R }) }),
+      arSettings && Fe() && /* @__PURE__ */ a.jsx(ArSettings, { api: Fe(), onClose: () => setArSettings(!1) }),
       Ae && /* @__PURE__ */ a.jsx("div", { className: "overlay", onClick: () => !te && se(null), children: /* @__PURE__ */ a.jsxs("div", { className: "modal", onClick: (R) => R.stopPropagation(), children: [
         /* @__PURE__ */ a.jsxs("div", { className: "modal-h", children: [
           /* @__PURE__ */ a.jsx(j, { d: N.warning, size: 20, style: { color: "var(--error)" } }),

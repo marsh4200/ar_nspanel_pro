@@ -1,7 +1,11 @@
-// Wi-Fi on the setup screen (recovery section of a locked panel, the HDL
-// Source 7). A locked panel can't reach Android's Settings, so moving it to a
-// new site's Wi-Fi happens here instead of a factory reset: Find networks,
-// tap one, type the password, Connect. Everything else on the panel is kept.
+// Wi-Fi on the setup screen (hold the top-left corner), on every panel. Moving
+// a panel to a new site's Wi-Fi happens here instead of a factory reset: Find
+// networks, tap one, type the password, Connect. Everything else is kept.
+//
+// Locked panels and Android 9 or older join directly. Other panels on Android
+// 11+ (the HDL Source 10) get Android's own "Save this network?" sheet with the
+// name and password already filled in: one tap on Save. Android 10 opens its
+// Wi-Fi panel to finish there.
 
 import { h } from "./util.js";
 
@@ -17,6 +21,7 @@ export function wifiSection(parent, native) {
   const info = h("div.kv.adb", null, "");
   const findBtn = h("button", null, "Find Wi-Fi networks");
   const otherBtn = h("button", null, "Other network");
+  const sysBtn = h("button", null, "Android Wi-Fi settings");
   const list = h("div.wf-list");
   const form = h("div.wf-form");
   let poll = null;
@@ -26,6 +31,7 @@ export function wifiSection(parent, native) {
     if (w.enabled === false) info.textContent = "Wi-Fi: off";
     else if (w.ssid && w.ip) info.textContent = "Wi-Fi: " + w.ssid + " · " + w.ip;
     else if (w.ssid) info.textContent = "Wi-Fi: joining " + w.ssid + "…";
+    else if (w.ip) info.textContent = "Wi-Fi: connected · " + w.ip;
     else info.textContent = "Wi-Fi: not connected";
   };
 
@@ -38,20 +44,31 @@ export function wifiSection(parent, native) {
     closeForm();
     list.innerHTML = "";
     info.textContent = "Wi-Fi: connecting to " + ssid + "…";
-    if (!native.wifiConnect(ssid, pass)) {
-      info.textContent = "Wi-Fi: Android didn't accept " + ssid + ". Check the name and try again.";
+    const how = native.wifiJoin(ssid, pass);
+    if (how === "fail") {
+      info.textContent = "Wi-Fi: Android didn't accept " + ssid + ". Check the name and try again, or use Android Wi-Fi settings.";
       return;
     }
+    if (how === "settings") {
+      info.textContent = "Wi-Fi: finish on Android's Wi-Fi screen: tap " + ssid + " and type the password there.";
+    } else if (how === "dialog") {
+      info.textContent = "Wi-Fi: tap Save on the screen to join " + ssid + ".";
+    }
+    // the user still has a step to do on Android's own screen: give them time
+    const limit = how === "ok" ? 30000 : 120000;
     const t0 = Date.now();
     poll = setInterval(() => {
       const w = native.wifiInfo() || {};
       if (w.ssid === ssid && w.ip) {
         clearInterval(poll);
-        native.wifiKeepOnly(ssid);
-        info.textContent = "Wi-Fi: connected to " + ssid + " · " + w.ip + ". The old network is forgotten.";
-      } else if (Date.now() - t0 > 30000) {
+        if (w.direct !== false) {
+          native.wifiKeepOnly(ssid);
+          info.textContent = "Wi-Fi: connected to " + ssid + " · " + w.ip + ". The old network is forgotten.";
+        } else info.textContent = "Wi-Fi: connected to " + ssid + " · " + w.ip + ".";
+      } else if (Date.now() - t0 > limit) {
         clearInterval(poll);
-        info.textContent = "Wi-Fi: couldn't join " + ssid + ". Check the password and try again.";
+        info.textContent = how === "ok" ? "Wi-Fi: couldn't join " + ssid + ". Check the password and try again." : "Wi-Fi: not on " + ssid + " yet. Check the password, or finish in Android Wi-Fi settings.";
+        showInfo();
       }
     }, 1500);
   };
@@ -92,7 +109,16 @@ export function wifiSection(parent, native) {
   const render = (nets) => {
     list.innerHTML = "";
     if (!nets.length) {
-      list.appendChild(h("div.hint", null, "No networks found. Try again, or use Other network for a hidden one."));
+      const w = native.wifiInfo() || {};
+      list.appendChild(
+        h(
+          "div.hint",
+          null,
+          w.location === false
+            ? "No networks found: allow location access when Android asks (it's needed to list Wi-Fi), then Find again. Or type the name with Other network."
+            : "No networks found. Try again, or use Other network for a hidden one.",
+        ),
+      );
       return;
     }
     const now = (native.wifiInfo() || {}).ssid;
@@ -117,10 +143,15 @@ export function wifiSection(parent, native) {
     setTimeout(() => render(native.wifiList() || []), 4000);
   });
   otherBtn.addEventListener("click", () => askPassword("", true, true));
+  sysBtn.addEventListener("click", () => {
+    if (!native.wifiSettings()) info.textContent = "Wi-Fi: this panel doesn't allow Android's Wi-Fi settings (or update the app first).";
+  });
 
   parent.appendChild(h("label", null, "Wi-Fi"));
   parent.appendChild(info);
   parent.appendChild(h("div.row", null, findBtn, otherBtn));
+  // Android's own Wi-Fi screen: not on locked panels (it can't open there)
+  if (!(native.kioskState() || {}).owner) parent.appendChild(h("div.row", null, sysBtn));
   parent.appendChild(list);
   parent.appendChild(form);
   parent.appendChild(
