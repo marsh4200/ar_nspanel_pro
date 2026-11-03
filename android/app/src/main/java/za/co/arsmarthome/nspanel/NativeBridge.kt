@@ -227,6 +227,10 @@ class NativeBridge(private val activity: MainActivity) {
             "updater" to Updater.mode(activity),
             "owner" to Kiosk.isOwner(activity),
         )
+        // Recognised consumer-tablet panels tag themselves so the setup screen
+        // can name the hardware. Null (absent) on every other device, so their
+        // payload is unchanged.
+        Device.hardwareTag?.let { m["hardware"] = it }
         return toJson(m)
     }
 
