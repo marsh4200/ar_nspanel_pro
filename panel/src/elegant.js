@@ -1193,6 +1193,12 @@ export function buildElegant(cfg, ctx, skin) {
   // reports it (Spotify / Music Assistant take a few seconds)
   let spPick = { uri: "", t: 0 };
   const picked = (uri) => !!uri && spPick.uri === uri && Date.now() - spPick.t < 10000;
+  // What the user last asked to play, kept long enough to survive a speaker
+  // wake (spWake can take ~11s before spDirect runs, far longer than the 10s
+  // highlight above). Used as the fallback target when nothing is "playing"
+  // yet because no Spotify device was active when the song was tapped.
+  let spWant = { uri: "", t: 0 };
+  const SP_WANT_TTL = 300000; // 5 min
   function pickRow(row, box, uri) {
     spPick = { uri: uri || "", t: Date.now() };
     const was = box.querySelectorAll(".el-trkr.on");
@@ -1653,14 +1659,28 @@ export function buildElegant(cfg, ctx, skin) {
   }
   // a Device Setup speaker <-> its Spotify Connect device (same name, roughly)
   const spNorm = (t) => String(t || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  // Generic words that must NOT be the thing two names are matched on — every
+  // brand uses them, so "WiiM Stereo" and "Sonos Stereo" would wrongly match.
+  const SP_STOP = { the: 1, speaker: 1, speakers: 1, stereo: 1, amp: 1, amplifier: 1, room: 1, audio: 1, player: 1, sound: 1, soundbar: 1, hifi: 1, home: 1, mini: 1, max: 1, pro: 1, plus: 1, ultra: 1 };
+  const spTokens = (str) =>
+    String(str || "").toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 3 && !SP_STOP[t]);
   function spDevFor(x) {
     const n = spNorm(nameOf(x));
     const fn = spNorm((get(x) || {}).name);
-    if (!n) return null;
+    if (!n && !fn) return null;
+    // A distinctive word shared between the panel speaker and the Spotify
+    // Connect device is enough — so a label like "420 Wim" still finds the
+    // WiiM's own "420 WiiM Stereo" via the shared "420", without depending on
+    // the full names lining up exactly.
+    const pt = spTokens([nameOf(x), (get(x) || {}).name].join(" "));
     return (
       sp.devices.filter((d) => {
         const dn = spNorm(d.name);
-        return dn && (dn === n || dn === fn || (dn.length > 3 && (n.indexOf(dn) >= 0 || dn.indexOf(n) >= 0)));
+        if (!dn) return false;
+        if (dn === n || dn === fn) return true;
+        if (dn.length > 3 && ((n && (n.indexOf(dn) >= 0 || dn.indexOf(n) >= 0)) || (fn && (fn.indexOf(dn) >= 0 || dn.indexOf(fn) >= 0)))) return true;
+        const dt = spTokens(d.name);
+        return pt.some((t) => dn.indexOf(t) >= 0) || dt.some((t) => (n && n.indexOf(t) >= 0) || (fn && fn.indexOf(t) >= 0));
       })[0] || null
     );
   }
@@ -1688,7 +1708,13 @@ export function buildElegant(cfg, ctx, skin) {
   // speaker through its own integration (Sonos: Spotify link; Google: Spotcast)
   function spDirect(x) {
     const p = sp.player || {};
-    const uri = (p.context && p.context.uri) || (p.item && p.item.uri);
+    // Prefer what is actually playing; otherwise fall back to what the user last
+    // asked to play (nothing is "playing" when no Spotify device was active when
+    // they tapped the song). This is what breaks the "pick a song first" loop.
+    const uri =
+      (p.context && p.context.uri) ||
+      (p.item && p.item.uri) ||
+      (spWant.uri && Date.now() - spWant.t < SP_WANT_TTL ? spWant.uri : "");
     if (!uri) {
       spWaking = null;
       toast("Pick a playlist or song first, then tap " + nameOf(x) + " again");
@@ -1754,6 +1780,10 @@ export function buildElegant(cfg, ctx, skin) {
     pages.music.render();
   }
   function spPlay(body) {
+    // Remember the target before we try — so that if there is no active Spotify
+    // device (NO_ACTIVE_DEVICE), tapping a speaker next can still play this.
+    const want = body && (body.context_uri || (body.uris && body.uris[0]));
+    if (want) spWant = { uri: want, t: Date.now() };
     sp.play(body).catch((e) => spErr(e, "couldn't play that"));
   }
   function spTrackRows(box, list, onTap, playingUri) {
