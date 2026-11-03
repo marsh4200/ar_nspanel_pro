@@ -10692,7 +10692,7 @@ function IA({
     }
     // The Source 10 keeps network ADB on 8555; the Source 7 and NSPanel Pro use 5555.
     if (z === "source10" && d === 5555) o(8555);
-    if ((z === "nspanel" || z === "source7" || z === "akubela") && d === 8555) o(5555);
+    if ((z === "nspanel" || z === "source7" || z === "akubela" || z === "samsung") && d === 8555) o(5555);
   }
   if (M.useEffect(() => {
     localStorage.setItem(Ad, i);
@@ -10735,7 +10735,7 @@ function IA({
     const Z = await J("probe", () => l.adbProbe(S, d));
     if (!Z) return;
     q(Z);
-    Z.panel_type && Z.panel_type !== adbType && (setAdbType(Z.panel_type), T(Z.panel_type === "source10" ? "Detected an HDL Source 10 — switched to its tools." : Z.panel_type === "source7" ? "Detected an HDL Source 7" + (Z.hdl_launcher ? " (" + Z.hdl_launcher + ")" : "") + " — switched to its tools." : Z.panel_type === "akubela" ? "Detected an Akubela panel — switched to its tools." : "Detected an NSPanel Pro — switched to its tools."));
+    Z.panel_type && Z.panel_type !== adbType && (setAdbType(Z.panel_type), T(Z.panel_type === "source10" ? "Detected an HDL Source 10 — switched to its tools." : Z.panel_type === "source7" ? "Detected an HDL Source 7" + (Z.hdl_launcher ? " (" + Z.hdl_launcher + ")" : "") + " — switched to its tools." : Z.panel_type === "akubela" ? "Detected an Akubela panel — switched to its tools." : Z.panel_type === "samsung" ? "Detected a Samsung Galaxy Tab A7 Lite — switched to its tools." : "Detected an NSPanel Pro — switched to its tools."));
     const K = [Z.model || "Device", Z.android ? `Android ${Z.android}` : null, Z.screen || null, Z.hdl ? (Z.hdl_disabled ? "HDL off" : "HDL on") : null].filter(Boolean).join(" · "), te = Z.app_installed ? `app v${Z.app_version} installed` : "app not installed", Be = `Connected — ${K} · ${te}`;
     p({ kind: "ok", text: Be }), T(Be, "ok");
   }
@@ -10873,7 +10873,8 @@ function IA({
         /* @__PURE__ */ a.jsx("button", { className: "btn " + (adbType === "source10" ? "primary" : "ghost"), disabled: u !== null, onClick: () => setAdbType("source10"), children: "HDL Source 10" }),
         /* @__PURE__ */ a.jsx("button", { className: "btn " + (adbType === "source7" ? "primary" : "ghost"), disabled: u !== null, onClick: () => setAdbType("source7"), children: "HDL Source 7" }),
         /* @__PURE__ */ a.jsx("button", { className: "btn " + (adbType === "akubela" ? "primary" : "ghost"), disabled: u !== null, onClick: () => setAdbType("akubela"), children: "Akubela" }),
-        /* @__PURE__ */ a.jsx("div", { className: "hint", style: { flex: 1, minWidth: 160 }, children: adbType === "source7" ? "Knob panel, 1280 × 720; ADB port 5555. Installing leaves HDL on." : isS10 ? "Knob panel; ADB port 8555. Installing leaves HDL on." : adbType === "akubela" ? "10\" touch panel, 2560 × 1600, no knob; ADB port 5555. Installing leaves the Akubela app on; Set as Home makes ours open on boot." : "Square touch panel, no knob; ADB port 5555." })
+        /* @__PURE__ */ a.jsx("button", { className: "btn " + (adbType === "samsung" ? "primary" : "ghost"), disabled: u !== null, onClick: () => setAdbType("samsung"), children: "Samsung Tab" }),
+        /* @__PURE__ */ a.jsx("div", { className: "hint", style: { flex: 1, minWidth: 160 }, children: adbType === "source7" ? "Knob panel, 1280 × 720; ADB port 5555. Installing leaves HDL on." : isS10 ? "Knob panel; ADB port 8555. Installing leaves HDL on." : adbType === "akubela" ? "10\" touch panel, 2560 × 1600, no knob; ADB port 5555. Installing leaves the Akubela app on; Set as Home makes ours open on boot." : adbType === "samsung" ? "Galaxy Tab A7 Lite, 800 × 1340, no knob; ADB port 5555. Installs like an NSPanel — Set as Home makes ours open on boot." : "Square touch panel, no knob; ADB port 5555." })
       ] }),
       /* @__PURE__ */ a.jsxs("div", { className: "adb-row", children: [
         /* @__PURE__ */ a.jsxs("div", { className: "field", style: { flex: 1, minWidth: 160 }, children: [

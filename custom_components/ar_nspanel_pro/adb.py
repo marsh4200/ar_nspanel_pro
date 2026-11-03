@@ -77,6 +77,18 @@ AKUBELA_PKGS = (
 )
 
 
+#: Samsung Galaxy Tab A7 Lite — SM-T220 (Wi-Fi) / SM-T225 (LTE). A stock
+#: consumer tablet used as a panel: no vendor launcher to take over, ADB on
+#: 5555, and set-home + device-owner exactly like a plain NSPanel. Matched on
+#: the model prefix so a regional suffix (SM-T220N …) still counts.
+_GALAXY_TAB_A7_LITE = re.compile(r"^SM-T22[05]")
+
+
+def _is_galaxy_tab(model: str) -> bool:
+    """A recognised Samsung tablet panel (Galaxy Tab A7 Lite)."""
+    return bool(_GALAXY_TAB_A7_LITE.match((model or "").strip()))
+
+
 KIOSK_ADMIN = f"{APP_PACKAGE}/.KioskAdmin"
 _KIOSK_CTRL = f"{APP_PACKAGE}/.KioskControl"
 
@@ -460,7 +472,9 @@ class PanelAdb:
                 and "mLockTaskModeState=NONE" not in (device.shell("dumpsys activity activities | grep mLockTaskModeState") or "mLockTaskModeState=NONE"),
                 "hdl_disabled": bool(found) and f"package:{found[1]}" in disabled,
                 "panel_type": ("source10" if found[1] == HDL_LAUNCHER else "source7") if found
-                else ("akubela" if _installed(device, AKUBELA_APP) else "nspanel"),
+                else "akubela" if _installed(device, AKUBELA_APP)
+                else "samsung" if _is_galaxy_tab(model)
+                else "nspanel",
             }
 
         return self._run(host, port, signer, fn)
