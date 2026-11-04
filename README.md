@@ -99,7 +99,7 @@ the same as 4.0.8).
   light*), dimming with its brightness.
 - **Shades**: each blind or curtain drawn as a window; drag down on a blind, across on curtains.
 - **Look**: house photo (four presets or your own), per-room photos, button shape, accent glow,
-  and per-button icons: line icons, 51 built-in realistic icons, or your own upload (background
+  and per-button icons: line icons, 59 built-in realistic icons, or your own upload (background
   removed, inside or filling the circle).
 
 - **Calendar** (4.2.0): a calendar button next to the clock opens a month view with the
@@ -125,6 +125,9 @@ the same as 4.0.8).
 - **Editor** (4.3.0): the Residence look is four steps (Background, Icons, Button look, Glow when
   on) with picture tiles and a live preview pinned beside them that shows *Not saved yet* until
   you press *Save & Push*. Everything else is under *More options*.
+- **Icons** (4.3.1): 8 more realistic icons. Scenes: Scenes (gold sparkles), Scene keypad, Magic,
+  Day & night. Utilities: Energy (gold bolt), Smart meter, Usage gauge, Home energy. *Realistic
+  icons* now puts Scenes on the Scenes button and Energy on Utilities (was Goodnight and Solar).
 
 Uploaded images are stored in `<config>/ar_nspanel_pro_media/` (kept across updates) and served at
 `/ar_nspanel_pro_media/`. Code: `panel/src/residence.js`, `panel/src/residence.css` (built into
