@@ -111,7 +111,7 @@ def base_topic(device_id: str) -> str:
 
 #: Dashboard styles that run on the Elegant engine (device.dashboardStyle):
 #: the same pages and entities, each with its own look on the panel.
-ELEGANT_STYLES = ("elegant", "aurora", "nordic", "studio", "tiles")
+ELEGANT_STYLES = ("elegant", "aurora", "nordic", "studio", "tiles", "residence")
 
 #: Intercom (calls between panels): each panel's directory record
 #: ``{INTERCOM_PREFIX}/peer/<device_id>`` = {"name", "on"} (retained).

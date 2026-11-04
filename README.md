@@ -80,6 +80,32 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Residence dashboard style (4.1.0)
+
+A sixth home-screen style next to Elegant, Aurora, Nordic, Studio and Tiles: a full-screen
+photo, large icon buttons, a room drop-down, and a bottom bar with **Room Off** and what's playing.
+Pick it per panel in **Device → Dashboard → Residence**. It uses the same rooms as Elegant, so
+nothing is set up twice, and the other styles are unchanged (their screens render pixel for pixel
+the same as 4.0.8).
+
+- **Home**: one button per thing the room has (Lights, Comfort, Listen, Watch, Shades, Cameras,
+  Utilities), plus **Security** and **Scenes** in every room. Buttons glow when something is on.
+- **Room Off**: switches off the room's AC, speakers and TV, and its lights unless
+  *Room Off also turns off the lights* is unticked.
+- **Music bar**: only shows while music is playing (anywhere, or only in the room on screen).
+- **Listen**: the same Music Assistant / Spotify page as Elegant (favourites, playlists, artists,
+  radio, search, zones, Spotify Connect devices).
+- **Lights**: each light drawn as a pendant, filament bulb, downlight or LED glow (*Match each
+  light*), dimming with its brightness.
+- **Shades**: each blind or curtain drawn as a window; drag down on a blind, across on curtains.
+- **Look**: house photo (four presets or your own), per-room photos, button shape, accent glow,
+  and per-button icons: line icons, 51 built-in realistic icons, or your own upload (background
+  removed, inside or filling the circle).
+
+Uploaded images are stored in `<config>/ar_nspanel_pro_media/` (kept across updates) and served at
+`/ar_nspanel_pro_media/`. Code: `panel/src/residence.js`, `panel/src/residence.css` (built into
+`app.css`), `custom_components/ar_nspanel_pro/residence_media.py`.
+
 ## Licensing (AR Smart Home licence server)
 
 Each panel has a **Server ID** (16 hex characters), shown in the sidebar under

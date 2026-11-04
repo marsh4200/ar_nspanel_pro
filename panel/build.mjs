@@ -37,7 +37,12 @@ fs.copyFileSync(path.join(here, "src/generated/kit.css"), path.join(out, "kit.cs
 // natively (live camera streams from Home Assistant).
 const hlsSrc = path.join(here, "node_modules/hls.js/dist/hls.light.min.js");
 if (fs.existsSync(hlsSrc)) fs.copyFileSync(hlsSrc, path.join(out, "hls.light.min.js"));
-fs.copyFileSync(path.join(here, "src/app.css"), path.join(out, "app.css"));
+// app.css + the Residence style's sheet (every rule scoped to .skin-residence),
+// in one file: the Android app caches exactly app.css for its offline copy
+fs.writeFileSync(
+  path.join(out, "app.css"),
+  fs.readFileSync(path.join(here, "src/app.css"), "utf8") + "\n" + fs.readFileSync(path.join(here, "src/residence.css"), "utf8"),
+);
 const html = fs
   .readFileSync(path.join(here, "src/index.html"), "utf8")
   .replace(/__VERSION__/g, version);

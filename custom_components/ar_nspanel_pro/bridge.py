@@ -44,6 +44,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from . import panel_config, licensing
+from .residence_media import residence_public
 from .const import (
     ELEGANT_STYLES,
     topic_intercom_peer,
@@ -1772,6 +1773,10 @@ class PanelBridge:
         if ma_secrets.get("url"):
             ma_secrets["url"] = await self._panel_reachable_url(ma_secrets["url"])
         public_cfg, license_jwt = _split_license(public_cfg)
+        # Residence style: its photos / icons are served by Home Assistant
+        if public_cfg.get("dashboardStyle") == "residence":
+            ha_url = self._ha_base_url()
+            public_cfg = residence_public(public_cfg, await self._panel_reachable_url(ha_url) if ha_url else None)
         await mqtt.async_publish(
             self.hass,
             topic_config_panels(self.device_id),
@@ -1885,7 +1890,8 @@ def _parse(payload: str) -> dict[str, Any]:
     return v if isinstance(v, dict) else {}
 
 
-ELEGANT_CATEGORIES = ("lights", "climate", "music", "cameras", "security", "shades", "scenes", "utilities", "presence")
+# "watch": Residence style only (a room's TVs); the other styles never list it
+ELEGANT_CATEGORIES = ("lights", "climate", "music", "cameras", "security", "shades", "scenes", "utilities", "presence", "watch")
 
 
 def _as_list(v: Any) -> list[str]:

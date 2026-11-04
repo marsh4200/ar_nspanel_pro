@@ -15,6 +15,7 @@ import { slugify } from "./util.js";
 import { playHls } from "./livevideo.js";
 import * as native from "./native.js";
 import { mountIntercom, intercomIcon } from "./intercom.js";
+import { mountResidence } from "./residence.js";
 
 const W = 1000;
 const ICON = {
@@ -105,11 +106,14 @@ const MODE_NAME = { cool: "Cool", heat: "Heat", heat_cool: "Heat/Cool", auto: "A
 
 // Styles on the Elegant engine (device.dashboardStyle): the same pages and
 // controls, each with its own colours and navigation (app.css, .skin-*).
-export const EL_SKINS = ["elegant", "aurora", "nordic", "studio", "tiles"];
+export const EL_SKINS = ["elegant", "aurora", "nordic", "studio", "tiles", "residence"];
 
 export function buildElegant(cfg, ctx, skin) {
   cfg = cfg || {};
   skin = EL_SKINS.indexOf(skin) > 0 ? skin : "elegant";
+  // Residence (residence.js) runs on this engine; RX is only ever set for it
+  const RS = skin === "residence";
+  let RX = null;
   // Music Assistant (Device tab): when set up, the Music page uses its
   // speakers, playlists and radio instead of (or as well as) HA media players.
   const maCfg = (ctx.device && ctx.device().musicAssistant) || {};
@@ -124,7 +128,7 @@ export function buildElegant(cfg, ctx, skin) {
   // Rooms: cfg.rooms = [{name, icon, lights, climate, music, shades, scenes}],
   // cfg.start (index), cfg.wholeHouse. Cameras + security are house-wide. An
   // older single-room config (categories at the top level) becomes one room.
-  const ROOM_KEYS = ["lights", "climate", "music", "shades", "scenes", "presence"];
+  const ROOM_KEYS = ["lights", "climate", "music", "shades", "scenes", "presence"].concat(RS ? ["watch"] : []);
   let ROOMS = (Array.isArray(cfg.rooms) ? cfg.rooms : []).filter((r) => r && typeof r === "object");
   if (!ROOMS.length) {
     const r0 = { name: cfg.title || "", icon: "sofa" };
@@ -155,6 +159,7 @@ export function buildElegant(cfg, ctx, skin) {
   // pages exist for anything any room uses; the dock shows what this room has
   const ents = {};
   CATS.forEach((c) => (ents[c.key] = c.key === "cameras" || c.key === "security" || c.key === "utilities" ? house[c.key] : union[c.key]));
+  if (RS) ents.watch = union.watch;
   let scenes = [];
   let roomIdx = clamp(typeof cfg.start === "number" ? cfg.start : 0, 0, ROOMS.length - 1);
   let whole = false;
@@ -164,6 +169,7 @@ export function buildElegant(cfg, ctx, skin) {
   Object.keys(ents).forEach((k) => ents[k].forEach((e) => keys.push(slugify(e))));
   union.scenes.forEach((e) => keys.push(slugify(e)));
   union.presence.forEach((e) => keys.push(slugify(e)));
+  if (RS) union.watch.forEach((e) => keys.push(slugify(e)));
   SOLAR_KEYS.forEach((k) => keys.push(slugify(SOLAR[k])));
   // lighting scenes the customer made in the AR Lighting Scenes card and pushed
   // to this panel: [{entity: "scene.ar_movie_night", name: "Movie night"}], 4 at most
@@ -179,6 +185,7 @@ export function buildElegant(cfg, ctx, skin) {
     toast(name);
   };
   function curCats() {
+    if (RX) return RX.cats();
     return CATS.filter((c) => (ents[c.key] && ents[c.key].length) || (c.key === "music" && (maOn || spOn)) || (c.key === "utilities" && SOLAR));
   }
 
@@ -272,6 +279,7 @@ export function buildElegant(cfg, ctx, skin) {
   // home
   const home = mkPage("home");
   home.render = function () {
+    if (RX) return RX.renderHome(home.el);
     const p = home.el;
     p.innerHTML = "";
     const grid = el("div", "el-home");
@@ -678,7 +686,9 @@ export function buildElegant(cfg, ctx, skin) {
   const DOWN_CONE_SVG = '<svg class="el-lcone" viewBox="0 0 220 170" aria-hidden="true"><defs><linearGradient id="elBeam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6de" stop-opacity=".9"/><stop offset=".6" stop-color="#ffe6b8" stop-opacity=".3"/><stop offset="1" stop-color="#ffdca8" stop-opacity=".05"/></linearGradient><radialGradient id="elPool"><stop offset="0" stop-color="#ffe9c2" stop-opacity=".55"/><stop offset="1" stop-color="#ffe0b0" stop-opacity="0"/></radialGradient><filter id="elBeamBlur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"/></filter></defs><path d="M98 2H122L178 160H42Z" fill="url(#elBeam)" filter="url(#elBeamBlur)"/><ellipse cx="110" cy="158" rx="78" ry="12" fill="url(#elPool)"/></svg>';
   // a bare bulb lights the whole card softly (no beam edges)
   const WASH_SVG = '<svg class="el-lcone" viewBox="0 0 220 170" aria-hidden="true"><defs><radialGradient id="elWash" cx="50%" cy="34%" r="50%"><stop offset="0" stop-color="#ffd59a" stop-opacity=".55"/><stop offset=".5" stop-color="#ffc77e" stop-opacity=".18"/><stop offset="1" stop-color="#ffc070" stop-opacity="0"/></radialGradient></defs><rect width="220" height="170" fill="url(#elWash)"/></svg>';
-  const lightArt = () => (LIGHT_ICON === "edison" ? WASH_SVG + EDISON_SVG : LIGHT_ICON === "downlight" ? DOWN_CONE_SVG + DOWN_SVG : CONE_SVG + LAMP_SVG);
+  // Residence can draw each light its own way ("Match each light"); every other style uses LIGHT_ICON
+  const lightIconOf = (e) => (RX ? RX.lightType(e) : LIGHT_ICON);
+  const lightArt = (LI) => (LI === "edison" ? WASH_SVG + EDISON_SVG : LI === "downlight" ? DOWN_CONE_SVG + DOWN_SVG : CONE_SVG + LAMP_SVG);
   const mixHex = (a, b, t) => {
     const p = (h, i) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
     return "rgb(" + [0, 1, 2].map((i) => Math.round(p(a, i) + (p(b, i) - p(a, i)) * t)).join(",") + ")";
@@ -696,12 +706,14 @@ export function buildElegant(cfg, ctx, skin) {
     const selMode = cfg.selectMode === "off" || cfg.selectMode === "dimmable" ? cfg.selectMode : "full";
     const instant = selMode === "off" || (selMode === "dimmable" && !dimmable);
     const sel = !instant && (kind === "cover" ? selShade === i : selLight === i);
-    const c = el("div", "el-glass el-card" + (levelOf(e, kind) > 0 ? " on" : "") + (sel ? " sel" : "") + (kind === "cover" ? " cover" : LIGHT_ICON === "bulb" ? " bulb" : " lamp " + LIGHT_ICON));
+    const LI = kind === "cover" ? LIGHT_ICON : lightIconOf(e);
+    const c = el("div", "el-glass el-card" + (levelOf(e, kind) > 0 ? " on" : "") + (sel ? " sel" : "") + (kind === "cover" ? " cover" : LI === "bulb" ? " bulb" : " lamp " + LI));
     // lights: a pendant lamp hanging from the card's top edge (its light cone and
     // shade rim glow with the brightness), or the round bulb. Shades keep their icon.
-    const icon = kind === "cover" ? svg("shades") : LIGHT_ICON === "bulb" ? '<i class="el-bglow"></i>' + svg("lights") : lightArt();
+    const icon = kind === "cover" ? svg("shades") : LI === "bulb" ? '<i class="el-bglow"></i>' + svg("lights") : lightArt(LI);
     c.innerHTML = '<div class="el-row"><span class="el-bulb">' + icon + '</span><div class="el-meta"><div class="el-nm"></div><div class="el-pc"></div></div></div>' + (dimmable ? '<div class="el-slider"><div class="el-fill"></div><div class="el-line"></div></div>' : cvSwitch ? '<div class="el-cvsw"><span class="el-usw"><i></i></span></div>' : "");
     c.querySelector(".el-nm").textContent = whole && kind !== "cover" && lightRoom[e] ? nameOf(e) + " · " + lightRoom[e] : nameOf(e);
+    if (RX && kind === "cover") RX.decorateCover(c, e);
     paintCard(c, e, kind);
     const toggle = () => {
       const now = levelOf(e, kind) > 0;
@@ -783,11 +795,12 @@ export function buildElegant(cfg, ctx, skin) {
 
   function paintCard(c, e, kind) {
     const v = levelOf(e, kind);
+    const LI = kind === "cover" ? LIGHT_ICON : lightIconOf(e);
     c.classList.toggle("on", v > 0);
     const pc = c.querySelector(".el-pc");
     if (kind === "cover" && e.split(".")[0] === "cover") pc.textContent = v > 0 ? (coverSlides(e) ? Math.round(v * 100) + "% open" : "Open") : "Closed";
     else pc.textContent = v > 0 ? (c.querySelector(".el-slider") ? Math.round(v * 100) + "%" : "On") : "Off";
-    if (kind !== "cover" && LIGHT_ICON === "bulb") {
+    if (kind !== "cover" && LI === "bulb") {
       // the bulb glows with the dimmer: faint at 5 %, full at 100 %
       const lv = Math.max(0, Math.min(1, v));
       const g = c.querySelector(".el-bglow");
@@ -804,7 +817,7 @@ export function buildElegant(cfg, ctx, skin) {
       if (rim) rim.style.opacity = v > 0 ? (0.45 + 0.55 * lv).toFixed(2) : "0.12";
       const lamp = c.querySelector(".el-lamp");
       if (lamp) lamp.style.filter = v > 0 && !LITE && !GSAFE ? "drop-shadow(0 4px " + Math.round(4 + 10 * lv) + "px rgba(255,236,190," + (0.25 + 0.6 * lv).toFixed(2) + "))" : "";
-      if (LIGHT_ICON === "edison") {
+      if (LI === "edison") {
         // softer wash under a bare bulb; the filament itself carries the dimming
         if (cone) cone.style.opacity = v > 0 ? (0.1 + 0.9 * lv).toFixed(2) : "0";
         const halo = c.querySelector(".el-halo");
@@ -817,7 +830,7 @@ export function buildElegant(cfg, ctx, skin) {
         const gl = c.querySelector(".el-glassb");
         if (gl) gl.style.fill = v > 0 ? "rgba(255,196,120," + (0.1 + 0.3 * lv).toFixed(2) + ")" : "rgba(255,255,255,.07)";
         if (lamp) lamp.style.filter = v > 0 && !LITE && !GSAFE ? "drop-shadow(0 0 " + Math.round(3 + 9 * lv) + "px rgba(255,190,100," + (0.3 + 0.6 * lv).toFixed(2) + "))" : "";
-      } else if (LIGHT_ICON === "downlight") {
+      } else if (LI === "downlight") {
         const lens = c.querySelector(".el-lens");
         if (lens) lens.style.opacity = v > 0 ? (0.55 + 0.45 * lv).toFixed(2) : "0.15";
         if (lamp) lamp.style.filter = v > 0 && !LITE && !GSAFE ? "drop-shadow(0 2px " + Math.round(3 + 8 * lv) + "px rgba(255,236,190," + (0.3 + 0.6 * lv).toFixed(2) + "))" : "";
@@ -828,6 +841,7 @@ export function buildElegant(cfg, ctx, skin) {
       f.style.width = v * 100 + "%";
       c.querySelector(".el-line").style.left = Math.max(4, v * 100) + "%";
     }
+    if (RX && kind === "cover") RX.paintCover(c, e, v);
   }
 
   // climate
@@ -2544,6 +2558,7 @@ export function buildElegant(cfg, ctx, skin) {
   // --- navigation + chrome --------------------------------------------------------
   let current = "home";
   function go(k) {
+    if (RX && RX.intercept(k)) return;
     if (!pages[k] || (k !== "home" && !curCats().some((c) => c.key === k))) k = "home";
     if (current === "cameras" && k !== "cameras") {
       stopCams();
@@ -2564,7 +2579,7 @@ export function buildElegant(cfg, ctx, skin) {
     Object.keys(pages).forEach((n) => pages[n].el.classList.toggle("show", n === k));
     root.classList.toggle("at-home", k === "home");
     Array.prototype.forEach.call(dock.children, (b) => b.classList.toggle("on", b.getAttribute("data-go") === k));
-    title.textContent = k === "home" ? "Home" : (CATS.filter((c) => c.key === k)[0] || {}).title;
+    title.textContent = k === "home" ? "Home" : RX ? RX.title(k) : (CATS.filter((c) => c.key === k)[0] || {}).title;
     pages[k].render();
   }
 
@@ -2581,6 +2596,7 @@ export function buildElegant(cfg, ctx, skin) {
     } else secChip.innerHTML = "";
     const anyOn = (ents.lights || []).some((e) => get(e).on);
     room.classList.toggle("dim", !!ents.lights && !anyOn);
+    if (RX) RX.chrome();
   }
 
   function fit() {
@@ -2610,6 +2626,7 @@ export function buildElegant(cfg, ctx, skin) {
     sub.style.display = name || many ? "" : "none";
     sub.classList.toggle("pick", many);
     buildDock();
+    if (RX) RX.onRoom();
   }
   const sheet = el("div", "el-sheet");
   root.appendChild(sheet);
@@ -2705,6 +2722,42 @@ export function buildElegant(cfg, ctx, skin) {
     (window.requestAnimationFrame || ((f) => setTimeout(f, 16)))(() => {
       rafPending = false;
       if (current === k) pages[k].render();
+    });
+  }
+
+  // Residence: its own home screen, bottom bar and pages on top of this engine
+  if (RS) {
+    RX = mountResidence({
+      root: root,
+      roomEl: room,
+      cfg: cfg,
+      rcfg: ctx.device && ctx.device().residence,
+      get: get,
+      send: send,
+      patch: patch,
+      nameOf: nameOf,
+      toast: toast,
+      go: go,
+      current: () => current,
+      rooms: () => ROOMS,
+      roomIdx: () => roomIdx,
+      whole: () => whole,
+      ents: () => ents,
+      union: union,
+      scenes: () => scenes,
+      clientScenes: clientScenes,
+      runScene: runScene,
+      mkPage: mkPage,
+      pages: pages,
+      maOn: maOn,
+      ma: ma,
+      spOn: spOn,
+      sp: sp,
+      hasSolar: !!SOLAR,
+      paintCard: paintCard,
+      levelOf: levelOf,
+      coverSlides: coverSlides,
+      setDragging: (b) => (dragging = !!b),
     });
   }
 

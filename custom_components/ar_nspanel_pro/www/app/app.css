@@ -983,3 +983,168 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 /* the selected card (tap / knob) keeps its highlight ring in every style */
 .el-root.skin-aurora .el-card.sel,.el-root.skin-nordic .el-card.sel,.el-root.skin-studio .el-card.sel,.el-root.skin-tiles .el-card.sel{border-color:var(--acc);box-shadow:0 0 0 2px rgba(var(--acc-rgb),.55),0 0 24px -6px rgba(var(--acc-rgb),.7)}
 .el-root.skin-tiles .el-card.sel{border-width:2px}
+
+/* ===== Residence dashboard style (device.dashboardStyle = "residence") =====
+   Built into app.css after everything else. Every rule starts with
+   .el-root.skin-residence, so nothing here can reach another style.
+   Old-WebView safe like the rest: no blur, no inset, no flex gap, no aspect-ratio. */
+
+.el-root.skin-residence{--ink:#f4f1ea;--ink-rgb:244,241,234;--rs-acc:243,217,164;--acc:rgb(var(--rs-acc));--acc-rgb:var(--rs-acc);--on-acc:#1d160a;--fg-rgb:255,255,255;
+  font-family:Jost,"Avenir Next","Segoe UI",Roboto,system-ui,sans-serif;letter-spacing:.01em}
+.el-root.skin-residence .el-glass,.el-root.skin-residence .el-dock,.el-root.skin-residence .el-sheetpanel{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+
+/* the photo, darker behind the inner pages */
+.el-root.skin-residence .el-room{background-color:#14130f;background-size:cover;background-position:center;-webkit-filter:none;filter:none}
+.el-root.skin-residence .el-room::after{content:"";position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,.6) 0%,rgba(0,0,0,.16) 22%,rgba(0,0,0,.2) 70%,rgba(0,0,0,.72) 100%);-webkit-transition:background .4s;transition:background .4s}
+.el-root.skin-residence:not(.at-home) .el-room::after{background:rgba(6,6,8,.64)}
+.el-root.skin-residence .el-room.dim{-webkit-filter:none;filter:none}
+
+/* top bar */
+.el-root.skin-residence .el-top{height:72px;padding:0 30px}
+.el-root.skin-residence .el-dock{display:none}
+.el-root.skin-residence .el-title{font-weight:400;font-size:26px;letter-spacing:.02em}
+.el-root.skin-residence.at-home .el-title{display:none}
+.el-root.skin-residence .el-back{display:flex;align-items:center;height:48px;padding:0 6px 0 0;margin-right:4px;color:var(--ink)}
+.el-root.skin-residence .el-back svg{width:28px;height:28px;-webkit-transform:rotate(180deg);transform:rotate(180deg)}
+.el-root.skin-residence .el-back span{display:none}
+.el-root.skin-residence.at-home .el-back{display:none}
+.el-root.skin-residence .el-roomname{margin-left:14px;padding:4px 0;background:none;border:0;border-radius:0;font-weight:400;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:rgba(var(--ink-rgb),.6)}
+.el-root.skin-residence.at-home .el-roomname{margin-left:0;font-size:26px;letter-spacing:.02em;text-transform:none;color:var(--ink);text-shadow:0 1px 8px rgba(0,0,0,.6)}
+/* the panel's setup corner (a 44 px long-press zone, top left) sits over the start of the
+   bar: a house badge fills it, so the room name itself stays clear and tappable */
+.el-root.skin-residence.at-home .el-roomname{position:relative;padding-left:66px;min-height:48px;display:flex;align-items:center}
+.el-root.skin-residence.at-home .el-roomname::before{content:"";position:absolute;left:0;top:50%;width:46px;height:46px;margin-top:-23px;border-radius:23px;border:1.5px solid rgba(255,255,255,.35);background:rgba(10,10,12,.35) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f4f1ea' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M4 11l8-7 8 7v9h-5v-6H9v6H4z'/%3E%3C/svg%3E") center/24px 24px no-repeat}
+.el-root.skin-residence .el-title{cursor:pointer;padding:8px 0}
+.el-root.skin-residence .el-status{font-weight:400;font-size:20px;color:rgba(var(--ink-rgb),.92)}
+.el-root.skin-residence .el-chip{margin-right:22px}
+.el-root.skin-residence .el-chip svg{width:24px;height:24px}
+.el-root.skin-residence .el-clock{font-size:36px;font-weight:300;letter-spacing:.01em}
+.el-root.skin-residence .el-toast{top:84px;background:rgba(10,10,12,.88);border-color:rgba(255,255,255,.16);font-weight:500}
+.el-root.skin-residence .el-page{top:72px;bottom:92px}
+
+/* room drop-down (the Elegant room sheet, drawn as a menu under the room name) */
+.el-root.skin-residence .el-sheetdim{background:rgba(0,0,0,.25)}
+.el-root.skin-residence .el-sheetpanel{left:22px;right:auto;top:64px;width:400px;max-height:470px;padding:8px;border-radius:22px;background:rgba(14,14,17,.95);border:1px solid rgba(255,255,255,.14);box-shadow:0 30px 60px -20px rgba(0,0,0,.9);overflow-y:auto}
+.el-root.skin-residence .el-sheetpanel .el-lbl{display:none}
+.el-root.skin-residence .el-roomgrid{display:block}
+.el-root.skin-residence .el-rc{height:64px;padding:0 14px;margin:0;border:0;border-radius:14px;background:none}
+.el-root.skin-residence .el-rc+.el-rc{margin-top:2px}
+.el-root.skin-residence .el-rc.cur{background:rgba(255,255,255,.09);border:0}
+.el-root.skin-residence .el-ri{width:40px;height:40px;border-radius:20px;border:1.5px solid rgba(255,255,255,.3);background:none;margin-right:14px}
+.el-root.skin-residence .el-rc.lit .el-ri{background:none;border-color:var(--acc);color:var(--acc);box-shadow:none}
+.el-root.skin-residence .el-rc b{font-weight:400;font-size:19px}
+.el-root.skin-residence .el-rc small{font-weight:400;font-size:13px}
+
+/* home: icon buttons */
+.el-root.skin-residence .rs-grid{position:absolute;top:0;bottom:0;left:50%;-webkit-transform:translateX(-50%);transform:translateX(-50%);max-width:100%;display:flex;flex-wrap:wrap;align-content:center;justify-content:center}
+.el-root.skin-residence .rs-btn{width:210px;height:196px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer}
+.el-root.skin-residence .rs-ring{position:relative;width:118px;height:118px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  border:1.5px solid rgba(255,255,255,.42);background:rgba(10,10,12,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 10px 26px -14px rgba(0,0,0,.9);-webkit-transition:-webkit-transform .15s;transition:transform .15s}
+.el-root.skin-residence .rs-ring svg{width:54px;height:54px}
+.el-root.skin-residence .rs-btn:active .rs-ring{-webkit-transform:scale(.94);transform:scale(.94);background:rgba(255,255,255,.14)}
+.el-root.skin-residence .rs-lbl{margin-top:14px;font-size:18px;letter-spacing:.06em;text-shadow:0 1px 6px rgba(0,0,0,.8);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-btn.lit .rs-ring{border-color:rgba(var(--acc-rgb),.95);box-shadow:0 0 28px -4px rgba(var(--acc-rgb),.55),inset 0 0 18px rgba(var(--acc-rgb),.18)}
+.el-root.skin-residence .rs-btn.lit .rs-ring svg{color:var(--acc)}
+.el-root.skin-residence .rs-badge{position:absolute;top:-3px;right:-3px;z-index:3;min-width:26px;height:26px;padding:0 7px;border-radius:13px;background:var(--acc);color:var(--on-acc);font-size:14px;font-weight:600;display:none;align-items:center;justify-content:center;
+  box-shadow:0 0 0 3px rgba(10,10,12,.88),0 4px 10px -2px rgba(0,0,0,.6)}
+.el-root.skin-residence .rs-btn.lit .rs-badge{display:flex}
+.el-root.skin-residence .rs-badge:empty{display:none!important}
+.el-root.skin-residence .rs-ring img{display:block;width:60%;height:60%;object-fit:contain}
+.el-root.skin-residence .rs-ring.img-fill{border-width:0;background:transparent}
+.el-root.skin-residence .rs-ring.img-fill img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;border-radius:50%}
+.el-root.skin-residence .rs-ring.img-fill::after{content:"";position:absolute;top:0;left:0;right:0;bottom:0;border-radius:inherit;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.22),inset 0 1.5px 0 rgba(255,255,255,.28),inset 0 -8px 14px -10px rgba(0,0,0,.5)}
+.el-root.skin-residence .rs-btn.lit .rs-ring.img-fill::after{box-shadow:inset 0 0 0 2px rgba(var(--acc-rgb),.95),inset 0 1.5px 0 rgba(255,255,255,.3)}
+.el-root.skin-residence.rs-shape-square .rs-ring{border-radius:26px;width:128px}
+.el-root.skin-residence.rs-shape-square .rs-ring.img-fill img{border-radius:26px}
+.el-root.skin-residence.rs-shape-bare .rs-ring{border-color:transparent;background:transparent;box-shadow:none}
+.el-root.skin-residence.rs-shape-bare .rs-ring svg{width:66px;height:66px}
+.el-root.skin-residence.rs-shape-bare .rs-ring img{width:80%;height:80%}
+.el-root.skin-residence.rs-shape-bare .rs-btn.lit .rs-ring{box-shadow:none;border-color:transparent}
+.el-root.skin-residence.rs-shape-bare .rs-ring.img-fill::after{box-shadow:none}
+.el-root.skin-residence .rs-empty{position:absolute;top:40%;left:60px;right:60px;text-align:center;font-size:19px;color:rgba(var(--ink-rgb),.7)}
+
+/* bottom bar: Room Off · what's playing · Home */
+.el-root.skin-residence .rs-bar{position:absolute;left:0;right:0;bottom:0;height:90px;display:flex;align-items:center;padding:0 30px;z-index:6}
+.el-root.skin-residence .rs-pill{height:56px;border-radius:28px;display:flex;align-items:center;padding:0 22px;background:rgba(12,12,14,.55);border:1px solid rgba(255,255,255,.16);font-size:16px;letter-spacing:.06em;cursor:pointer;flex:none}
+.el-root.skin-residence .rs-pill+.rs-pill{margin-left:18px}
+.el-root.skin-residence .rs-pill svg{width:24px;height:24px}
+.el-root.skin-residence .rs-off svg{margin-right:10px}
+.el-root.skin-residence .rs-pill:active{background:rgba(255,255,255,.18)}
+.el-root.skin-residence .rs-np{flex:1;min-width:0;padding:0 8px 0 8px;-webkit-transition:opacity .35s,-webkit-transform .35s;transition:opacity .35s,transform .35s}
+.el-root.skin-residence .rs-np.gone{opacity:0;-webkit-transform:translateY(12px);transform:translateY(12px);pointer-events:none}
+.el-root.skin-residence .rs-art{width:40px;height:40px;border-radius:9px;flex:none;background-color:#3a3026;background-size:cover;background-position:center;margin-right:12px}
+.el-root.skin-residence .rs-art.none{background-image:linear-gradient(140deg,#f59e0b,#b91c1c)}
+.el-root.skin-residence .rs-npt{min-width:0;flex:1;line-height:1.2}
+.el-root.skin-residence .rs-npt b{display:block;font-weight:500;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-npt small{display:block;font-size:13px;opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-npb{width:44px;height:44px;border-radius:22px;display:flex;align-items:center;justify-content:center;flex:none}
+.el-root.skin-residence .rs-npb svg{width:22px;height:22px}
+.el-root.skin-residence .rs-round{width:56px;padding:0;justify-content:center}
+.el-root.skin-residence.at-home .rs-home{visibility:hidden}
+
+/* shared pieces on the inner pages */
+.el-root.skin-residence .el-glass,.el-root.skin-residence .el-card{background:rgba(16,16,19,.6);border:1px solid rgba(255,255,255,.13);border-radius:20px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07)}
+.el-root.skin-residence .el-tab,.el-root.skin-residence .el-act,.el-root.skin-residence .el-act.sc{border-radius:999px;font-weight:400;font-size:14px;letter-spacing:.05em;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.18);color:rgba(var(--ink-rgb),.88)}
+.el-root.skin-residence .el-tab.on,.el-root.skin-residence .el-act.on{background:rgba(var(--acc-rgb),.92);border-color:transparent;color:var(--on-acc)}
+.el-root.skin-residence .el-act{color:#ffd2cb}
+.el-root.skin-residence .el-slider{border-radius:17px;background:rgba(0,0,0,.4);border-color:rgba(255,255,255,.1)}
+.el-root.skin-residence .el-fill{border-radius:16px;background:linear-gradient(90deg,rgba(var(--acc-rgb),.35),rgba(var(--acc-rgb),.95))}
+.el-root.skin-residence .el-nm{font-weight:400;font-size:17px}
+.el-root.skin-residence .el-pc{font-weight:400}
+.el-root.skin-residence .el-card.sel{border-color:rgba(var(--acc-rgb),.8);box-shadow:0 0 0 2px rgba(var(--acc-rgb),.5),0 0 24px -6px rgba(var(--acc-rgb),.7)}
+.el-root.skin-residence .el-card.cover.on .el-bulb{background:none;border-color:rgba(var(--acc-rgb),.9);color:var(--acc)}
+.el-root.skin-residence .el-mode.on,.el-root.skin-residence .el-srcb.on{background:rgba(var(--acc-rgb),.92);color:var(--on-acc)}
+.el-root.skin-residence .el-play{background:#f4f1ea;color:#121212}
+
+/* shades: a window per blind / curtain */
+.el-root.skin-residence .rs-pg-shades .el-cards{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));grid-auto-rows:minmax(300px,1fr)}
+.el-root.skin-residence .el-card.rs-shade{display:flex;flex-direction:column;padding:12px 12px 14px}
+.el-root.skin-residence .rs-shade .el-row{margin-top:10px}
+.el-root.skin-residence .rs-shade .el-bulb{display:none}
+.el-root.skin-residence .rs-shade .el-slider{margin-top:10px}
+.el-root.skin-residence .rs-win{position:relative;flex:1;min-height:90px;border-radius:12px;overflow:hidden;cursor:ns-resize;touch-action:none;
+  background:linear-gradient(180deg,#2a3557 0%,#7d5d78 48%,#e9a274 70%,#3b3340 71%,#1d1a20 100%);box-shadow:inset 0 0 0 4px #e9e6e0,inset 0 0 0 5px rgba(0,0,0,.25)}
+.el-root.skin-residence .rs-win.curt{cursor:ew-resize}
+.el-root.skin-residence .rs-win i{position:absolute;display:block}
+.el-root.skin-residence .rs-win::before{content:"";position:absolute;top:0;left:0;right:0;bottom:0;z-index:1;pointer-events:none;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.12) 45%,transparent 55%)}
+.el-root.skin-residence .rs-mull{left:50%;top:0;bottom:0;width:4px;margin-left:-2px;background:#e9e6e0;z-index:1}
+.el-root.skin-residence .rs-head{left:0;right:0;top:0;height:12px;background:linear-gradient(180deg,#f3f1ec,#b9b4aa);z-index:4;box-shadow:0 2px 4px rgba(0,0,0,.35)}
+.el-root.skin-residence .rs-fab{left:4px;right:4px;top:0;z-index:3;-webkit-transition:height .9s cubic-bezier(.4,0,.2,1);transition:height .9s cubic-bezier(.4,0,.2,1);
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0,rgba(255,255,255,.035) 2px,rgba(0,0,0,.035) 2px,rgba(0,0,0,.035) 4px),linear-gradient(90deg,#cfc6b6,#e8e1d4 30%,#ddd5c6 70%,#c7bdac)}
+.el-root.skin-residence .rs-fab.sheer{background:repeating-linear-gradient(90deg,rgba(255,255,255,.08) 0,rgba(255,255,255,.08) 3px,transparent 3px,transparent 6px),linear-gradient(90deg,rgba(240,236,228,.55),rgba(255,255,255,.7) 50%,rgba(240,236,228,.55))}
+.el-root.skin-residence .rs-fab.block{background:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0,rgba(255,255,255,.03) 2px,rgba(0,0,0,.05) 2px,rgba(0,0,0,.05) 4px),linear-gradient(90deg,#3c3a38,#55524e 35%,#4a4744 70%,#363432)}
+.el-root.skin-residence .rs-rail{left:-4px;right:-4px;bottom:-1px;height:9px;border-radius:2px;background:linear-gradient(180deg,#f2f0eb,#9e998f);box-shadow:0 3px 6px rgba(0,0,0,.4)}
+.el-root.skin-residence .rs-cl,.el-root.skin-residence .rs-cr{top:10px;bottom:0;z-index:3;-webkit-transition:width .9s cubic-bezier(.4,0,.2,1);transition:width .9s cubic-bezier(.4,0,.2,1);
+  background:repeating-linear-gradient(90deg,rgba(0,0,0,.18) 0,rgba(255,255,255,.06) 7px,rgba(0,0,0,.18) 14px),linear-gradient(180deg,#b9a68a,#9c8a70)}
+.el-root.skin-residence .rs-cl{left:0;box-shadow:4px 0 8px -2px rgba(0,0,0,.45)}
+.el-root.skin-residence .rs-cr{right:0;box-shadow:-4px 0 8px -2px rgba(0,0,0,.45)}
+.el-root.skin-residence .rs-cl.sheer,.el-root.skin-residence .rs-cr.sheer{background:repeating-linear-gradient(90deg,rgba(255,255,255,.12) 0,rgba(255,255,255,.32) 7px,rgba(255,255,255,.12) 14px)}
+.el-root.skin-residence .rs-cl.block,.el-root.skin-residence .rs-cr.block{background:repeating-linear-gradient(90deg,rgba(0,0,0,.3) 0,rgba(255,255,255,.05) 7px,rgba(0,0,0,.3) 14px),linear-gradient(180deg,#4a4744,#363432)}
+.el-root.skin-residence .rs-rod{left:0;right:0;top:0;height:10px;z-index:4;background:linear-gradient(180deg,#d8c08f,#8a6a35);box-shadow:0 2px 4px rgba(0,0,0,.4)}
+.el-root.skin-residence .rs-win.drag .rs-fab,.el-root.skin-residence .rs-win.drag .rs-cl,.el-root.skin-residence .rs-win.drag .rs-cr{-webkit-transition:none;transition:none}
+.el-root.skin-residence.lite .rs-fab,.el-root.skin-residence.lite .rs-cl,.el-root.skin-residence.lite .rs-cr{-webkit-transition:none;transition:none}
+
+/* scenes */
+.el-root.skin-residence .rs-scenes .rs-btn.lit .rs-ring{border-color:rgba(var(--acc-rgb),.95)}
+
+/* watch */
+.el-root.skin-residence .rs-watch{position:absolute;top:6px;left:30px;right:30px;bottom:0;overflow-y:auto;display:flex;flex-wrap:wrap;align-content:flex-start;justify-content:center}
+.el-root.skin-residence .rs-tv{width:440px;padding:18px 20px;margin:0 8px 16px}
+.el-root.skin-residence .rs-tvh{display:flex;align-items:center}
+.el-root.skin-residence .rs-tvi{width:48px;height:48px;border-radius:24px;border:1.5px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;flex:none;margin-right:14px}
+.el-root.skin-residence .rs-tvi svg{width:26px;height:26px}
+.el-root.skin-residence .rs-tv.on .rs-tvi{border-color:var(--acc);color:var(--acc)}
+.el-root.skin-residence .rs-tvm{flex:1;min-width:0}
+.el-root.skin-residence .rs-tvm b{display:block;font-weight:400;font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-tvm small{display:block;font-size:14px;opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-pw{width:52px;height:52px;border-radius:26px;border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+.el-root.skin-residence .rs-pw svg{width:24px;height:24px}
+.el-root.skin-residence .rs-tv.on .rs-pw{background:rgba(var(--acc-rgb),.92);border-color:transparent;color:var(--on-acc)}
+.el-root.skin-residence .rs-tvt{display:flex;justify-content:center;align-items:center;margin-top:16px}
+.el-root.skin-residence .rs-tvt span{width:56px;height:56px;border-radius:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin:0 12px}
+.el-root.skin-residence .rs-tvt span svg{width:28px;height:28px}
+.el-root.skin-residence .rs-tvt .pp{background:#f4f1ea;color:#121212}
+.el-root.skin-residence .rs-tvv{display:flex;align-items:center;margin-top:16px}
+.el-root.skin-residence .rs-tvv>svg{width:24px;height:24px;opacity:.75;margin-right:12px;flex:none}
+.el-root.skin-residence .rs-vs{flex:1;height:30px;position:relative;margin:0}
