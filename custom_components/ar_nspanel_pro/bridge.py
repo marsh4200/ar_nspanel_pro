@@ -1247,6 +1247,12 @@ class PanelBridge:
                 src = next((x for x in srcs if isinstance(x, str) and "spotify" in x.lower()), None)
                 if src:
                     await self._svc("media_player", "select_source", entity, {"source": src})
+                # An idle Spotify Connect speaker drops out of the account's device
+                # list and only a Spotify app on the LAN can log it back in (ZeroConf
+                # addUser). The SpotifyPlus integration (HACS) does exactly that, so
+                # when it is installed ask it to re-activate the speaker, without
+                # playing yet: the panel then plays what was asked for on it.
+                await self._spotifyplus_wake(entity, value.get("name"), st)
             elif action == "spplay" and domain == "media_player" and isinstance(value.get("uri"), str):
                 # the speaker never showed up in Spotify Connect: play the same
                 # thing on it through its own integration instead
@@ -1464,6 +1470,37 @@ class PanelBridge:
             v = cur_f + num(step, num(attrs.get("step"), 1)) * steps
             v = min(num(attrs.get("max"), v), max(num(attrs.get("min"), v), v))
             await self._svc(domain, "set_value", entity, {"value": v})
+
+    async def _spotifyplus_wake(self, entity: str, label: Any, st: Any) -> None:
+        """Re-activate a sleeping Spotify Connect speaker through SpotifyPlus.
+
+        Spotify Connect only: never hands the music to another platform. Does
+        nothing when SpotifyPlus isn't installed. The speaker is found in
+        SpotifyPlus by its Spotify Connect name, which is normally the name the
+        speaker has in Home Assistant or the label given to it in Device Setup.
+        """
+        if not self.hass.services.has_service("spotifyplus", "player_transfer_playback"):
+            return
+        reg = er.async_get(self.hass)
+        sp_ent = next(
+            (e.entity_id for e in reg.entities.values()
+             if e.platform == "spotifyplus" and e.domain == "media_player" and not e.disabled_by),
+            None,
+        )
+        if not sp_ent:
+            return
+        names: list[str] = []
+        for n in (label, st.attributes.get("friendly_name") if st else None):
+            if isinstance(n, str) and n.strip() and n.strip() not in names:
+                names.append(n.strip())
+        for name in names:
+            try:
+                await self._svc("spotifyplus", "player_transfer_playback", sp_ent,
+                                {"device_id": name, "play": False, "refresh_device_list": True})
+                return
+            except Exception:  # noqa: BLE001 - not found under this name: try the next
+                _LOGGER.debug("SpotifyPlus couldn't wake %s as %r", entity, name, exc_info=True)
+        _LOGGER.info("SpotifyPlus couldn't find %s in Spotify Connect (tried %s)", entity, names)
 
     async def _svc(
         self, domain: str, service: str, entity_id: Any, data: dict[str, Any]
