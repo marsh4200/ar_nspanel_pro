@@ -1830,6 +1830,12 @@ class PanelBridge:
         if public_cfg.get("dashboardStyle") == "residence":
             ha_url = self._ha_base_url()
             public_cfg = residence_public(public_cfg, await self._panel_reachable_url(ha_url) if ha_url else None)
+            # the clock screens work out sunrise / sunset and the moon on the panel:
+            # they need the home's rough location (2 decimals, about a kilometre)
+            lat, lon = self.hass.config.latitude, self.hass.config.longitude
+            if isinstance(lat, (int, float)) and isinstance(lon, (int, float)) and (lat or lon):
+                rs_pub = public_cfg.get("residence") if isinstance(public_cfg.get("residence"), dict) else {}
+                public_cfg = {**public_cfg, "residence": {**rs_pub, "geo": [round(lat, 2), round(lon, 2)]}}
         # RTSP cameras: Home Assistant makes their snapshots for the Cameras grid
         el_pub = public_cfg.get("elegant")
         if isinstance(el_pub, dict) and el_pub.get("rtsp"):

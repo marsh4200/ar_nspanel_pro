@@ -80,6 +80,29 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Residence designs, clock screens and easy setup (4.6.0)
+
+**Lights page layouts.** Seven, all but Classic drawing each lamp shining and dimming:
+Classic (the old light cards), Faders, Bubble tiles, Bubbles, Keypad list (Control4 style rows
+with OFF / ON), Dial and Gallery. Moods (the customer's scenes, All on, All off) beside them.
+
+**Clock screens.** What a Residence panel shows while it sleeps: Classic (the plain clock),
+Signature glow, Sun path, Halo, Moonlight, Editorial, Living photo, Flip clock and Blue sky (real
+looking clouds, the sky colour follows the day). Sunrise / sunset and the moon are worked out on the
+panel from the home's rough location, which Home Assistant now sends (2 decimals). The clock moves a
+few pixels every 20 s so nothing burns in.
+
+**Where to pick.** Installer: Device Setup > Residence look > More options > Lights page > Layout,
+and Clock screen. Customer: Settings > Look > Designs on the panel (Backgrounds keeps the photos,
+glow and buttons). The newest choice wins: a customer's pick stays until the installer pushes a
+different one.
+
+**Easy setup.** Device > Dashboard now opens in steps (Style, Rooms, Whole house, Look, Check &
+push). Rooms: pick a room, tap + on what's in it, pick devices by their names with the ones in that
+Home Assistant area first, set each light's lamp drawing right there, and see the room's buttons in
+a small panel preview. *Import areas* builds the rooms from Home Assistant's areas in one go
+(devices already in a room stay put). *All settings (one page)* is the old long page.
+
 ## Residence Lights: lamps that shine (4.5.1)
 
 Residence's Lights page is one tall glass fader per light. Its lamp hangs at the top (downlight,

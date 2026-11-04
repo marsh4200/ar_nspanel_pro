@@ -451,7 +451,7 @@ export function buildElegant(cfg, ctx, skin) {
     lp.render = function () {
       if (dragging) return;
       // Residence: lamp faders, unless the old cards were picked (Settings > Look / Device Setup)
-      if (RS && RX && RX.lightsPage() !== "cards") return rsLights(lp.el);
+      if (RS && RX && RX.lightsPage() !== "classic") return rsLights(lp.el);
       const p = lp.el;
       p.__rsLt = null;
       p.innerHTML = "";
@@ -497,146 +497,377 @@ export function buildElegant(cfg, ctx, skin) {
     };
   }
 
-  // Residence Lights: one tall fader per light, its lamp hanging at the top and
-  // really shining down the fader (lightscene.js). Drag up / down anywhere on it
-  // (the rail on the right shows the level), tap the lamp to switch it. Moods on
-  // the right: the customer's lighting scenes, All on, All off. More lights than
-  // fit scroll sideways. Built once; HA updates and the knob only repaint it.
+  // Residence Lights: the realistic lamps (lightscene.js) in the layout the
+  // installer or the customer picked (RX.lightsPage()):
+  //   faders   one tall fader per light, its lamp shining down it
+  //   tiles    rounded glass tiles, the light pouring down inside each one
+  //   bubbles  round glass bubbles with a gold level ring
+  //   keypad   Control4-style rows: lamp, name, long slider, OFF / ON
+  //   dial     the list of lights + a big brightness dial for the one picked
+  //   gallery  big cards, lamp on the left, long slider and a switch
+  // (classic = the old cards, drawn by lp.render above.) Moods on the right in
+  // every layout: the customer's lighting scenes, All on, All off (under the
+  // lights on a square panel). Built once per layout / size / list; HA updates
+  // and the knob only repaint it.
+  const lvlOf = (e) => levelOf(e, "light");
+  const dimOk = (e) => e.split(".")[0] === "light" && get(e).dim !== false;
+  const lightLabel = (e) => (whole && lightRoom[e] ? nameOf(e) + " · " + lightRoom[e] : nameOf(e));
+  const FLAT = LITE || GSAFE;
   function rsLights(p) {
     const list = ents.lights || [];
-    const H = Math.max(260, (p.clientHeight || 436) - 6 - (root.classList.contains("tall") ? 76 : 0));
+    const lay = RX.lightsPage();
+    const tall = root.classList.contains("tall");
+    const W = Math.max(300, (p.clientWidth || 1000) - 52 - (tall ? 0 : 204));
+    const H = Math.max(260, (p.clientHeight || 436) - 6 - (tall ? 76 : 0));
     const sc = clientScenes();
-    const key = list.join(",") + "|" + H + "|" + sc.map((s) => s.entity).join(",") + "|" + whole;
+    const key = lay + "|" + list.join(",") + "|" + W + "x" + H + "|" + sc.map((s) => s.entity).join(",") + "|" + whole;
     if (p.__rsLt !== key) {
       p.__rsLt = key;
       p.innerHTML = "";
-      const wrap = el("div", "rs-lt");
-      const cols = el("div", "rs-ltcols" + (list.length > 4 ? " many" : ""));
-      list.forEach((e, i) => cols.appendChild(rsFader(e, i, H)));
-      wrap.appendChild(cols);
-      const moods = el("div", "rs-ltmoods");
-      moods.appendChild(txt("div", "rs-lth", "Moods"));
-      const mood = (nm, dot, fn) => {
-        const b = el("div", "rs-ltmood", '<i style="background:' + dot + '"></i><span></span>');
-        b.querySelector("span").textContent = nm;
-        b.addEventListener("click", () => fn(b));
-        moods.appendChild(b);
-      };
-      sc.forEach((s) => mood(s.name || nameOf(s.entity), "radial-gradient(circle at 40% 35%,#fff,#ffcf8a)", (b) => runScene(b, s.entity, s.name || nameOf(s.entity))));
-      mood("All on", "radial-gradient(circle at 40% 35%,#fff,#fff4d6)", () => {
-        list.forEach((e) => {
-          patch(e, { on: true, brightness: 1 });
-          send("dim", { entity: e, v: 1 });
-        });
-        rsLightsPaint(p);
-        toast("All lights on");
-      });
-      mood("All off", "radial-gradient(circle at 40% 35%,#8a8d94,#3a3d44)", () => {
-        list.forEach((e) => {
-          if (get(e).on) {
-            patch(e, { on: false });
-            send("dim", { entity: e, v: 0 });
-          }
-        });
-        rsLightsPaint(p);
-        toast("All lights off");
-      });
-      wrap.appendChild(moods);
+      const wrap = el("div", "rs-lt rs-lt-" + lay);
+      const main = el("div", "rs-ltmain");
+      if (lay === "dial") rsDial(main, list, W, H);
+      else {
+        const box = el("div", "rs-ltbox" + (lay === "faders" ? " x" : " y") + (lay === "faders" && list.length > 4 ? " many" : ""));
+        const mk = { faders: rsFader, tiles: rsTile, bubbles: rsBubble, keypad: rsKeyRow, gallery: rsGCard }[lay] || rsFader;
+        list.forEach((e, i) => box.appendChild(mk(e, i, W, H, list.length)));
+        main.appendChild(box);
+      }
+      wrap.appendChild(main);
+      wrap.appendChild(rsMoods(p, list));
       p.appendChild(wrap);
     }
     rsLightsPaint(p);
   }
-  function rsFader(e, i, H) {
-    const dimmable = e.split(".")[0] === "light" && get(e).dim !== false;
-    const c = el("div", "rs-ltcol" + (dimmable ? "" : " sw"));
-    c.innerHTML = lightScene(lightIconOf(e), 170, H - 96, LITE || GSAFE) + '<div class="rs-lthit"></div>' + (dimmable ? '<div class="rs-ltrail"><i></i><b></b></div>' : "") + '<div class="rs-ltpc"></div><div class="rs-ltnm"></div>';
-    c.querySelector(".rs-ltnm").textContent = whole && lightRoom[e] ? nameOf(e) + " · " + lightRoom[e] : nameOf(e);
-    c.__e = e;
-    const toggle = () => {
-      selLight = i;
-      patch(e, { on: !get(e).on });
-      send("toggle", { entity: e });
-      rsPaintFader(c);
+  function rsMoods(p, list) {
+    const moods = el("div", "rs-ltmoods");
+    moods.appendChild(txt("div", "rs-lth", "Moods"));
+    const mood = (nm, dot, fn) => {
+      const b = el("div", "rs-ltmood", '<i style="background:' + dot + '"></i><span></span>');
+      b.querySelector("span").textContent = nm;
+      b.addEventListener("click", () => fn(b));
+      moods.appendChild(b);
     };
-    c.querySelector(".rs-lthit").addEventListener("click", toggle);
-    if (!dimmable) {
-      c.addEventListener("click", (ev) => {
-        if (!(ev.target.closest && ev.target.closest(".rs-lthit"))) toggle();
+    clientScenes().forEach((s) => mood(s.name || nameOf(s.entity), "radial-gradient(circle at 40% 35%,#fff,#ffcf8a)", (b) => runScene(b, s.entity, s.name || nameOf(s.entity))));
+    mood("All on", "radial-gradient(circle at 40% 35%,#fff,#fff4d6)", () => {
+      list.forEach((e) => {
+        patch(e, { on: true, brightness: 1 });
+        send("dim", { entity: e, v: 1 });
       });
-      return c;
+      rsLightsPaint(p);
+      toast("All lights on");
+    });
+    mood("All off", "radial-gradient(circle at 40% 35%,#8a8d94,#3a3d44)", () => {
+      list.forEach((e) => {
+        if (get(e).on) {
+          patch(e, { on: false });
+          send("dim", { entity: e, v: 0 });
+        }
+      });
+      rsLightsPaint(p);
+      toast("All lights off");
+    });
+    return moods;
+  }
+  function rsToggle(c, e, i) {
+    selLight = i;
+    patch(e, { on: !get(e).on });
+    send("toggle", { entity: e });
+    rsPaintOne(c);
+    const dm = pages.lights && pages.lights.el.querySelector(".rs-ltdm");
+    if (dm) rsPaintDial(dm, ents.lights || []);
+  }
+  // touch on a light: a tap switches it (or, with tapSets, sets the level where
+  // tapped); sliding along `axis` dims it, measured against area(); a swipe the
+  // other way is left to the page so long lists still scroll
+  function rsDim(c, e, i, o) {
+    if (!dimOk(e)) {
+      c.addEventListener("click", (ev) => {
+        if (!(ev.target.closest && ev.target.closest(".rs-noop"))) rsToggle(c, e, i);
+      });
+      return;
     }
-    const rail = c.querySelector(".rs-ltrail");
-    let y0 = 0;
+    const zone = o.zone || c;
     let x0 = 0;
+    let y0 = 0;
     let moved = false;
-    const set = (ev, commit) => {
-      const r = rail.getBoundingClientRect();
-      const v = clamp(1 - (ev.clientY - r.top) / r.height, 0, 1);
+    let live = false;
+    const val = (ev) => {
+      const r = o.area().getBoundingClientRect();
+      return clamp(o.axis === "y" ? 1 - (ev.clientY - r.top) / r.height : (ev.clientX - r.left) / r.width, 0, 1);
+    };
+    const set = (v, commit) => {
       patch(e, { on: v > 0.02, brightness: Math.max(0.01, v) });
-      rsPaintFader(c);
+      rsPaintOne(c);
       if (commit) send("dim", { entity: e, v: v > 0.02 ? v : 0 });
     };
-    // a sideways swipe scrolls the faders (many lights); up / down dims
-    c.addEventListener("pointerdown", (ev) => {
-      if (ev.target.closest && ev.target.closest(".rs-lthit")) return;
+    zone.addEventListener("pointerdown", (ev) => {
+      if (ev.target.closest && ev.target.closest(".rs-lthit,.rs-noop")) return;
       selLight = i;
-      y0 = ev.clientY;
       x0 = ev.clientX;
+      y0 = ev.clientY;
       moved = false;
+      live = true;
       c.__pid = ev.pointerId;
-      c.onpointermove = (m) => {
+      zone.onpointermove = (m) => {
         if (!moved) {
-          if (Math.abs(m.clientY - y0) < 6 && Math.abs(m.clientX - x0) < 6) return;
-          if (Math.abs(m.clientX - x0) > Math.abs(m.clientY - y0)) {
-            c.onpointermove = null;
+          const dx = Math.abs(m.clientX - x0);
+          const dy = Math.abs(m.clientY - y0);
+          if (dx < 6 && dy < 6) return;
+          if (o.axis === "y" ? dx > dy : dy > dx) {
+            zone.onpointermove = null; // the page scrolls instead
+            live = false;
             return;
           }
           moved = true;
           dragging = true;
           window.__arClaimGesture = true;
           try {
-            c.setPointerCapture(c.__pid);
+            zone.setPointerCapture(c.__pid);
           } catch (x) {
             /* ignore */
           }
         }
-        set(m, false);
+        set(val(m), false);
       };
     });
     const end = (ev) => {
-      c.onpointermove = null;
+      zone.onpointermove = null;
       if (moved) {
         moved = false;
+        live = false;
         dragging = false;
         window.__arClaimGesture = false;
-        set(ev, true);
-      } else if (ev.type === "pointerup" && !(ev.target.closest && ev.target.closest(".rs-lthit"))) {
-        // a tap on the fader sets that level straight away
-        if (Math.abs(ev.clientY - y0) < 6 && Math.abs(ev.clientX - x0) < 6) set(ev, true);
+        set(val(ev), true);
+        return;
       }
+      if (!live || ev.type !== "pointerup") return;
+      live = false;
+      if (ev.target.closest && ev.target.closest(".rs-lthit,.rs-noop")) return;
+      if (o.tapSets) set(val(ev), true);
+      else rsToggle(c, e, i);
     };
-    c.addEventListener("pointerup", end);
-    c.addEventListener("pointercancel", end);
+    zone.addEventListener("pointerup", end);
+    zone.addEventListener("pointercancel", end);
+  }
+  function rsItem(cls, e, i, html) {
+    const c = el("div", cls + (dimOk(e) ? "" : " sw"), html);
+    const nm = c.querySelector(".rs-ltnm");
+    if (nm) nm.textContent = lightLabel(e);
+    c.__e = e;
+    c.__i = i;
+    const hit = c.querySelector(".rs-lthit");
+    if (hit) hit.addEventListener("click", () => rsToggle(c, e, i));
     return c;
   }
-  function rsPaintFader(c) {
+  function rsFader(e, i, W, H) {
+    const c = rsItem("rs-ltcol", e, i, lightScene(lightIconOf(e), 170, H - 96, FLAT) + '<div class="rs-lthit"></div>' + (dimOk(e) ? '<div class="rs-ltrail"><i></i><b></b></div>' : "") + '<div class="rs-ltpc"></div><div class="rs-ltnm"></div>');
+    const rail = c.querySelector(".rs-ltrail");
+    if (rail) rsDim(c, e, i, { axis: "y", tapSets: true, area: () => rail });
+    else rsDim(c, e, i, {});
+    return c;
+  }
+  // grid cells: 3 across (2 on a square panel), 2 rows a screen, more scroll down
+  const cellSize = (W, H, n) => {
+    const cols = root.classList.contains("tall") ? 2 : 3;
+    const rows = root.classList.contains("tall") ? 3 : 2;
+    return [Math.floor((W - 14 * (cols - 1)) / cols) - 1, Math.floor((H - 14 * (rows - 1)) / rows), cols, n];
+  };
+  function rsTile(e, i, W, H, n) {
+    const s = cellSize(W, H, n);
+    const c = rsItem("rs-lttile", e, i, lightScene(lightIconOf(e), s[0], s[1], FLAT) + '<i class="rs-ltlvl"></i><i class="rs-ltgl"></i><div class="rs-ltnm"></div><div class="rs-ltpc"></div>');
+    c.style.width = s[0] + "px";
+    c.style.height = s[1] + "px";
+    if (i % s[2] !== s[2] - 1) c.style.marginRight = "14px";
+    c.style.marginBottom = "14px";
+    rsDim(c, e, i, { axis: "y", area: () => c });
+    return c;
+  }
+  function rsBubble(e, i, W, H, n) {
+    const s = cellSize(W, H, n);
+    const d = Math.max(90, Math.min(s[0] - 20, s[1] - 58));
+    const b = d - 28;
+    const r = d / 2 - 6;
+    const c = rsItem("rs-ltbub", e, i, '<div class="rs-ltbw" style="width:' + d + "px;height:" + d + 'px"><svg class="rs-ltrg" viewBox="0 0 ' + d + " " + d + '"><circle cx="' + d / 2 + '" cy="' + d / 2 + '" r="' + r + '" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="5"/><circle class="rs-ltarc" cx="' + d / 2 + '" cy="' + d / 2 + '" r="' + r + '" fill="none" stroke="#ffd79a" stroke-width="5" stroke-linecap="round" stroke-dasharray="0 999" transform="rotate(-90 ' + d / 2 + " " + d / 2 + ')"/></svg><div class="rs-ltball" style="width:' + b + "px;height:" + b + 'px">' + lightScene(lightIconOf(e), b, b, FLAT) + '<i class="rs-ltgl"></i></div></div><div class="rs-ltnm"></div><div class="rs-ltpc"></div>');
+    c.__circ = 2 * Math.PI * r;
+    c.style.width = s[0] + "px";
+    c.style.height = s[1] + "px";
+    rsDim(c, e, i, { axis: "y", area: () => c.firstChild });
+    return c;
+  }
+  function rsKeyRow(e, i) {
+    const dim = dimOk(e);
+    const c = rsItem("rs-ltkey", e, i, lightScene(lightIconOf(e), 54, 62, FLAT) + '<div class="rs-ltnm"></div>' + (dim ? '<div class="rs-ltks"><i></i><b></b></div>' : '<div class="rs-ltsp"></div>') + '<div class="rs-ltpc"></div><div class="rs-ltkb rs-noop"><span class="of">OFF</span><span class="on">ON</span></div>');
+    const sw = (on) => {
+      selLight = i;
+      if (!!get(e).on === on) return;
+      const b = typeof get(e).brightness === "number" && get(e).brightness > 0.02 ? get(e).brightness : 1;
+      patch(e, on ? { on: true, brightness: b } : { on: false });
+      send("dim", { entity: e, v: on ? b : 0 });
+      rsPaintOne(c);
+    };
+    c.querySelector(".of").addEventListener("click", () => sw(false));
+    c.querySelector(".on").addEventListener("click", () => sw(true));
+    const ks = c.querySelector(".rs-ltks");
+    if (ks) rsDim(c, e, i, { axis: "x", tapSets: true, zone: ks, area: () => ks });
+    return c;
+  }
+  function rsGCard(e, i, W, H, n) {
+    const s = cellSize(W, H, n);
+    const dim = dimOk(e);
+    const c = rsItem("rs-ltgc", e, i, '<div class="rs-ltlw rs-lthit">' + lightScene(lightIconOf(e), Math.min(120, Math.round(s[0] * 0.42)), s[1], FLAT) + '</div><div class="rs-ltgt"><div class="rs-ltnm"></div><div class="rs-ltpc"></div>' + (dim ? '<div class="rs-ltgs"><i></i></div>' : "") + '</div><span class="rs-lttg rs-noop"></span>');
+    c.style.width = s[0] + "px";
+    c.style.height = s[1] + "px";
+    if (i % s[2] !== s[2] - 1) c.style.marginRight = "14px";
+    c.style.marginBottom = "14px";
+    c.querySelector(".rs-lttg").addEventListener("click", () => rsToggle(c, e, i));
+    const gs = c.querySelector(".rs-ltgs");
+    if (gs) rsDim(c, e, i, { axis: "x", tapSets: true, zone: gs, area: () => gs });
+    return c;
+  }
+  // dial: the room's lights on the left (tap = pick, the switch = on / off);
+  // the picked one gets the big dial with its lamp shining in the middle
+  function rsDial(main, list, W, H) {
+    const lw = Math.min(320, Math.round(W * 0.42));
+    const side = el("div", "rs-ltdl");
+    side.style.width = lw + "px";
+    list.forEach((e, i) => {
+      const r = rsItem("rs-ltdr", e, i, lightScene(lightIconOf(e), 50, 60, FLAT) + '<div class="rs-ltnm"></div><div class="rs-ltpc"></div><span class="rs-lttg"></span>');
+      r.addEventListener("click", (ev) => {
+        if (ev.target.closest && ev.target.closest(".rs-lttg")) return rsToggle(r, e, i);
+        selLight = i;
+        rsLightsPaint(main.parentNode.parentNode);
+      });
+      side.appendChild(r);
+    });
+    main.appendChild(side);
+    const D = Math.max(220, Math.min(H - 20, W - lw - 130));
+    const R = D / 2 - 22;
+    const L = 2 * Math.PI * R * 0.75;
+    const box = el("div", "rs-ltdm");
+    box.innerHTML = '<div class="rs-ltring" style="width:' + D + "px;height:" + D + 'px"><svg viewBox="0 0 ' + D + " " + D + '"><circle cx="' + D / 2 + '" cy="' + D / 2 + '" r="' + R + '" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="20" stroke-linecap="round" stroke-dasharray="' + L + " 9999" + '" transform="rotate(135 ' + D / 2 + " " + D / 2 + ')"/><circle class="rs-ltarc" cx="' + D / 2 + '" cy="' + D / 2 + '" r="' + R + '" fill="none" stroke="#ffcf8a" stroke-width="20" stroke-linecap="round" stroke-dasharray="0 9999" transform="rotate(135 ' + D / 2 + " " + D / 2 + ')"/><circle class="rs-ltknob" r="14" fill="#fff"/></svg><div class="rs-ltdw rs-lthit"></div><div class="rs-ltpc"></div><div class="rs-ltnm"></div></div><div class="rs-ltpm"><span class="up">+</span><span class="dn">−</span></div>';
+    box.__D = D;
+    box.__R = R;
+    box.__L = L;
+    main.appendChild(box);
+    const ring = box.firstChild;
+    const cur = () => list[selLight] || list[0];
+    const setV = (v, commit) => {
+      const e = cur();
+      if (!e) return;
+      patch(e, { on: v > 0.02, brightness: Math.max(0.01, v) });
+      rsPaintDial(box, list);
+      const row = side.children[list.indexOf(e)];
+      if (row) rsPaintOne(row);
+      if (commit) send("dim", { entity: e, v: v > 0.02 ? v : 0 });
+    };
+    const ang = (ev) => {
+      const r = ring.getBoundingClientRect();
+      let a = (Math.atan2(ev.clientY - (r.top + r.height / 2), ev.clientX - (r.left + r.width / 2)) * 180) / Math.PI - 135;
+      while (a < 0) a += 360;
+      if (a > 270) a = a > 315 ? 0 : 270;
+      return a / 270;
+    };
+    ring.addEventListener("pointerdown", (ev) => {
+      if (ev.target.closest && ev.target.closest(".rs-lthit")) return;
+      const e = cur();
+      if (!e || !dimOk(e)) return;
+      dragging = true;
+      window.__arClaimGesture = true;
+      try {
+        ring.setPointerCapture(ev.pointerId);
+      } catch (x) {
+        /* ignore */
+      }
+      setV(ang(ev), false);
+      ring.onpointermove = (m) => setV(ang(m), false);
+    });
+    const end = (ev) => {
+      if (!ring.onpointermove) return;
+      ring.onpointermove = null;
+      dragging = false;
+      window.__arClaimGesture = false;
+      setV(ang(ev), true);
+    };
+    ring.addEventListener("pointerup", end);
+    ring.addEventListener("pointercancel", end);
+    box.querySelector(".rs-ltdw").addEventListener("click", () => {
+      const e = cur();
+      if (!e) return;
+      patch(e, { on: !get(e).on });
+      send("toggle", { entity: e });
+      rsPaintDial(box, list);
+      const row = side.children[list.indexOf(e)];
+      if (row) rsPaintOne(row);
+    });
+    const step = (d) => {
+      const e = cur();
+      if (!e || !dimOk(e)) return;
+      setV(clamp(Math.round((lvlOf(e) + d) * 10) / 10, 0, 1), true);
+    };
+    box.querySelector(".up").addEventListener("click", () => step(0.1));
+    box.querySelector(".dn").addEventListener("click", () => step(-0.1));
+  }
+  function rsPaintDial(box, list) {
+    const e = list[selLight] || list[0];
+    if (!e) return;
+    const v = lvlOf(e);
+    const on = v > 0;
+    const D = box.__D;
+    const R = box.__R;
+    const f = on ? v : 0;
+    box.classList.toggle("off", !on);
+    box.querySelector(".rs-ltarc").setAttribute("stroke-dasharray", (box.__L * f).toFixed(1) + " 9999");
+    const a = ((135 + 270 * f) * Math.PI) / 180;
+    const k = box.querySelector(".rs-ltknob");
+    k.setAttribute("cx", (D / 2 + R * Math.cos(a)).toFixed(1));
+    k.setAttribute("cy", (D / 2 + R * Math.sin(a)).toFixed(1));
+    k.style.display = dimOk(e) ? "" : "none";
+    const w = box.querySelector(".rs-ltdw");
+    if (w.__e !== e) {
+      w.__e = e;
+      const s = Math.round(D * 0.5);
+      w.style.width = s + "px";
+      w.style.height = Math.round(s * 0.98) + "px";
+      w.style.marginLeft = -s / 2 + "px";
+      w.innerHTML = lightScene(lightIconOf(e), s, Math.round(s * 0.98), FLAT);
+    }
+    paintScene(w, on, v);
+    box.querySelector(".rs-ltpc").textContent = on ? (dimOk(e) ? Math.round(v * 100) + "%" : "On") : "Off";
+    box.querySelector(".rs-ltnm").textContent = lightLabel(e);
+  }
+  function rsPaintOne(c) {
     const e = c.__e;
-    const v = levelOf(e, "light");
+    const v = lvlOf(e);
     const on = v > 0;
     c.classList.toggle("off", !on);
+    c.classList.toggle("sel", c.__i === selLight && c.classList.contains("rs-ltdr"));
     paintScene(c, on, v);
-    const sw = c.classList.contains("sw");
-    c.querySelector(".rs-ltpc").textContent = on ? (sw ? "On" : Math.round(v * 100) + "%") : "Off";
+    const pc = c.querySelector(".rs-ltpc");
+    if (pc) pc.textContent = on ? (dimOk(e) ? Math.round(v * 100) + "%" : "On") : "Off";
+    const h = (on ? v * 100 : 0) + "%";
     const rail = c.querySelector(".rs-ltrail");
     if (rail) {
-      const h = (on ? v * 100 : 0) + "%";
       rail.firstChild.style.height = h;
       rail.lastChild.style.bottom = h;
     }
+    const lvl = c.querySelector(".rs-ltlvl");
+    if (lvl) lvl.style.height = dimOk(e) ? h : on ? "100%" : "0%";
+    const arc = c.querySelector(".rs-ltarc");
+    if (arc && c.__circ) arc.setAttribute("stroke-dasharray", (c.__circ * (on ? (dimOk(e) ? v : 1) : 0)).toFixed(1) + " 999");
+    const ks = c.querySelector(".rs-ltks");
+    if (ks) {
+      ks.firstChild.style.width = h;
+      ks.lastChild.style.left = h;
+    }
+    const gs = c.querySelector(".rs-ltgs");
+    if (gs) gs.firstChild.style.width = Math.max(10, on ? v * 100 : 0) + "%";
     c.style.setProperty("--lv", on ? String(Math.max(0.15, v)) : "0");
   }
   function rsLightsPaint(p) {
-    Array.prototype.forEach.call(p.querySelectorAll(".rs-ltcol"), rsPaintFader);
+    Array.prototype.forEach.call(p.querySelectorAll(".rs-ltcol,.rs-lttile,.rs-ltbub,.rs-ltkey,.rs-ltgc,.rs-ltdr"), rsPaintOne);
+    const dm = p.querySelector(".rs-ltdm");
+    if (dm) rsPaintDial(dm, ents.lights || []);
   }
 
   // utilities: pool pump, borehole, irrigation, geyser… tap a card to switch it

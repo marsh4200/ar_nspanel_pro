@@ -11,6 +11,7 @@ import * as native from "./native.js";
 import { h, glyph, iconSprite, parseJson, uid, pad2 } from "./util.js";
 import { swipe, press } from "./gestures.js";
 import { buildPage, alarmTopics } from "./pages.js";
+import { rsClockView } from "./rsclock.js";
 import { clockView } from "./clock.js";
 import { MusicAssistant } from "./ma.js";
 import { Spotify } from "./spotify.js";
@@ -190,6 +191,8 @@ const ctx = {
   },
   publishRaw,
   device: () => device,
+  // Residence: Settings > Look > Designs > "Show the clock screen now"
+  sleepNow: () => sleep("button"),
   theme,
   alarmClock: () => alarmClock,
   alarmState: (topic) => alarmStates[topic],
@@ -603,12 +606,17 @@ function sleep(cause) {
   } else if (ss.type === "black" || ss.type === "off") {
     saverEl.className = "show black";
   } else {
-    const v = clockView(device, {
-      themeKey: "clockScreensaverTheme",
-      panelTheme: theme(),
-      alarm: () => alarmClock,
-      temp: () => (device.clockTemperature ? mirror.clocktemp : null),
-    });
+    // Residence: its own clock screens (Settings > Look > Designs), else the plain clock
+    const rsk = device.dashboardStyle === "residence" && ctx.rsClock ? ctx.rsClock.design() : "classic";
+    const v =
+      rsk !== "classic"
+        ? rsClockView(device, rsk, ctx.rsClock.info, { alarm: () => alarmClock, lite: document.documentElement.classList.contains("lite") })
+        : clockView(device, {
+            themeKey: "clockScreensaverTheme",
+            panelTheme: theme(),
+            alarm: () => alarmClock,
+            temp: () => (device.clockTemperature ? mirror.clocktemp : null),
+          });
     saverEl.appendChild(v.el);
     saverEl.__clock = v;
     saverEl.className = "show";

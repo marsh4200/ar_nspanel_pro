@@ -129,8 +129,30 @@ export function mountResidence(a) {
     const l = lookNow();
     return l === "s-square" || l === "s-key" || l === "s-tile" ? "square" : l.charAt(0) === "i" ? "bare" : "ring";
   };
-  // Lights page: the customer's pick (Settings > Look) wins over the installer's
-  const lightsPage = () => (PREF.lights === "cards" || PREF.lights === "faders" ? PREF.lights : rc.lightsPage === "cards" ? "cards" : "faders");
+  // Designs (Settings > Look > Designs, or Device Setup): the Lights page layout
+  // and the clock screen. The latest choice wins: the customer's pick on the
+  // panel stays until the installer pushes a different one from Home Assistant.
+  const LIGHT_LAYOUTS = [["classic", "Classic"], ["faders", "Faders"], ["tiles", "Bubble tiles"], ["bubbles", "Bubbles"], ["keypad", "Keypad list"], ["dial", "Dial"], ["gallery", "Gallery"]];
+  const CLOCKS = [["classic", "Classic"], ["glow", "Signature glow"], ["sun", "Sun path"], ["halo", "Halo"], ["moon", "Moonlight"], ["edit", "Editorial"], ["photo", "Living photo"], ["flip", "Flip clock"], ["sky", "Blue sky"]];
+  const isOpt = (L, v) => L.some((o) => o[0] === v);
+  const instLights = () => (rc.lightsPage === "cards" ? "classic" : isOpt(LIGHT_LAYOUTS, rc.lightsPage) ? rc.lightsPage : "faders");
+  const instClock = () => (isOpt(CLOCKS, rc.clockDesign) ? rc.clockDesign : "classic");
+  const mine = (k, base, L, inst) => {
+    const v = PREF[k] === "cards" ? "classic" : PREF[k];
+    return isOpt(L, v) && PREF[base] === inst() ? v : inst();
+  };
+  // a pick made on 4.5.1 (before the newest-wins rule) counts as made against today's setting
+  if (PREF.lights && PREF.lightsBase === undefined) {
+    PREF.lightsBase = instLights();
+    savePref();
+  }
+  const lightsPage = () => mine("lights", "lightsBase", LIGHT_LAYOUTS, instLights);
+  const clockDesign = () => mine("clock", "clockBase", CLOCKS, instClock);
+  const pickDesign = (k, base, inst, v) => {
+    PREF[k] = v;
+    PREF[base] = inst();
+    savePref();
+  };
   const accentNow = () => (ACCENTS[PREF.accent] ? PREF.accent : ACCENTS[rc.accent] ? rc.accent : "warm");
   function applyLook() {
     ["ring", "square", "bare"].forEach((s) => root.classList.toggle("rs-shape-" + s, s === shapeNow()));
@@ -162,6 +184,40 @@ export function mountResidence(a) {
     const lb = offBtn.querySelector("span");
     if (lb) lb.textContent = a.whole() ? "All Off" : "Room Off";
     paintCalBtn();
+  }
+  function bgUrl() {
+    const r = raw[a.roomIdx()] || {};
+    return url((PREF.bg && PRESETS[String(PREF.bg).slice(7)] ? PREF.bg : "") || (!a.whole() && r.rsImage) || rc.houseImage || "preset:villa");
+  }
+  // what the Residence clock screens show (rsclock.js, built by app.js when the panel sleeps)
+  if (a.ctx) {
+    a.ctx.rsClock = {
+      design: () => clockDesign(),
+      info() {
+        const w = a.get("weather") || {};
+        const fc = Array.isArray(w.forecast) && w.forecast[0] ? w.forecast[0] : {};
+        let ev = null;
+        try {
+          const now = Date.now();
+          calData().events.forEach((e) => {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(e.s)) return;
+            const s = new Date(e.s).getTime();
+            if (s > now && s - now < 864e5 && (!ev || s < ev[2])) ev = [e.t || "Event", pad2(new Date(s).getHours()) + ":" + pad2(new Date(s).getMinutes()), s];
+          });
+        } catch (x) {
+          ev = null;
+        }
+        return {
+          t: typeof w.temperature === "number" ? Math.round(w.temperature) : null,
+          cond: typeof w.value === "string" ? w.value : "",
+          hi: typeof fc.temperature === "number" ? Math.round(fc.temperature) : null,
+          lo: typeof fc.templow === "number" ? Math.round(fc.templow) : null,
+          geo: Array.isArray(rc.geo) ? rc.geo : null,
+          photo: bgUrl(),
+          event: ev,
+        };
+      },
+    };
   }
   function background() {
     const r = raw[a.roomIdx()] || {};
@@ -1102,6 +1158,7 @@ export function mountResidence(a) {
   }
   let setEl = null;
   let setTab = "display";
+  let lookSub = "bg";
   let cleanT = null;
   function closeSettings() {
     if (setEl && setEl.parentNode) setEl.parentNode.removeChild(setEl);
@@ -1312,7 +1369,27 @@ export function mountResidence(a) {
         }
       }
     } else if (setTab === "look") {
-      if (false) {
+      const sub = el("div", "rs-setsub");
+      sub.appendChild(chipRow([["bg", "Backgrounds"], ["designs", "Designs"]], lookSub, (v) => ((lookSub = v), again())));
+      body.appendChild(sub);
+      if (lookSub === "designs") {
+        const lp = row("Lights page", "top");
+        lp.appendChild(chipRow(LIGHT_LAYOUTS, lightsPage(), (v) => (pickDesign("lights", "lightsBase", instLights, v), again())));
+        body.appendChild(lp);
+        const ck = row("Clock screen", "top");
+        ck.appendChild(chipRow(CLOCKS, clockDesign(), (v) => (pickDesign("clock", "clockBase", instClock, v), again())));
+        body.appendChild(ck);
+        const pv = el("div", "rs-setrow");
+        pv.appendChild(txt("span", "rs-setl", ""));
+        const tb = txt("span", "rs-chip big", "Show the clock screen now");
+        tb.addEventListener("click", () => {
+          closeSettings();
+          if (a.ctx.sleepNow) setTimeout(() => a.ctx.sleepNow(), 50);
+        });
+        pv.appendChild(tb);
+        body.appendChild(pv);
+        body.appendChild(txt("div", "rs-sethint", "The Lights page opens in the layout you pick. The clock screen shows when the panel sleeps. Your installer can set these too; the newest choice is used."));
+      } else if (false) {
         const lk = el("div", "rs-locked", line("security") + "<b>Locked by your installer</b><span>Backgrounds, glow and buttons need the installer PIN.</span>");
         const ub = txt("span", "rs-chip big", "Enter PIN");
         ub.addEventListener("click", () => pinPad(box, () => ((setTab = "look"), again())));
@@ -1364,9 +1441,6 @@ export function mountResidence(a) {
         const bi = row("Icons only", "top");
         bi.appendChild(chipRow(LOOKS.slice(7), lookNow(), pickLook));
         body.appendChild(bi);
-        const lp = row("Lights page");
-        lp.appendChild(chipRow([["faders", "Lamp faders"], ["cards", "Cards"]], lightsPage(), (v) => ((PREF.lights = v), savePref(), again())));
-        body.appendChild(lp);
       }
     } else if (setTab === "clock") {
       const dev = (a.ctx.device && a.ctx.device()) || {};
@@ -1426,7 +1500,7 @@ export function mountResidence(a) {
         });
         ft.appendChild(inst);
       }
-      const changed = PREF.bg || PREF.accent || PREF.shape || PREF.look || PREF.lights || PREF.sound || typeof PREF.room === "number" || (a.ctx.brightness && a.ctx.brightness.get() != null) || Object.keys(LD()).length;
+      const changed = PREF.bg || PREF.accent || PREF.shape || PREF.look || PREF.lights || PREF.clock || PREF.sound || typeof PREF.room === "number" || (a.ctx.brightness && a.ctx.brightness.get() != null) || Object.keys(LD()).length;
       if (changed) {
         const rs = txt("span", "rs-chip big", "Back to how it was set up");
         rs.addEventListener("click", () => {
@@ -1883,5 +1957,5 @@ export function mountResidence(a) {
     }
   }
 
-  return { cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightsPage, decorateCover, paintCover, startRoom: homeRoom, utilCards };
+  return { cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightsPage, clockDesign, decorateCover, paintCover, startRoom: homeRoom, utilCards };
 }
