@@ -41,7 +41,12 @@ let connected = false;
 let disconnectedSince = Date.now();
 
 let panels = native.cacheGet("panels");
-let device = native.cacheGet("device") || {};
+// Residence settings (gear button): the customer's own screensaver, clock and
+// night choices, kept on this panel and laid over the device config. Only used
+// while the panel is on the Residence style; every other style sees the config as is.
+let localDev = native.cacheGet("pref.device");
+let deviceRaw = native.cacheGet("device") || {};
+let device = withLocal(deviceRaw);
 let mirror = native.cacheGet("mirror") || {};
 const overlays = {}; // optimistic: key -> {patch, until}
 const alarmStates = {}; // Alarmo state topic -> state string
@@ -57,6 +62,8 @@ let lastActivity = Date.now();
 let sleptAt = 0;
 let returnedHome = false;
 let manualBrightness = null; // from cmd/screen dim
+// the customer's own brightness (Residence settings), kept on the panel; null = as set up
+let userBrightness = typeof native.cacheGet("userBrightness") === "number" ? native.cacheGet("userBrightness") : null;
 let lux = null;
 let proxNear = false;
 let motion = false;
@@ -189,6 +196,32 @@ const ctx = {
   awake: () => awake,
   ma: () => ma,
   spotify: () => spotify,
+  // Residence settings (gear button): the customer's brightness and own choices,
+  // kept on this panel. Nothing else uses them.
+  brightness: {
+    get: () => userBrightness,
+    auto: () => !!(device.autoBrightness && device.autoBrightness.enabled),
+    set(v) {
+      userBrightness = typeof v === "number" ? Math.max(0.05, Math.min(1, v)) : null;
+      native.cacheSet("userBrightness", userBrightness);
+      applyBrightness();
+    },
+  },
+  prefs: {
+    get: (k) => native.cacheGet("pref." + k),
+    set: (k, v) => native.cacheSet("pref." + k, v),
+  },
+  // Residence settings: screensaver / clock / night mode for this panel
+  localDevice: {
+    get: () => (localDev && typeof localDev === "object" ? localDev : {}),
+    set(obj) {
+      localDev = obj && typeof obj === "object" && Object.keys(obj).length ? obj : null;
+      native.cacheSet("pref.device", localDev);
+      device = withLocal(deviceRaw);
+      applyBrightness();
+    },
+  },
+  panelInfo: () => Object.assign({}, info(), { deviceId: deviceId, broker: settings.brokerUrl || "", connected: !!connected }),
   log,
   // intercom (Elegant dashboard): calls between panels (Device Setup > Dashboard)
   get intercom() {
@@ -470,12 +503,22 @@ function isNight() {
 
 function awakeBrightness() {
   if (manualBrightness != null) return manualBrightness;
-  const ab = device.autoBrightness || {};
-  if (ab.enabled && lux != null) return (isNight() ? ab.nightBrightness || 30 : ab.dayBrightness || 100) / 100;
-  return 1;
+  const nt = nightNow();
+  let b = 1;
+  if (userBrightness != null) b = userBrightness;
+  else {
+    const ab = device.autoBrightness || {};
+    if (ab.enabled && lux != null) b = (isNight() ? ab.nightBrightness || 30 : ab.dayBrightness || 100) / 100;
+  }
+  return nt ? Math.min(b, typeof nt.level === "number" ? nt.level : 0.3) : b;
 }
 
 function sleepBrightness() {
+  const nt = nightNow();
+  if (nt) return nt.mode === "off" ? 0 : Math.min(baseSleepBrightness(), 0.05);
+  return baseSleepBrightness();
+}
+function baseSleepBrightness() {
   const ss = device.screensaver || {};
   const ab = device.autoBrightness || {};
   if (ss.nightOffAfter && isNight() && sleptAt && Date.now() - sleptAt > ss.nightOffAfter * 1000) return 0;
@@ -485,6 +528,38 @@ function sleepBrightness() {
   }
   const dim = ss.dimLevel != null ? ss.dimLevel : 0.2;
   return dim;
+}
+
+function withLocal(d) {
+  const L = localDev;
+  if (!d || d.dashboardStyle !== "residence" || !L || typeof L !== "object") return d || {};
+  const o = Object.assign({}, d);
+  if (typeof L.screensaverAfter === "number") {
+    o.screensaver = Object.assign({}, d.screensaver || {});
+    if (L.screensaverAfter <= 0) o.screensaver.enabled = false;
+    else {
+      o.screensaver.after = L.screensaverAfter;
+      o.screensaver.enabled = true;
+    }
+  }
+  if (typeof L.clock24 === "boolean") o.clockFormat24h = L.clock24;
+  if (typeof L.lang === "string" && L.lang) o.clockLanguage = L.lang;
+  return o;
+}
+// night schedule from the Residence settings: {on, from: "22:00", to: "06:00", mode: "dim"|"off", level}
+function nightNow() {
+  const n = device.dashboardStyle === "residence" && localDev && localDev.night;
+  if (!n || !n.on) return null;
+  const hm = (s, dflt) => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || ""));
+    return m ? Number(m[1]) * 60 + Number(m[2]) : dflt;
+  };
+  const t = new Date();
+  const now = t.getHours() * 60 + t.getMinutes();
+  const f = hm(n.from, 22 * 60);
+  const to = hm(n.to, 6 * 60);
+  const inside = f <= to ? now >= f && now < to : now >= f || now < to;
+  return inside ? n : null;
 }
 
 let lastBrightness = -1;
@@ -1168,8 +1243,9 @@ function onMessage(topic, payload) {
     native.cacheSet("panels", panels);
     render();
   } else if (sub === "config/device") {
-    device = parseJson(payload);
-    native.cacheSet("device", device);
+    deviceRaw = parseJson(payload);
+    native.cacheSet("device", deviceRaw);
+    device = withLocal(deviceRaw);
     const maCfg = device.musicAssistant || {};
     if (maCfg.enabled === false) ma.configure(null);
     else if (maCfg.url && (!ma.cfg || ma.cfg.url !== maCfg.url)) ma.configure({ url: maCfg.url, username: ma.cfg && ma.cfg.username, password: ma.cfg && ma.cfg.password });

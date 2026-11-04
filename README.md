@@ -102,6 +102,21 @@ the same as 4.0.8).
   and per-button icons: line icons, 51 built-in realistic icons, or your own upload (background
   removed, inside or filling the circle).
 
+- **Calendar** (4.2.0): a calendar button next to the clock opens a month view with the
+  events of the Home Assistant calendars you pick, and reminders: type what to remember on the
+  panel's keyboard, pick the day and time and whose phones to remind. At that time Home Assistant
+  sends it to those phones through the Home Assistant app (`notify.mobile_app_*`) and fires an
+  `ar_nspanel_pro_reminder` event. Reminders are kept across restarts and can also be saved to a
+  calendar. Code: `custom_components/ar_nspanel_pro/residence_calendar.py`.
+- **Settings (gear)**: next to the clock, for the customer, kept on the panel:
+  *Display* (brightness or auto, screensaver time, night mode: dim or screen off on a schedule),
+  *Look* (built-in backgrounds, glow, button shape), *Clock & room* (12/24 hour, date language,
+  a home room the panel returns to when idle, tap sounds) and *Panel* (panel ID, IP, versions,
+  Wi-Fi, connection, Clean screen, reset). The installer can hide the gear or set a PIN that
+  locks the whole sheet or only the look.
+- **Whole Home**: in the room menu (with more than one room), with **All Off** for the house.
+- **Backgrounds**: 19 built in (scenery, marble, stone, metal, wood, leather, linen).
+
 Uploaded images are stored in `<config>/ar_nspanel_pro_media/` (kept across updates) and served at
 `/ar_nspanel_pro_media/`. Code: `panel/src/residence.js`, `panel/src/residence.css` (built into
 `app.css`), `custom_components/ar_nspanel_pro/residence_media.py`.

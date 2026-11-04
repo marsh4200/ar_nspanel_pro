@@ -9370,7 +9370,7 @@ const RS_BUTTONS = [["lights", "Lights"], ["climate", "Comfort"], ["music", "Lis
 const RS_LOOKS = [["match", "Match each light"], ["lamp", "Pendant lamp"], ["edison", "Filament bulb"], ["downlight", "Downlight"], ["bulb", "Bulb glow"]];
 const RS_LTYPES = [["lamp", "Pendant"], ["edison", "Filament bulb"], ["downlight", "Downlight"], ["bulb", "LED strip / bulb"]];
 const RS_STYPES = [["roller", "Roller blind"], ["sheer", "Sheer"], ["block", "Blockout"], ["curtain", "Curtains"]];
-const RS_PRESETS = [["villa", "Villa at dusk"], ["cape", "Cape dusk"], ["lounge", "Evening lounge"], ["walnut", "Walnut"]];
+const RS_PRESETS = [["villa", "Villa at dusk"], ["cape", "Cape dusk"], ["sunset-sea", "Sunset sea"], ["mountains", "Misty mountains"], ["forest-mist", "Forest mist"], ["dunes", "Desert dunes"], ["stars", "Night sky"], ["aurora", "Aurora"], ["city-night", "City lights"], ["lounge", "Evening lounge"], ["marble-white", "White marble"], ["marble-black", "Black marble"], ["slate", "Slate"], ["concrete", "Concrete"], ["steel", "Brushed steel"], ["walnut", "Walnut"], ["oak", "Oak"], ["leather", "Leather"], ["linen", "Linen"]];
 const RS_WATCH = { key: "watch", title: "Watch", hint: "TVs / media players for the Watch button (Residence)", domains: ["media_player"] };
 function rsGuessLight(s) {
   s = String(s || "").toLowerCase();
@@ -9674,6 +9674,36 @@ function RsIconPick({ hass: h, keyName: k, label: lb, value: v, onChange: set })
     err && /* @__PURE__ */ a.jsx("div", { className: "hint", style: { color: "#ff8f80", marginTop: 6 }, children: err })
   ] }, k);
 }
+function RsCalendarSettings({ hass: h, rc: rc, save: save, fname: fn }) {
+  const cals = Object.keys((h && h.states) || {}).filter((e) => e.indexOf("calendar.") === 0).sort();
+  const phones = Object.keys(((h && h.services) || {}).notify || {}).filter((s) => s.indexOf("mobile_app_") === 0).sort();
+  const shown = Array.isArray(rc.calendars) ? rc.calendars : [];
+  const allowed = Array.isArray(rc.phones) ? rc.phones : [];
+  const tog = (list, id, on) => (on ? list.concat([id]) : list.filter((x) => x !== id));
+  const box = { display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "4px 0" };
+  const pname = (s) => s.slice(11).replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return /* @__PURE__ */ a.jsxs("div", { children: [
+    /* @__PURE__ */ a.jsx(X, { label: "Calendars to show", hint: cals.length ? "Their events show on the panel's calendar (read only)." : "No calendars in Home Assistant yet. Add one (for example Local Calendar or Google Calendar) to see events here.", children: /* @__PURE__ */ a.jsx("div", { children: cals.map((c) => /* @__PURE__ */ a.jsxs("label", { style: box, children: [
+      /* @__PURE__ */ a.jsx("input", { type: "checkbox", checked: shown.includes(c), onChange: (m) => {
+        const v = tog(shown, c, m.target.checked);
+        save({ calendars: v.length ? v : void 0 });
+      } }),
+      fn(c)
+    ] }, c)) }) }),
+    /* @__PURE__ */ a.jsx(X, { label: "Also save reminders to", hint: "Optional. A reminder made on the panel is added to this calendar too, so it shows on everyone's calendar.", children: /* @__PURE__ */ a.jsxs("select", { className: "inp", value: rc.calendarWrite || "", onChange: (m) => save({ calendarWrite: m.target.value || void 0 }), children: [
+      /* @__PURE__ */ a.jsx("option", { value: "", children: "Don't save them to a calendar" }),
+      cals.map((c) => /* @__PURE__ */ a.jsx("option", { value: c, children: fn(c) }, c))
+    ] }) }),
+    /* @__PURE__ */ a.jsx(X, { label: "Phones that can be reminded", hint: phones.length ? "Leave all unticked to offer every phone with the Home Assistant app. Tick some to offer only those on this panel." : "No phones found. Install the Home Assistant app on a phone and log in: it then shows up here.", children: /* @__PURE__ */ a.jsx("div", { children: phones.map((s) => /* @__PURE__ */ a.jsxs("label", { style: box, children: [
+      /* @__PURE__ */ a.jsx("input", { type: "checkbox", checked: allowed.includes(s), onChange: (m) => {
+        const v = tog(allowed, s, m.target.checked);
+        save({ phones: v.length ? v : void 0 });
+      } }),
+      pname(s),
+      /* @__PURE__ */ a.jsx("span", { className: "hint", children: "notify." + s })
+    ] }, s)) }) })
+  ] });
+}
 function ResidenceLook({ hass: h, device: t, onChange: r, rooms: R, fname: fn }) {
   const rc = t.residence && typeof t.residence === "object" ? t.residence : {};
   const save = (m) => {
@@ -9737,6 +9767,20 @@ function ResidenceLook({ hass: h, device: t, onChange: r, rooms: R, fname: fn })
         RS_STYPES.map((o) => /* @__PURE__ */ a.jsx("option", { value: o[0], children: o[1] }, o[0]))
       ] })
     ] }, e)) }),
+    /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Customer settings" }),
+    /* @__PURE__ */ a.jsx(et, { title: "Settings button (gear)", sub: "Next to the clock. The customer can set brightness, screensaver time and a night schedule, pick a built-in background, glow and buttons, 12/24-hour clock and date language, a home room, tap sounds, see the panel info and clean the screen. Kept on the panel; untick to hide the gear.", on: rc.settingsOn !== !1, onChange: (m) => save({ settingsOn: m ? void 0 : !1 }) }),
+    rc.settingsOn !== !1 && /* @__PURE__ */ a.jsx(X, { label: "Installer PIN", hint: "Optional, 4 to 8 digits. Leave empty for no PIN. It is a light lock against curious fingers, not a security code (it travels in the panel's settings).", children: /* @__PURE__ */ a.jsx("input", { className: "inp", inputMode: "numeric", placeholder: "e.g. 2580", value: rc.pin || "", onChange: (m) => {
+      const v = m.target.value.replace(/\D/g, "").slice(0, 8);
+      save({ pin: v || void 0 });
+    } }) }),
+    rc.settingsOn !== !1 && !!rc.pin && /* @__PURE__ */ a.jsx(X, { label: "The PIN locks", children: /* @__PURE__ */ a.jsxs("select", { className: "inp", value: rc.pinLock === "look" ? "look" : "all", onChange: (m) => save({ pinLock: m.target.value === "look" ? "look" : void 0 }), children: [
+      /* @__PURE__ */ a.jsx("option", { value: "all", children: "The whole settings sheet" }),
+      /* @__PURE__ */ a.jsx("option", { value: "look", children: "Only backgrounds, glow and buttons (brightness, clock etc. stay open)" })
+    ] }) }),
+    rc.settingsOn !== !1 && !!rc.pin && rc.pin.length < 4 && /* @__PURE__ */ a.jsx("div", { className: "hint", style: { color: "#ff8f80" }, children: "The PIN needs at least 4 digits to be used." }),
+    /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Calendar and reminders" }),
+    /* @__PURE__ */ a.jsx(et, { title: "Calendar button", sub: "A calendar next to the clock: events from your calendars, and reminders that Home Assistant sends to people's phones (Home Assistant app).", on: rc.calendarOn !== !1, onChange: (m) => save({ calendarOn: m ? void 0 : !1 }) }),
+    rc.calendarOn !== !1 && /* @__PURE__ */ a.jsx(RsCalendarSettings, { hass: h, rc: rc, save: save, fname: fn }),
     /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Room Off and the music bar" }),
     /* @__PURE__ */ a.jsx(et, { title: "Room Off also turns off the lights", sub: "Room Off always switches off the room's AC, speakers and TV. Untick to leave the lights as they are.", on: rc.roomOffLights !== !1, onChange: (m) => save({ roomOffLights: m ? void 0 : !1 }) }),
     /* @__PURE__ */ a.jsx(X, { label: "Music bar", hint: "The bar along the bottom only shows while something is playing.", children: /* @__PURE__ */ a.jsxs("select", { className: "inp", value: rc.musicBar === "room" ? "room" : "anywhere", onChange: (m) => save({ musicBar: m.target.value === "room" ? "room" : void 0 }), children: [

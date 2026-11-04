@@ -114,6 +114,7 @@ export function buildElegant(cfg, ctx, skin) {
   // Residence (residence.js) runs on this engine; RX is only ever set for it
   const RS = skin === "residence";
   let RX = null;
+  let rsStartWhole = false;
   // Music Assistant (Device tab): when set up, the Music page uses its
   // speakers, playlists and radio instead of (or as well as) HA media players.
   const maCfg = (ctx.device && ctx.device().musicAssistant) || {};
@@ -170,6 +171,8 @@ export function buildElegant(cfg, ctx, skin) {
   union.scenes.forEach((e) => keys.push(slugify(e)));
   union.presence.forEach((e) => keys.push(slugify(e)));
   if (RS) union.watch.forEach((e) => keys.push(slugify(e)));
+  if (RS) keys.push("rs_cal"); // Residence: its Calendar page
+  const WHOLE = RS ? "Whole Home" : "Whole House";
   SOLAR_KEYS.forEach((k) => keys.push(slugify(SOLAR[k])));
   // lighting scenes the customer made in the AR Lighting Scenes card and pushed
   // to this panel: [{entity: "scene.ar_movie_night", name: "Movie night"}], 4 at most
@@ -2620,7 +2623,7 @@ export function buildElegant(cfg, ctx, skin) {
     selShade = 0;
     climIdx = 0;
     mIdx = 0;
-    const name = whole ? "Whole House" : r.name;
+    const name = whole ? WHOLE : r.name;
     const many = ROOMS.length > 1 || wholeOn;
     sub.textContent = (name || "Home") + (many ? " ▾" : "");
     sub.style.display = name || many ? "" : "none";
@@ -2657,7 +2660,7 @@ export function buildElegant(cfg, ctx, skin) {
     });
     if (wholeOn) {
       const all = union.lights.filter((e) => get(e).on).length;
-      const c = el("div", "el-rc house" + (all ? " lit" : "") + (whole ? " cur" : ""), '<span class="el-ri">' + svg("house") + "</span><div><b>Whole House</b><small></small></div>");
+      const c = el("div", "el-rc house" + (all ? " lit" : "") + (whole ? " cur" : ""), '<span class="el-ri">' + svg("house") + "</span><div><b>" + WHOLE + "</b><small></small></div>");
       c.querySelector("small").textContent = all ? all + " lights on across " + ROOMS.filter((r) => r.lights.some((e) => get(e).on)).length + " rooms" : "Everything is off";
       c.addEventListener("click", () => pickRoom(0, true));
       g.appendChild(c);
@@ -2675,7 +2678,7 @@ export function buildElegant(cfg, ctx, skin) {
     applyRoom(i, wh);
     closeRooms();
     go(current);
-    toast(whole ? "Whole House" : ROOMS[roomIdx].name || "Room " + (roomIdx + 1));
+    toast(whole ? WHOLE : ROOMS[roomIdx].name || "Room " + (roomIdx + 1));
   }
 
   // --- knob session: local value wins while turning ----------------------------
@@ -2758,7 +2761,20 @@ export function buildElegant(cfg, ctx, skin) {
       levelOf: levelOf,
       coverSlides: coverSlides,
       setDragging: (b) => (dragging = !!b),
+      rsEvent: (action, value) => ctx.event("rs", action, { value: value }),
+      ctx: ctx,
+      wholeOn: wholeOn,
+      setRoom: (i, wh) => {
+        applyRoom(i, !!wh && wholeOn);
+        go("home");
+      },
     });
+    // the customer's default room (Residence settings) wins over the installer's start room
+    const st = RX.startRoom();
+    if (st) {
+      roomIdx = clamp(st.i, 0, ROOMS.length - 1);
+      rsStartWhole = !!st.wh && wholeOn;
+    }
   }
 
   // Re-rendering a page rebuilds it, which would throw a scrolled list (lots
@@ -2783,7 +2799,7 @@ export function buildElegant(cfg, ctx, skin) {
   let tick = null;
   let updTimer = null;
   fit();
-  applyRoom(roomIdx, false);
+  applyRoom(roomIdx, rsStartWhole);
   go("home");
   chrome();
 

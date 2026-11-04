@@ -1148,3 +1148,169 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.skin-residence .rs-tvv{display:flex;align-items:center;margin-top:16px}
 .el-root.skin-residence .rs-tvv>svg{width:24px;height:24px;opacity:.75;margin-right:12px;flex:none}
 .el-root.skin-residence .rs-vs{flex:1;height:30px;position:relative;margin:0}
+
+/* calendar button next to the clock */
+.el-root.skin-residence .rs-calbtn{position:relative;display:flex;align-items:center;height:46px;padding:0 14px 0 10px;margin-right:22px;border-radius:23px;border:1px solid rgba(255,255,255,.2);background:rgba(10,10,12,.35);cursor:pointer}
+.el-root.skin-residence .rs-calbtn svg{width:24px;height:24px;margin-right:8px}
+.el-root.skin-residence .rs-calday{font-weight:500;font-size:19px;font-variant-numeric:tabular-nums}
+.el-root.skin-residence .rs-caln{position:absolute;top:-6px;right:-6px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--acc);color:var(--on-acc);font-style:normal;font-size:12.5px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px rgba(10,10,12,.85)}
+.el-root.skin-residence .rs-calbtn:active{background:rgba(255,255,255,.16)}
+
+/* calendar page */
+.el-root.skin-residence .rs-cal{position:absolute;top:4px;left:30px;right:30px;bottom:6px;display:flex}
+.el-root.skin-residence .rs-month{width:440px;flex:none;padding:12px 14px;display:flex;flex-direction:column;margin-right:18px}
+.el-root.skin-residence .rs-mh{display:flex;align-items:center;height:44px}
+.el-root.skin-residence .rs-mh b{flex:1;text-align:center;font-weight:400;font-size:20px;letter-spacing:.02em;text-transform:capitalize}
+.el-root.skin-residence .rs-mnav{width:44px;height:44px;border-radius:22px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.el-root.skin-residence .rs-mnav:active{background:rgba(255,255,255,.14)}
+.el-root.skin-residence .rs-mnav svg{width:24px;height:24px}
+.el-root.skin-residence .rs-wk{display:flex;margin:4px 0 2px}
+.el-root.skin-residence .rs-wk span{flex:1;text-align:center;font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.55}
+.el-root.skin-residence .rs-days{flex:1;min-height:0;display:flex;flex-wrap:wrap;align-content:stretch}
+.el-root.skin-residence .rs-d{width:14.2857%;height:16.666%;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:12px;cursor:pointer;position:relative}
+.el-root.skin-residence .rs-d b{font-weight:400;font-size:17px;font-variant-numeric:tabular-nums;width:34px;height:34px;border-radius:17px;display:flex;align-items:center;justify-content:center}
+.el-root.skin-residence .rs-d.out{opacity:.35}
+.el-root.skin-residence .rs-d.today b{border:1.5px solid var(--acc);color:var(--acc)}
+.el-root.skin-residence .rs-d.sel b{background:rgba(var(--acc-rgb),.92);color:var(--on-acc);border-color:transparent}
+.el-root.skin-residence .rs-d i{display:flex;height:6px;margin-top:2px}
+.el-root.skin-residence .rs-d u{display:block;width:5px;height:5px;border-radius:3px;background:rgba(255,255,255,.7);margin:0 1.5px}
+.el-root.skin-residence .rs-d u.rem{background:var(--acc)}
+.el-root.skin-residence .rs-dayp{flex:1;min-width:0;padding:14px 16px;display:flex;flex-direction:column}
+.el-root.skin-residence .rs-dh{display:flex;align-items:center;min-height:48px}
+.el-root.skin-residence .rs-dh>div{flex:1;min-width:0}
+.el-root.skin-residence .rs-dh b{display:block;font-weight:400;font-size:21px;text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-dh small{display:block;font-size:13px;opacity:.6}
+.el-root.skin-residence .rs-addb{display:flex;align-items:center;height:46px;padding:0 18px;border-radius:23px;background:rgba(var(--acc-rgb),.92);color:var(--on-acc);font-size:15px;letter-spacing:.04em;cursor:pointer;flex:none}
+.el-root.skin-residence .rs-addb svg{width:20px;height:20px;margin-right:8px}
+.el-root.skin-residence .rs-list{flex:1;min-height:0;overflow-y:auto;margin-top:10px;touch-action:pan-y}
+.el-root.skin-residence .rs-none{padding:40px 10px;text-align:center;opacity:.6;font-size:16px}
+.el-root.skin-residence .rs-it{display:flex;align-items:center;min-height:60px;padding:8px 10px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.el-root.skin-residence .rs-it+.rs-it{margin-top:8px}
+.el-root.skin-residence .rs-itt{width:64px;flex:none;font-size:15px;font-variant-numeric:tabular-nums;opacity:.85}
+.el-root.skin-residence .rs-iti{width:36px;height:36px;border-radius:18px;flex:none;display:flex;align-items:center;justify-content:center;margin-right:12px;border:1.5px solid rgba(255,255,255,.25)}
+.el-root.skin-residence .rs-it.rem .rs-iti{border-color:var(--acc);color:var(--acc)}
+.el-root.skin-residence .rs-iti svg{width:18px;height:18px}
+.el-root.skin-residence .rs-itm{flex:1;min-width:0}
+.el-root.skin-residence .rs-itm b{display:block;font-weight:400;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-itm small{display:block;font-size:12.5px;opacity:.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-del{height:40px;min-width:40px;padding:0 8px;border-radius:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;opacity:.7}
+.el-root.skin-residence .rs-del svg{width:18px;height:18px}
+.el-root.skin-residence .rs-del.ask{background:#c9483a;color:#fff;opacity:1;padding:0 14px;font-size:14px}
+
+/* add a reminder */
+.el-root.skin-residence .rs-sheet{position:absolute;top:0;left:0;right:0;bottom:0;z-index:7;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center}
+.el-root.skin-residence .rs-addbox{width:760px;max-width:94%;padding:18px 20px;background:rgba(16,16,19,.97)}
+.el-root.skin-residence .rs-addbox.typing{width:900px;align-self:stretch;margin:6px 0;display:flex;flex-direction:column}
+.el-root.skin-residence .rs-field{display:flex;align-items:center;height:56px;padding:0 18px;border-radius:16px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.16);cursor:text}
+.el-root.skin-residence .rs-field.on{border-color:rgba(var(--acc-rgb),.85)}
+.el-root.skin-residence .rs-fl{font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;opacity:.6;margin-right:14px;flex:none}
+.el-root.skin-residence .rs-fv{flex:1;min-width:0;font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-fv>i{font-style:normal;opacity:.45}
+.el-root.skin-residence .rs-fv .rs-caret{display:inline-block;width:2px;height:22px;margin-left:2px;vertical-align:middle;background:var(--acc);opacity:1;-webkit-animation:rsblink 1s steps(2) infinite;animation:rsblink 1s steps(2) infinite}
+@-webkit-keyframes rsblink{50%{opacity:0}}@keyframes rsblink{50%{opacity:0}}
+.el-root.skin-residence .rs-kb{margin-top:6px}
+.el-root.skin-residence .rs-kb .el-key{height:50px;max-width:66px}
+.el-root.skin-residence .rs-kb .el-key.on{background:rgba(var(--acc-rgb),.35)}
+.el-root.skin-residence .rs-kb .el-key.wide svg{width:24px;height:24px}
+.el-root.skin-residence .rs-kb .rs-done{max-width:120px;flex:2;background:rgba(var(--acc-rgb),.92);color:var(--on-acc);font-size:16px}
+.el-root.skin-residence .rs-quick{display:flex;flex-wrap:wrap;margin:10px 0 4px}
+.el-root.skin-residence .rs-chip{height:40px;padding:0 16px;border-radius:20px;display:flex;align-items:center;font-size:14px;letter-spacing:.03em;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);cursor:pointer;margin:0 8px 8px 0;white-space:nowrap}
+.el-root.skin-residence .rs-chip.on{background:rgba(var(--acc-rgb),.92);color:var(--on-acc);border-color:transparent}
+.el-root.skin-residence .rs-pchip svg{width:18px;height:18px;margin-right:6px}
+.el-root.skin-residence .rs-when{display:flex;align-items:center;margin:6px 0 10px}
+.el-root.skin-residence .rs-step{display:flex;align-items:center;height:58px;padding:0 6px;border-radius:29px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.14)}
+.el-root.skin-residence .rs-step+.rs-step{margin-left:14px}
+.el-root.skin-residence .rs-step b{min-width:150px;text-align:center;font-weight:400;font-size:19px;text-transform:capitalize}
+.el-root.skin-residence .rs-time b{min-width:48px;font-size:26px;font-weight:300;font-variant-numeric:tabular-nums}
+.el-root.skin-residence .rs-time em{font-style:normal;font-size:26px;font-weight:300;margin:0 4px;opacity:.7}
+.el-root.skin-residence .rs-sb{width:46px;height:46px;border-radius:23px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.el-root.skin-residence .rs-sb:active{background:rgba(255,255,255,.16)}
+.el-root.skin-residence .rs-sb svg{width:22px;height:22px}
+.el-root.skin-residence .rs-phones{display:flex;flex-wrap:wrap;align-items:center;min-height:48px}
+.el-root.skin-residence .rs-phones .rs-fl{margin-bottom:8px}
+.el-root.skin-residence .rs-nophone{font-size:14px;opacity:.65;margin-bottom:8px}
+.el-root.skin-residence .rs-btns{display:flex;justify-content:flex-end;margin-top:8px}
+.el-root.skin-residence .rs-pill2{height:50px;padding:0 24px;border-radius:25px;display:flex;align-items:center;font-size:16px;letter-spacing:.04em;border:1px solid rgba(255,255,255,.2);cursor:pointer}
+.el-root.skin-residence .rs-pill2+.rs-pill2{margin-left:12px}
+.el-root.skin-residence .rs-pill2.go{background:rgba(var(--acc-rgb),.95);color:var(--on-acc);border-color:transparent}
+.el-root.skin-residence .rs-pill2.off{opacity:.4}
+
+/* settings: gear next to the clock */
+.el-root.skin-residence .rs-gear{width:46px;height:46px;margin-left:18px;border-radius:23px;border:1px solid rgba(255,255,255,.2);background:rgba(10,10,12,.35);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.el-root.skin-residence .rs-gear svg{width:24px;height:24px}
+.el-root.skin-residence .rs-gear:active{background:rgba(255,255,255,.16)}
+.el-root.skin-residence .rs-set{position:absolute;top:0;left:0;right:0;bottom:0;z-index:9}
+.el-root.skin-residence .rs-setdim{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5)}
+.el-root.skin-residence .rs-setbox{position:absolute;top:24px;bottom:24px;left:50%;width:880px;max-width:96%;-webkit-transform:translateX(-50%);transform:translateX(-50%);background:rgba(16,16,19,.97);display:flex;flex-direction:column;padding:10px 20px 14px}
+.el-root.skin-residence .rs-seth{display:flex;align-items:center;height:52px;flex:none}
+.el-root.skin-residence .rs-seth b{flex:1;font-weight:400;font-size:24px}
+.el-root.skin-residence .rs-setx{width:46px;height:46px;border-radius:23px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid rgba(255,255,255,.18)}
+.el-root.skin-residence .rs-setx svg{width:22px;height:22px}
+.el-root.skin-residence .rs-setbody{flex:1;min-height:0;overflow-y:auto;touch-action:pan-y}
+.el-root.skin-residence .rs-setrow{display:flex;align-items:center;flex-wrap:wrap;min-height:58px;border-top:1px solid rgba(255,255,255,.08);padding:8px 0}
+.el-root.skin-residence .rs-setrow.top{align-items:flex-start}
+.el-root.skin-residence .rs-setl{width:120px;flex:none;font-size:13px;letter-spacing:.16em;text-transform:uppercase;opacity:.6;padding-top:2px}
+.el-root.skin-residence .rs-setrow.top .rs-setl{padding-top:12px}
+.el-root.skin-residence .rs-setl.s{width:auto;margin:0 14px 0 18px}
+.el-root.skin-residence .rs-bri{flex:1;display:flex;align-items:center;min-width:0}
+.el-root.skin-residence .rs-bri>svg{width:26px;height:26px;margin-right:12px;flex:none}
+.el-root.skin-residence .rs-brs{flex:1;height:40px;border-radius:20px;position:relative;margin:0}
+.el-root.skin-residence .rs-bri em{font-style:normal;width:62px;text-align:right;font-size:16px;font-variant-numeric:tabular-nums;flex:none}
+.el-root.skin-residence .rs-bri .rs-chip{margin:0 0 0 12px}
+.el-root.skin-residence .rs-bgs{flex:1;min-width:0;display:flex;flex-wrap:wrap}
+.el-root.skin-residence .rs-bg{width:92px;margin:0 8px 6px 0;cursor:pointer;text-align:center}
+.el-root.skin-residence .rs-bg i{display:block;width:92px;height:54px;border-radius:10px;background-color:#222;background-size:cover;background-position:center;border:2px solid transparent}
+.el-root.skin-residence .rs-bg.on i{border-color:var(--acc);box-shadow:0 0 14px -2px rgba(var(--acc-rgb),.7)}
+.el-root.skin-residence .rs-bg small{display:block;font-size:11.5px;opacity:.7;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-bg.mine i{border-style:dashed;border-color:rgba(255,255,255,.35)}
+.el-root.skin-residence .rs-bg.mine.on i{border-style:solid;border-color:var(--acc)}
+.el-root.skin-residence .rs-opts{display:flex;flex-wrap:wrap}
+.el-root.skin-residence .rs-opts .rs-chip{margin:4px 8px 4px 0}
+.el-root.skin-residence .rs-setrow.foot .rs-chip{margin:4px 10px 4px 0}
+.el-root.skin-residence .rs-chip.big{height:48px;padding:0 20px;font-size:15px}
+.el-root.skin-residence .rs-chip.big svg{width:20px;height:20px;margin-right:8px}
+.el-root.skin-residence .rs-clean{position:absolute;top:0;left:0;right:0;bottom:0;z-index:20;background:#000;display:flex;align-items:center;justify-content:center;text-align:center}
+.el-root.skin-residence .rs-clean b{display:block;font-weight:300;font-size:40px;margin-bottom:10px}
+.el-root.skin-residence .rs-clean span{font-size:18px;opacity:.7}
+.el-root.skin-residence .rs-clean em{font-style:normal;color:var(--acc);font-variant-numeric:tabular-nums}
+
+/* settings: tabs down the side */
+.el-root.skin-residence .rs-setwrap{flex:1;min-height:0;display:flex}
+.el-root.skin-residence .rs-settabs{width:190px;flex:none;padding-right:14px;border-right:1px solid rgba(255,255,255,.08);margin-right:18px}
+.el-root.skin-residence .rs-settab{display:flex;align-items:center;height:52px;padding:0 14px;border-radius:14px;font-size:16px;cursor:pointer;margin-bottom:4px;opacity:.8}
+.el-root.skin-residence .rs-settab svg{width:22px;height:22px;margin-right:12px;flex:none}
+.el-root.skin-residence .rs-settab.on{background:rgba(255,255,255,.09);opacity:1}
+.el-root.skin-residence .rs-settab.on svg{color:var(--acc)}
+.el-root.skin-residence .rs-setwrap .rs-setbody{flex:1;min-width:0}
+.el-root.skin-residence .rs-setrow.sub{min-height:54px;border-top:0;padding-top:0}
+.el-root.skin-residence .rs-setrow .rs-opts{flex:1;min-width:0}
+.el-root.skin-residence .rs-setrow.top .rs-opts{padding-top:4px}
+.el-root.skin-residence .rs-setrow .rs-opts+.rs-opts{flex:none;margin-left:10px}
+.el-root.skin-residence .rs-setrow .rs-step{height:50px}
+.el-root.skin-residence .rs-setrow .rs-step b{min-width:76px;font-size:21px}
+.el-root.skin-residence .rs-to{margin:0 14px;opacity:.6}
+.el-root.skin-residence .rs-sethint{font-size:12.5px;opacity:.55;margin:-4px 0 8px 120px}
+.el-root.skin-residence .rs-setrow.foot{padding-top:14px}
+/* the background grid inside the narrower tab body */
+.el-root.skin-residence .rs-setwrap .rs-bg{width:84px}
+.el-root.skin-residence .rs-setwrap .rs-bg i{width:84px;height:50px}
+/* locked part / PIN */
+.el-root.skin-residence .rs-locked{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px}
+.el-root.skin-residence .rs-locked>svg{width:46px;height:46px;color:var(--acc);margin-bottom:12px}
+.el-root.skin-residence .rs-locked b{font-weight:400;font-size:21px}
+.el-root.skin-residence .rs-locked>span{font-size:14px;opacity:.65;margin:6px 0 18px}
+.el-root.skin-residence .rs-pin{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.el-root.skin-residence .rs-pin>b{font-weight:400;font-size:22px}
+.el-root.skin-residence .rs-pind{height:40px;line-height:40px;font-size:28px;letter-spacing:.3em;margin:6px 0 8px;opacity:.85}
+.el-root.skin-residence .rs-pind.bad{color:#ff9a8a;font-size:16px;letter-spacing:.04em}
+.el-root.skin-residence .rs-pinp{display:flex;flex-wrap:wrap;width:300px;justify-content:center}
+.el-root.skin-residence .rs-pk{width:84px;height:58px;margin:4px;border-radius:14px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer}
+.el-root.skin-residence .rs-pk:active{background:rgba(var(--acc-rgb),.35)}
+.el-root.skin-residence .rs-pk.ok{background:rgba(var(--acc-rgb),.92);color:var(--on-acc)}
+.el-root.skin-residence .rs-pinx{margin-top:10px;padding:10px 20px;opacity:.7;cursor:pointer}
+/* panel info */
+.el-root.skin-residence .rs-info{border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:4px 16px}
+.el-root.skin-residence .rs-infor{display:flex;align-items:center;min-height:44px}
+.el-root.skin-residence .rs-infor+.rs-infor{border-top:1px solid rgba(255,255,255,.06)}
+.el-root.skin-residence .rs-infor span{width:160px;flex:none;font-size:13px;letter-spacing:.12em;text-transform:uppercase;opacity:.55}
+.el-root.skin-residence .rs-infor b{flex:1;min-width:0;font-weight:400;font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

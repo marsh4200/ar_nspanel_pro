@@ -32,7 +32,9 @@ PANEL_ELEMENT = "ar-nspanel-pro-config"
 #: Bumped to bust the frontend cache when the bundle changes materially.
 #: 89: added the Samsung Tab (Galaxy Tab A7 Lite) panel type to Setup.
 #: 90: Residence dashboard style.
-PANEL_VERSION = "90"
+#: 91: Residence calendar settings, more backgrounds.
+#: 92: Residence customer settings (gear) toggle.
+PANEL_VERSION = "92"
 
 _WWW_DIR = Path(__file__).parent / "www"
 _BUNDLE = "ar-nspanel-pro-config.js"

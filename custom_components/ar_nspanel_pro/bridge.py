@@ -44,6 +44,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from . import panel_config, licensing
+from . import residence_calendar
 from .residence_media import residence_public
 from .const import (
     ELEGANT_STYLES,
@@ -243,6 +244,8 @@ class PanelBridge:
         self._start_weather()
         self._fire_status()
         await self.async_publish_intercom_peer()
+        # Residence style only: its Calendar page (reminders to phones, events)
+        await residence_calendar.async_attach(self)
 
     async def async_publish_intercom_peer(self, remove: bool = False) -> None:
         """Intercom directory: every panel lists the others from these retained
@@ -257,6 +260,7 @@ class PanelBridge:
         await mqtt.async_publish(self.hass, topic_intercom_peer(self.device_id), payload, retain=True)
 
     async def async_unload(self) -> None:
+        residence_calendar.async_detach(self)
         for unsub in self._unsubs:
             unsub()
         self._unsubs.clear()
@@ -997,6 +1001,10 @@ class PanelBridge:
             return
         if button == "el":
             self._elegant_event(action, value)
+            return
+        if button == "rs":
+            # Residence style: Calendar page (reminders); ignored for other styles
+            self.hass.async_create_task(residence_calendar.async_panel_event(self, action, value))
             return
         if button == "sp" and action == "token":
             # the panel's Spotify screen asks for a (fresh) access token
