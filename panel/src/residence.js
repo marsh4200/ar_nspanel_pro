@@ -9,7 +9,8 @@
 //
 // Settings: device.residence = {
 //   houseImage: "preset:villa" | "/local/…jpg",   background for every room
-//   iconShape: "ring" | "square" | "bare",         accent: "warm" | "brass" | "ice"
+//   look: "s-flat"|"s-square"|"s-dome"|"s-metal"|"s-key"|"s-tile"|"s-porc"|"i-flat"|"i-shadow"|"i-reflect"|"i-glow"|"i-emboss"|"i-plinth"
+//   iconShape: "ring" | "square" | "bare" (older; used when look is not set),   accent: "warm" | "brass" | "ice"
 //   icons: { lights: {src: "lib:bulb_on" | "/local/…png", fill: bool}, … }
 //   lightLook: "match" | "lamp" | "edison" | "downlight" | "bulb"
 //   lightTypes: { "light.x": "lamp" | "edison" | "downlight" | "bulb" }
@@ -68,7 +69,7 @@ const filled = (p) => '<svg viewBox="0 0 24 24" fill="currentColor">' + p + "</s
 
 export const RS_TITLES = { lights: "Lights", climate: "Comfort", music: "Listen", watch: "Watch", shades: "Shades", cameras: "Cameras", utilities: "Utilities", security: "Security", scenes: "Scenes", calendar: "Calendar" };
 const ORDER = ["lights", "climate", "music", "watch", "shades", "cameras", "utilities", "security", "scenes"];
-const PRESETS = {"villa": "villa.jpg", "cape": "cape.jpg", "sunset-sea": "sunset-sea.jpg", "mountains": "mountains.jpg", "forest-mist": "forest-mist.jpg", "dunes": "dunes.jpg", "stars": "stars.jpg", "aurora": "aurora.jpg", "city-night": "city-night.jpg", "lounge": "lounge.jpg", "marble-white": "marble-white.jpg", "marble-black": "marble-black.jpg", "slate": "slate.jpg", "concrete": "concrete.jpg", "steel": "steel.jpg", "walnut": "walnut.jpg", "oak": "oak.jpg", "leather": "leather.jpg", "linen": "linen.jpg"};
+const PRESETS = {"villa": "villa.jpg", "cape": "cape.jpg", "sunset-sea": "sunset-sea.jpg", "mountains": "mountains.jpg", "forest-mist": "forest-mist.jpg", "dunes": "dunes.jpg", "stars": "stars.jpg", "aurora": "aurora.jpg", "city-night": "city-night.jpg", "lounge": "lounge.jpg", "marble-white": "marble-white.jpg", "marble-black": "marble-black.jpg", "slate": "slate.jpg", "concrete": "concrete.jpg", "steel": "steel.jpg", "walnut": "walnut.jpg", "oak": "oak.jpg", "leather": "leather.jpg", "linen": "linen.jpg", "colour-midnight": "colour-midnight.jpg", "colour-emerald": "colour-emerald.jpg", "colour-bordeaux": "colour-bordeaux.jpg", "colour-champagne": "colour-champagne.jpg", "colour-graphite": "colour-graphite.jpg", "colour-twilight": "colour-twilight.jpg", "colour-lagoon": "colour-lagoon.jpg", "colour-amber": "colour-amber.jpg", "sky-blue": "sky-blue.jpg", "sky-high": "sky-high.jpg", "sky-golden": "sky-golden.jpg", "sky-dawn": "sky-dawn.jpg", "sky-moon": "sky-moon.jpg"};
 const ACCENTS = { warm: "243,217,164", brass: "214,170,92", ice: "150,205,240" };
 const LOOKS = ["lamp", "edison", "downlight", "bulb"];
 
@@ -117,10 +118,20 @@ export function mountResidence(a) {
   }
   if (!PREF || typeof PREF !== "object") PREF = {};
   const savePref = () => prefsApi && prefsApi.set("residence", PREF);
-  const shapeNow = () => (["ring", "square", "bare"].indexOf(PREF.shape) >= 0 ? PREF.shape : ["square", "bare"].indexOf(rc.iconShape) >= 0 ? rc.iconShape : "ring");
+  // button look: 7 button styles + 6 icons-only styles. Older configs only had iconShape (ring/square/bare)
+  const LOOKS = [["s-flat", "Circle"], ["s-square", "Square"], ["s-dome", "Dome"], ["s-metal", "Metal"], ["s-key", "Keypad"], ["s-tile", "Glass tile"], ["s-porc", "Porcelain"],
+    ["i-flat", "Plain"], ["i-shadow", "Standing shadow"], ["i-reflect", "Glass floor"], ["i-glow", "Backlit"], ["i-emboss", "Raised edge"], ["i-plinth", "Stand"]];
+  const isLook = (v) => LOOKS.some((o) => o[0] === v);
+  const SHAPE_LOOK = { ring: "s-flat", square: "s-square", bare: "i-flat" };
+  const lookNow = () => (isLook(PREF.look) ? PREF.look : SHAPE_LOOK[PREF.shape] || (isLook(rc.look) ? rc.look : SHAPE_LOOK[rc.iconShape] || "s-flat"));
+  const shapeNow = () => {
+    const l = lookNow();
+    return l === "s-square" || l === "s-key" || l === "s-tile" ? "square" : l.charAt(0) === "i" ? "bare" : "ring";
+  };
   const accentNow = () => (ACCENTS[PREF.accent] ? PREF.accent : ACCENTS[rc.accent] ? rc.accent : "warm");
   function applyLook() {
     ["ring", "square", "bare"].forEach((s) => root.classList.toggle("rs-shape-" + s, s === shapeNow()));
+    LOOKS.forEach((o) => root.classList.toggle("rs-look-" + o[0], o[0] === lookNow()));
     root.style.setProperty("--rs-acc", ACCENTS[accentNow()]);
   }
   applyLook();
@@ -404,7 +415,7 @@ export function mountResidence(a) {
     const r = curRoom();
     cs.forEach((c) => {
       const ic = iconHtml(c.key);
-      const b = el("div", "rs-btn rs-k-" + c.key, '<div class="rs-ring' + (ic.fill ? " img-fill" : "") + '">' + ic.html + '<span class="rs-badge"></span></div><div class="rs-lbl"></div>');
+      const b = el("div", "rs-btn rs-k-" + c.key, '<div class="rs-ring' + (ic.fill ? " img-fill" : "") + '">' + ic.html + '<div class="rs-refl"><div class="rs-refl-in">' + ic.html + '</div></div><span class="rs-badge"></span></div><div class="rs-lbl"></div>');
       b.querySelector(".rs-lbl").textContent = c.title;
       let lit = false;
       let badge = "";
@@ -454,7 +465,7 @@ export function mountResidence(a) {
     const cols = list.length <= 4 ? list.length : Math.ceil(list.length / 2);
     grid.style.width = Math.min(5, cols) * 210 + "px";
     list.slice(0, 10).forEach((s) => {
-      const b = el("div", "rs-btn", '<div class="rs-ring">' + line(scIcon(s.n)) + '</div><div class="rs-lbl"></div>');
+      const b = el("div", "rs-btn", '<div class="rs-ring">' + line(scIcon(s.n)) + '<div class="rs-refl"><div class="rs-refl-in">' + line(scIcon(s.n)) + '</div></div></div><div class="rs-lbl"></div>');
       b.querySelector(".rs-lbl").textContent = s.n;
       b.addEventListener("click", () => {
         Array.prototype.forEach.call(grid.children, (x) => x.classList.toggle("lit", x === b));
@@ -599,7 +610,7 @@ export function mountResidence(a) {
 
   // ===== Settings (gear next to the clock): what the customer may change on this panel =====
   const SET_ON = rc.settingsOn !== false;
-  const BG_NAMES = { villa: "Villa at dusk", cape: "Cape dusk", "sunset-sea": "Sunset sea", mountains: "Misty mountains", "forest-mist": "Forest mist", dunes: "Desert dunes", stars: "Night sky", aurora: "Aurora", "city-night": "City lights", lounge: "Evening lounge", "marble-white": "White marble", "marble-black": "Black marble", slate: "Slate", concrete: "Concrete", steel: "Brushed steel", walnut: "Walnut", oak: "Oak", leather: "Leather", linen: "Linen" };
+  const BG_NAMES = { villa: "Villa at dusk", cape: "Cape dusk", "sunset-sea": "Sunset sea", mountains: "Misty mountains", "forest-mist": "Forest mist", dunes: "Desert dunes", stars: "Night sky", aurora: "Aurora", "city-night": "City lights", lounge: "Evening lounge", "marble-white": "White marble", "marble-black": "Black marble", slate: "Slate", concrete: "Concrete", steel: "Brushed steel", walnut: "Walnut", oak: "Oak", leather: "Leather", linen: "Linen", "colour-midnight": "Midnight blue", "colour-emerald": "Emerald", "colour-bordeaux": "Bordeaux", "colour-champagne": "Champagne silk", "colour-graphite": "Graphite silk", "colour-twilight": "Twilight", "colour-lagoon": "Lagoon", "colour-amber": "Amber glow", "sky-blue": "Blue sky", "sky-high": "High clouds", "sky-golden": "Golden hour", "sky-dawn": "Pastel dawn", "sky-moon": "Moonlit clouds" };
   const LANGS = [["en-GB", "English (UK)"], ["en-US", "English (US)"], ["af-ZA", "Afrikaans"], ["nl-NL", "Nederlands"], ["de-DE", "Deutsch"], ["fr-FR", "Français"], ["pt-PT", "Português"], ["es-ES", "Español"], ["it-IT", "Italiano"]];
   const TIMEOUTS = [[30, "30 s"], [60, "1 min"], [120, "2 min"], [300, "5 min"], [600, "10 min"], [0, "Never"]];
   // installer PIN (editor): "all" locks the whole sheet, "look" only backgrounds / glow / buttons
@@ -700,7 +711,13 @@ export function mountResidence(a) {
     const body = el("div", "rs-setbody");
     wrap.appendChild(body);
     box.appendChild(wrap);
-    const again = () => paintSettings(box);
+    const again = () => {
+      const keep = setTab;
+      const y = body.scrollTop;
+      paintSettings(box);
+      const nb = box.querySelector(".rs-setbody");
+      if (nb && setTab === keep) nb.scrollTop = y;
+    };
     const ld = LD();
     if (setTab === "display") {
       const br = a.ctx && a.ctx.brightness;
@@ -808,8 +825,16 @@ export function mountResidence(a) {
           again();
         });
         grid.appendChild(mine);
-        Object.keys(PRESETS).forEach((k) => {
+        const grpOf = (k) => (k.indexOf("sky-") === 0 ? "Skies" : k.indexOf("colour-") === 0 ? "Colours" : /^(marble|slate|concrete|steel|walnut|oak|leather|linen)/.test(k) ? "Stone & textures" : "Scenes");
+        const order = ["Scenes", "Skies", "Colours", "Stone & textures"];
+        const keys = [].concat.apply([], order.map((g) => Object.keys(PRESETS).filter((k) => grpOf(k) === g)));
+        let lastGrp = "Scenes";
+        keys.forEach((k) => {
           const v = "preset:" + k;
+          if (grpOf(k) !== lastGrp) {
+            lastGrp = grpOf(k);
+            grid.appendChild(txt("div", "rs-bggrp", lastGrp));
+          }
           const t = el("span", "rs-bg" + (PREF.bg === v ? " on" : ""), "<i></i><small></small>");
           t.querySelector("i").style.backgroundImage = 'url("' + url(v) + '")';
           t.querySelector("small").textContent = BG_NAMES[k] || k;
@@ -826,9 +851,13 @@ export function mountResidence(a) {
         const g = row("Glow");
         g.appendChild(chipRow([["warm", "Warm white"], ["brass", "Brass"], ["ice", "Ice blue"]], accentNow(), (v) => ((PREF.accent = v), savePref(), applyLook(), again())));
         body.appendChild(g);
-        const bt = row("Buttons");
-        bt.appendChild(chipRow([["ring", "Circles"], ["square", "Squares"], ["bare", "Icons only"]], shapeNow(), (v) => ((PREF.shape = v), savePref(), applyLook(), again())));
+        const pickLook = (v) => ((PREF.look = v), delete PREF.shape, savePref(), applyLook(), again());
+        const bt = row("Buttons", "top");
+        bt.appendChild(chipRow(LOOKS.slice(0, 7), lookNow(), pickLook));
         body.appendChild(bt);
+        const bi = row("Icons only", "top");
+        bi.appendChild(chipRow(LOOKS.slice(7), lookNow(), pickLook));
+        body.appendChild(bi);
       }
     } else if (setTab === "clock") {
       const dev = (a.ctx.device && a.ctx.device()) || {};
@@ -878,11 +907,11 @@ export function mountResidence(a) {
         cleanScreen();
       });
       ft.appendChild(clean);
-      const changed = PREF.bg || PREF.accent || PREF.shape || PREF.sound || typeof PREF.room === "number" || (a.ctx.brightness && a.ctx.brightness.get() != null) || Object.keys(LD()).length;
+      const changed = PREF.bg || PREF.accent || PREF.shape || PREF.look || PREF.sound || typeof PREF.room === "number" || (a.ctx.brightness && a.ctx.brightness.get() != null) || Object.keys(LD()).length;
       if (changed) {
         const rs = txt("span", "rs-chip big", "Back to how it was set up");
         rs.addEventListener("click", () => {
-          if (PIN && !PIN_ALL && !unlocked && (PREF.bg || PREF.accent || PREF.shape)) return pinPad(box, () => rs.click());
+          if (PIN && !PIN_ALL && !unlocked && (PREF.bg || PREF.accent || PREF.shape || PREF.look)) return pinPad(box, () => rs.click());
           PREF = {};
           savePref();
           if (a.ctx.brightness) a.ctx.brightness.set(null);

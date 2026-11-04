@@ -9370,7 +9370,7 @@ const RS_BUTTONS = [["lights", "Lights"], ["climate", "Comfort"], ["music", "Lis
 const RS_LOOKS = [["match", "Match each light"], ["lamp", "Pendant lamp"], ["edison", "Filament bulb"], ["downlight", "Downlight"], ["bulb", "Bulb glow"]];
 const RS_LTYPES = [["lamp", "Pendant"], ["edison", "Filament bulb"], ["downlight", "Downlight"], ["bulb", "LED strip / bulb"]];
 const RS_STYPES = [["roller", "Roller blind"], ["sheer", "Sheer"], ["block", "Blockout"], ["curtain", "Curtains"]];
-const RS_PRESETS = [["villa", "Villa at dusk"], ["cape", "Cape dusk"], ["sunset-sea", "Sunset sea"], ["mountains", "Misty mountains"], ["forest-mist", "Forest mist"], ["dunes", "Desert dunes"], ["stars", "Night sky"], ["aurora", "Aurora"], ["city-night", "City lights"], ["lounge", "Evening lounge"], ["marble-white", "White marble"], ["marble-black", "Black marble"], ["slate", "Slate"], ["concrete", "Concrete"], ["steel", "Brushed steel"], ["walnut", "Walnut"], ["oak", "Oak"], ["leather", "Leather"], ["linen", "Linen"]];
+const RS_PRESETS = [["villa", "Villa at dusk"], ["cape", "Cape dusk"], ["sunset-sea", "Sunset sea"], ["mountains", "Misty mountains"], ["forest-mist", "Forest mist"], ["dunes", "Desert dunes"], ["stars", "Night sky"], ["aurora", "Aurora"], ["city-night", "City lights"], ["lounge", "Evening lounge"], ["marble-white", "White marble"], ["marble-black", "Black marble"], ["slate", "Slate"], ["concrete", "Concrete"], ["steel", "Brushed steel"], ["walnut", "Walnut"], ["oak", "Oak"], ["leather", "Leather"], ["linen", "Linen"], ["colour-midnight", "Midnight blue"], ["colour-emerald", "Emerald"], ["colour-bordeaux", "Bordeaux"], ["colour-champagne", "Champagne silk"], ["colour-graphite", "Graphite silk"], ["colour-twilight", "Twilight"], ["colour-lagoon", "Lagoon"], ["colour-amber", "Amber glow"], ["sky-blue", "Blue sky"], ["sky-high", "High clouds"], ["sky-golden", "Golden hour"], ["sky-dawn", "Pastel dawn"], ["sky-moon", "Moonlit clouds"]];
 const RS_WATCH = { key: "watch", title: "Watch", hint: "TVs / media players for the Watch button (Residence)", domains: ["media_player"] };
 function rsGuessLight(s) {
   s = String(s || "").toLowerCase();
@@ -9704,14 +9704,7 @@ function RsCalendarSettings({ hass: h, rc: rc, save: save, fname: fn }) {
     ] }, s)) }) })
   ] });
 }
-function ResidenceLook({ hass: h, device: t, onChange: r, rooms: R, fname: fn }) {
-  const rc = t.residence && typeof t.residence === "object" ? t.residence : {};
-  const save = (m) => {
-    const next = { ...rc, ...m };
-    Object.keys(next).forEach((k) => next[k] === void 0 && delete next[k]);
-    delete next.base; // Home Assistant adds this itself when it publishes
-    r({ residence: next });
-  };
+function ResidenceMore({ hass: h, rc: rc, save: save, rooms: R, fname: fn }) {
   const lbl = { fontSize: 12, fontWeight: 700, opacity: 0.7, letterSpacing: ".04em", textTransform: "uppercase", margin: "16px 0 6px" };
   const seg = (val, opts, set) => /* @__PURE__ */ a.jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" }, children: opts.map((o) => /* @__PURE__ */ a.jsx("button", { className: "btn " + (val === o[0] ? "primary" : "ghost"), onClick: () => set(o[0]), children: o[1] }, o[0])) });
   const lights = Array.from(new Set([].concat.apply([], R.map((x) => elList(x.lights))))).filter((e) => e.split(".")[0] === "light");
@@ -9729,26 +9722,8 @@ function ResidenceLook({ hass: h, device: t, onChange: r, rooms: R, fname: fn })
     else delete m[k];
     save({ icons: Object.keys(m).length ? m : void 0 });
   };
-  const setAll = (real) => {
-    const S = { lights: "bulb_on", climate: "thermostat", music: "speaker", watch: "tv", shades: "blinds", cameras: "cctv", utilities: "solar", security: "shield", scenes: "moon" };
-    const m = {};
-    if (real) Object.keys(S).forEach((k) => (m[k] = { src: "lib:" + S[k] }));
-    save({ icons: real ? m : void 0 });
-  };
-  return /* @__PURE__ */ a.jsxs("div", { style: { marginTop: 18, padding: 14, borderRadius: 14, border: "1px solid rgba(201,164,106,.45)", background: "rgba(201,164,106,.05)" }, children: [
-    /* @__PURE__ */ a.jsx("div", { style: { ...lbl, marginTop: 0, color: "#c9a46a", opacity: 1 }, children: "Residence look" }),
-    /* @__PURE__ */ a.jsx("div", { className: "hint", children: "Only used by the Residence style. Each room can have its own photo too (open the room above)." }),
-    /* @__PURE__ */ a.jsx("div", { style: lbl, children: "House photo" }),
-    /* @__PURE__ */ a.jsx(RsPhotoPick, { hass: h, value: rc.houseImage || "preset:villa", onChange: (v) => save({ houseImage: v || void 0 }) }),
-    /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Button shape" }),
-    seg(["square", "bare"].includes(rc.iconShape) ? rc.iconShape : "ring", [["ring", "Outlined circles"], ["square", "Soft squares"], ["bare", "Icons only"]], (v) => save({ iconShape: v === "ring" ? void 0 : v })),
-    /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Accent glow" }),
-    seg(["brass", "ice"].includes(rc.accent) ? rc.accent : "warm", [["warm", "Warm white"], ["brass", "Brass"], ["ice", "Ice blue"]], (v) => save({ accent: v === "warm" ? void 0 : v })),
-    /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Button icons" }),
-    /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 6 }, children: [
-      /* @__PURE__ */ a.jsx("button", { className: "btn ghost", onClick: () => setAll(!0), children: "Use realistic icons on all" }),
-      /* @__PURE__ */ a.jsx("button", { className: "btn ghost", onClick: () => setAll(!1), children: "Back to line icons" })
-    ] }),
+  return /* @__PURE__ */ a.jsxs("div", { style: { paddingTop: 4 }, children: [
+    /* @__PURE__ */ a.jsx("div", { style: { ...lbl, marginTop: 6 }, children: "Single-button icons" }),
     RS_BUTTONS.map((b) => /* @__PURE__ */ a.jsx(RsIconPick, { hass: h, keyName: b[0], label: b[1], value: rc.icons && rc.icons[b[0]], onChange: (v) => setIcon(b[0], v) }, b[0])),
     /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Lights page" }),
     /* @__PURE__ */ a.jsx(X, { label: "Light drawing", hint: "Match each light: a pendant, filament bulb, downlight or LED glow per light (set below). They all dim with the brightness.", children: /* @__PURE__ */ a.jsx("select", { className: "inp", value: look, onChange: (m) => save({ lightLook: m.target.value === "match" ? void 0 : m.target.value }), children: RS_LOOKS.map((o) => /* @__PURE__ */ a.jsx("option", { value: o[0], children: o[1] }, o[0])) }) }),
@@ -9787,6 +9762,172 @@ function ResidenceLook({ hass: h, device: t, onChange: r, rooms: R, fname: fn })
       /* @__PURE__ */ a.jsx("option", { value: "anywhere", children: "When music plays anywhere in the house" }),
       /* @__PURE__ */ a.jsx("option", { value: "room", children: "Only when it plays in the room on screen" })
     ] }) })
+  ] });
+}
+const RS_EDIT_CSS = ".rsx{--acc:243,217,164}.rsx .rslay{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}.rsx .rsmain{flex:1 1 440px;min-width:0}.rsx .rsside{flex:0 1 380px;min-width:280px;position:sticky;top:8px}.rsx .rsstep{background:var(--surface,#222933);border:1px solid var(--divider,rgba(255,255,255,.09));border-radius:14px;padding:12px 14px;margin-bottom:12px}.rsx .rssh{display:flex;align-items:center;gap:10px;margin-bottom:6px}.rsx .rsnum{width:24px;height:24px;border-radius:12px;background:#c9a46a;color:#1d160a;font-weight:700;font-size:12.5px;display:grid;place-items:center;flex:none}.rsx .rssh h3{margin:0;font-size:15px;font-weight:600}.rsx .rsnow{margin-left:auto;font-size:12.5px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}.rsx .rshint{font-size:12.5px;color:var(--text2);margin:0 0 10px}.rsx .rsgrp{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin:10px 0 6px}.rsx .rstiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}.rsx .rstile{font:inherit;color:var(--text);background:var(--surface2,#2b333e);border:2px solid transparent;border-radius:11px;padding:5px;cursor:pointer;text-align:left;min-width:0;position:relative;display:block}.rsx .rstile[aria-pressed=\"true\"]{border-color:#c9a46a;box-shadow:0 0 0 1px #c9a46a}.rsx .rstile[aria-pressed=\"true\"]::after{content:\"\\2713\";position:absolute;top:5px;right:5px;width:19px;height:19px;border-radius:10px;background:#c9a46a;color:#1d160a;font-size:11px;font-weight:700;display:grid;place-items:center;z-index:5}.rsx .rsthumb{height:58px;border-radius:7px;background-size:cover;background-position:center;position:relative;overflow:hidden;display:block}.rsx .rstl{display:block;font-size:12px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rsx .rsseg{display:flex;flex-wrap:wrap;gap:6px}.rsx .rsseg button{font:inherit;font-size:13px;color:var(--text);background:var(--surface2,#2b333e);border:1px solid var(--divider,rgba(255,255,255,.12));border-radius:999px;padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:8px}.rsx .rsseg button[aria-pressed=\"true\"]{border-color:#c9a46a;background:rgba(201,164,106,.15);color:#f3e3c4}.rsx .rsdot{width:14px;height:14px;border-radius:7px;display:inline-block}.rsx .rspv{background:var(--surface,#222933);border:1px solid var(--divider,rgba(255,255,255,.09));border-radius:14px;padding:12px}.rsx .rspvh{display:flex;align-items:center;gap:8px;margin-bottom:10px}.rsx .rspvh b{font-weight:600;font-size:14px;flex:1}.rsx .rschip{font-size:11.5px;font-weight:700;letter-spacing:.03em;padding:3px 9px;border-radius:999px}.rsx .rschip.dirty{background:rgba(255,183,77,.16);color:#ffcc80}.rsx .rschip.clean{background:rgba(102,187,106,.16);color:#a5d6a7}.rsx .rsbezel{background:linear-gradient(160deg,#2b2c2f,#151618 60%,#0b0b0c);border-radius:14px;padding:9px;box-shadow:inset 0 1px 0 #3a3b3f}.rsx .rsscreen{position:relative;aspect-ratio:5/3;border-radius:4px;overflow:hidden;background-size:cover;background-position:center;font-family:\"Jost\",\"Avenir Next\",\"Segoe UI\",Roboto,sans-serif;color:#f4f1ea;background-color:#222}.rsx .rsscreen::after{content:\"\";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.12) 30%,rgba(0,0,0,.2) 70%,rgba(0,0,0,.6))}.rsx .rsptop{position:absolute;left:4%;right:4%;top:3%;display:flex;align-items:center;z-index:2;font-size:12px}.rsx .rsptop b{font-weight:400;font-size:13px;flex:1}.rsx .rsptop span{opacity:.85;font-size:15px;font-weight:300}.rsx .rsbtns{position:absolute;left:3%;right:3%;top:16%;bottom:16%;z-index:1;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);align-items:center;justify-items:center}.rsx .rspbar{position:absolute;left:4%;right:4%;bottom:3%;z-index:2;display:flex;gap:6px}.rsx .rspbar i{height:16px;border-radius:8px;background:rgba(12,12,14,.55);border:1px solid rgba(255,255,255,.16)}.rsx .rspvs{margin-top:10px;font-size:12.5px;color:var(--text2)}.rsx .rspvs div{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--divider,rgba(255,255,255,.09))}.rsx .rspvs div:last-child{border:0}.rsx .rspvs b{color:var(--text);font-weight:500;text-align:right}.rsx .rssave{margin-top:12px;width:100%;justify-content:center}.rsx .rsundo{margin-top:6px;width:100%;font:inherit;font-size:13px;background:none;border:0;color:var(--text2);cursor:pointer;padding:6px}.rsx details.rsmore{background:var(--surface,#222933);border:1px dashed var(--divider,rgba(255,255,255,.18));border-radius:14px;padding:10px 14px}.rsx details.rsmore>summary{cursor:pointer;font-size:14px;font-weight:600;list-style:none}.rsx details.rsmore>summary::-webkit-details-marker{display:none}.rsx details.rsmore>summary::before{content:\"\\25B8  \";color:#c9a46a}.rsx details.rsmore[open]>summary::before{content:\"\\25BE  \"}.rsx details.rsmore>summary small{display:block;font-weight:400;color:var(--text2);font-size:12.5px;margin-top:2px}.rsx .s-flat .rsr{border-radius:50%;border:1.5px solid rgba(255,255,255,.42);background:rgba(10,10,12,.3)}.rsx .s-flat .rsb.on .rsr{border-color:rgb(var(--acc));box-shadow:0 0 20px -4px rgba(var(--acc),.6)}.rsx .s-flat .rsb.on svg.rsl{color:rgb(var(--acc))}.rsx .s-dome .rsr{border-radius:50%;background:radial-gradient(120% 120% at 50% 0%,rgba(255,255,255,.22) 0%,rgba(255,255,255,.06) 38%,rgba(0,0,0,.1) 60%,rgba(0,0,0,.45) 100%),rgba(22,22,26,.72);box-shadow:inset 0 1px 1px rgba(255,255,255,.45),inset 0 -6px 12px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.6),0 10px 18px -6px rgba(0,0,0,.85),0 2px 3px rgba(0,0,0,.5)}.rsx .s-dome .rsr::before{content:\"\";position:absolute;left:16%;right:16%;top:6%;height:38%;border-radius:50% 50% 45% 45%;background:linear-gradient(180deg,rgba(255,255,255,.32),rgba(255,255,255,0));pointer-events:none;z-index:3}.rsx .s-dome .rsb.on .rsr{background:radial-gradient(120% 120% at 50% 0%,rgba(255,240,210,.35) 0%,rgba(var(--acc),.22) 45%,rgba(60,40,10,.5) 100%),rgba(40,32,20,.8);box-shadow:inset 0 1px 1px rgba(255,255,255,.55),inset 0 -6px 12px rgba(0,0,0,.45),0 0 0 1px rgba(var(--acc),.55),0 0 26px -2px rgba(var(--acc),.55),0 10px 18px -6px rgba(0,0,0,.85)}.rsx .s-dome .rsb.on svg.rsl{color:#fff6e0;filter:drop-shadow(0 0 6px rgba(var(--acc),.9))}.rsx .s-metal .rsr{border-radius:50%;background:conic-gradient(from 210deg,#8f9399,#f4f5f6,#9ba0a6,#5f646b,#c9cdd2,#7f848b,#eef0f2,#8f9399);box-shadow:0 10px 18px -6px rgba(0,0,0,.85),0 1px 2px rgba(0,0,0,.6)}.rsx .s-metal .rsr::before{content:\"\";position:absolute;inset:9%;border-radius:50%;background:radial-gradient(circle at 50% 35%,#2b2e34,#121418 70%);box-shadow:inset 0 3px 6px rgba(0,0,0,.8),inset 0 -1px 1px rgba(255,255,255,.12)}.rsx .s-metal .rsr svg.rsl,.rsx .s-metal .rsr img{position:relative;z-index:2}.rsx .s-metal svg.rsl{color:#d8dbe0;filter:drop-shadow(0 -1px 0 rgba(0,0,0,.8)) drop-shadow(0 1px 0 rgba(255,255,255,.15))}.rsx .s-metal .rsb.on .rsr::before{background:radial-gradient(circle at 50% 40%,rgba(var(--acc),.35),#1a1610 72%)}.rsx .s-metal .rsb.on svg.rsl{color:rgb(var(--acc));filter:drop-shadow(0 0 6px rgba(var(--acc),.8))}.rsx .s-key .rsr{border-radius:22%;background:linear-gradient(180deg,#34363c,#1e2024);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 -2px 0 rgba(0,0,0,.5),0 0 0 1px rgba(0,0,0,.7),0 12px 16px -8px rgba(0,0,0,.9),0 3px 0 #0e0f11}.rsx .s-key svg.rsl{color:#c7c9cd;filter:drop-shadow(0 1px 0 rgba(0,0,0,.9))}.rsx .s-key .rsr::after{content:\"\";position:absolute;bottom:9%;left:34%;right:34%;height:4%;min-height:3px;border-radius:3px;background:rgba(255,255,255,.12)}.rsx .s-key .rsb.on .rsr::after{background:rgb(var(--acc));box-shadow:0 0 8px rgba(var(--acc),.9),0 0 18px rgba(var(--acc),.5)}.rsx .s-key .rsb.on svg.rsl{color:#fff3da}.rsx .s-key .rsb:active .rsr{transform:translateY(2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 0 0 1px rgba(0,0,0,.7),0 6px 10px -6px rgba(0,0,0,.9),0 1px 0 #0e0f11}.rsx .s-tile .rsr{border-radius:24%;background:linear-gradient(150deg,rgba(255,255,255,.2),rgba(255,255,255,.04) 45%,rgba(0,0,0,.25)),rgba(30,30,36,.62);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 1px 0 0 rgba(255,255,255,.12),inset 0 -1px 0 rgba(0,0,0,.4),0 18px 24px -12px rgba(0,0,0,.9),0 4px 8px -2px rgba(0,0,0,.5)}.rsx .s-tile .rsb.on .rsr{background:linear-gradient(150deg,rgba(255,245,220,.4),rgba(var(--acc),.2) 50%,rgba(70,50,20,.35)),rgba(40,34,24,.7);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 0 0 1px rgba(var(--acc),.5),0 0 30px -4px rgba(var(--acc),.6),0 18px 24px -12px rgba(0,0,0,.9)}.rsx .s-tile .rsb.on svg.rsl{color:#fff6e0}.rsx .s-porc .rsr{border-radius:50%;background:radial-gradient(circle at 40% 30%,#ffffff,#e9e6e0 55%,#c7c2b8);box-shadow:inset 0 -3px 6px rgba(0,0,0,.18),inset 0 2px 2px rgba(255,255,255,.9),0 10px 18px -6px rgba(0,0,0,.85),0 0 0 1px rgba(0,0,0,.25)}.rsx .s-porc svg.rsl{color:#3a3630}.rsx .s-porc .rsb.on .rsr{background:radial-gradient(circle at 40% 30%,#fff8e8,#f3d9a4 55%,#c69a52);box-shadow:inset 0 -3px 6px rgba(80,50,0,.25),inset 0 2px 2px rgba(255,255,255,.9),0 0 24px -2px rgba(var(--acc),.7),0 10px 18px -6px rgba(0,0,0,.85)}.rsx .s-porc .rsb.on svg.rsl{color:#5a3a08}.rsx .rsbare .rsr{background:none!important;box-shadow:none!important;border:0!important}.rsx .rsbare .rsr img,.rsx .rsbare .rsr svg.rsl{width:86%;height:86%;position:relative;z-index:2;transition:transform .2s,filter .2s}.rsx .rsbare svg.rsl{stroke-width:1.4}.rsx .i-flat .rsr img,.rsx .i-flat svg.rsl{filter:drop-shadow(0 2px 6px rgba(0,0,0,.7))}.rsx .i-flat .rsb.on svg.rsl{color:rgb(var(--acc))}.rsx .i-shadow .rsr::after{content:\"\";position:absolute;left:14%;right:14%;bottom:-6%;height:16%;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.75),rgba(0,0,0,0));z-index:1;transition:transform .2s,opacity .2s}.rsx .i-shadow .rsr img,.rsx .i-shadow svg.rsl{transform:translateY(-8%);filter:drop-shadow(0 6px 6px rgba(0,0,0,.45))}.rsx .i-shadow .rsb.on .rsr img,.rsx .i-shadow .rsb.on svg.rsl{transform:translateY(-14%);filter:drop-shadow(0 10px 8px rgba(0,0,0,.4)) drop-shadow(0 0 14px rgba(var(--acc),.55))}.rsx .i-shadow .rsb.on .rsr::after{transform:scaleX(.82);opacity:.7}.rsx .i-shadow .rsb.on svg.rsl{color:rgb(var(--acc))}.rsx .i-reflect .rsr{margin-bottom:14%}.rsx .i-reflect .rsf{position:absolute;left:7%;right:7%;top:96%;height:40%;overflow:hidden;z-index:1;opacity:.32;-webkit-transform:scaleY(-1);transform:scaleY(-1);-webkit-mask-image:linear-gradient(0deg,rgba(0,0,0,.9),rgba(0,0,0,0) 55%);mask-image:linear-gradient(0deg,rgba(0,0,0,.9),rgba(0,0,0,0) 55%);pointer-events:none}.rsx .i-reflect .rsf img,.rsx .i-reflect .rsf svg.rsl{position:absolute;left:0;bottom:0;width:100%;height:215%;filter:none}.rsx .i-reflect .rsr img,.rsx .i-reflect .rsr>svg.rsl{filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}.rsx .i-reflect .rsr::before{content:\"\";position:absolute;left:-10%;right:-10%;top:96%;height:2px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);z-index:2}.rsx .i-reflect .rsb.on .rsr>img,.rsx .i-reflect .rsb.on .rsr>svg.rsl{filter:drop-shadow(0 0 14px rgba(var(--acc),.6))}.rsx .i-reflect .rsb.on svg.rsl{color:rgb(var(--acc))}.rsx .i-glow .rsr::before{content:\"\";position:absolute;left:-18%;right:-18%;top:-18%;bottom:-18%;border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.14),rgba(255,255,255,0));z-index:1;transition:opacity .2s}.rsx .i-glow .rsr img,.rsx .i-glow svg.rsl{filter:drop-shadow(0 3px 5px rgba(0,0,0,.6))}.rsx .i-glow .rsb.on .rsr::before{background:radial-gradient(closest-side,rgba(var(--acc),.7),rgba(var(--acc),.18) 55%,rgba(var(--acc),0))}.rsx .i-glow .rsb.on .rsr img,.rsx .i-glow .rsb.on svg.rsl{filter:drop-shadow(0 0 10px rgba(var(--acc),.9)) drop-shadow(0 3px 5px rgba(0,0,0,.5))}.rsx .i-glow .rsb.on svg.rsl{color:#fff6e0}.rsx .i-emboss .rsr img,.rsx .i-emboss svg.rsl{filter:drop-shadow(0 -1px 0 rgba(255,255,255,.55)) drop-shadow(0 1.5px 0 rgba(0,0,0,.85)) drop-shadow(0 8px 10px rgba(0,0,0,.6))}.rsx .i-emboss .rsb.on .rsr img,.rsx .i-emboss .rsb.on svg.rsl{filter:drop-shadow(0 -1px 0 rgba(255,255,255,.7)) drop-shadow(0 1.5px 0 rgba(0,0,0,.8)) drop-shadow(0 0 14px rgba(var(--acc),.7))}.rsx .i-emboss .rsb.on svg.rsl{color:rgb(var(--acc))}.rsx .i-plinth .rsr{margin-bottom:6%}.rsx .i-plinth .rsr::after{content:\"\";position:absolute;left:4%;right:4%;bottom:-10%;height:22%;border-radius:50%;z-index:1;background:radial-gradient(ellipse at 50% 30%,rgba(255,255,255,.35),rgba(255,255,255,.06) 60%,rgba(0,0,0,.1));box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 6px 10px -2px rgba(0,0,0,.8);transition:box-shadow .2s,background .2s}.rsx .i-plinth .rsr img,.rsx .i-plinth svg.rsl{transform:translateY(-10%);filter:drop-shadow(0 5px 4px rgba(0,0,0,.5))}.rsx .i-plinth .rsb.on .rsr::after{background:radial-gradient(ellipse at 50% 30%,rgba(255,248,230,.85),rgba(var(--acc),.4) 60%,rgba(80,50,10,.3));box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 0 22px rgba(var(--acc),.7),0 6px 10px -2px rgba(0,0,0,.8)}.rsx .i-plinth .rsb.on svg.rsl{color:rgb(var(--acc))}.rsx .s-square .rsr{border-radius:24%;border:1.5px solid rgba(255,255,255,.42);background:rgba(10,10,12,.3)}.rsx .s-square .rsb.on .rsr{border-color:rgb(var(--acc));box-shadow:0 0 20px -4px rgba(var(--acc),.6)}.rsx .s-square .rsb.on svg.rsl{color:rgb(var(--acc))}.rsx .rsb{display:flex;flex-direction:column;align-items:center;color:#f4f1ea;width:100%}.rsx .rsr{position:relative;aspect-ratio:1;display:grid;place-items:center;width:44px}.rsx .rsr svg.rsl{width:46%;height:46%;stroke-width:1.5}.rsx .rsr img{width:62%;height:62%;object-fit:contain;position:relative;z-index:2}.rsx .rsr.rsfill img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%}.rsx .s-square .rsr.rsfill img,.rsx .s-key .rsr.rsfill img,.rsx .s-tile .rsr.rsfill img{border-radius:24%}.rsx .rslb{letter-spacing:.06em;text-shadow:0 1px 5px rgba(0,0,0,.8);font-size:9.5px;margin-top:3px;white-space:nowrap}.rsx .rsbare .rsr{background:none!important;box-shadow:none!important;border:0!important;width:48px}.rsx .rsbare .rsr img,.rsx .rsbare .rsr svg.rsl{width:86%;height:86%;position:relative;z-index:2}.rsx .rsmini{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:12%;background:rgba(0,0,0,.25)}.rsx .rsmini .rsb{width:auto}.rsx .rsmini .rsr{width:34px!important}.rsx .rsmini .rslb{display:none}";
+const RS_LOOK_BTN = [["s-flat", "Circles"], ["s-square", "Squares"], ["s-dome", "Glass dome"], ["s-metal", "Brushed metal"], ["s-key", "Keypad"], ["s-tile", "Glass tile"], ["s-porc", "Porcelain"]];
+const RS_LOOK_BARE = [["i-flat", "Plain"], ["i-shadow", "Standing shadow"], ["i-reflect", "Glass floor"], ["i-glow", "Backlit"], ["i-emboss", "Raised edge"], ["i-plinth", "Display stand"]];
+const RS_GLOWS = [["warm", "Warm white", "#f3d9a4", "243,217,164"], ["brass", "Brass", "#d6aa5c", "214,170,92"], ["ice", "Ice blue", "#96cdf0", "150,205,240"]];
+const RS_BG_GROUPS = ["Scenes", "Skies", "Colours", "Stone & textures"];
+const rsBgGroup = (k) => (k.indexOf("sky-") === 0 ? "Skies" : k.indexOf("colour-") === 0 ? "Colours" : /^(marble|slate|concrete|steel|walnut|oak|leather|linen)/.test(k) ? "Stone & textures" : "Scenes");
+const RS_REAL = { lights: "bulb_on", climate: "thermostat", music: "speaker", watch: "tv", shades: "blinds", cameras: "cctv", utilities: "solar", security: "shield", scenes: "moon" };
+const RS_LINE = {
+  lights: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/>',
+  climate: '<path d="M10 4a2 2 0 0 1 4 0v9.3a4 4 0 1 1-4 0z"/><path d="M12 9v6.5"/><path d="M17.5 6h2.5M17.5 9.5h2.5"/>',
+  music: '<path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>',
+  watch: '<rect x="3" y="5" width="18" height="12" rx="1.5"/><path d="M8 21h8M12 17v4"/>',
+  shades: '<path d="M4 3h16"/><path d="M5 3v11h14V3"/><path d="M5 6.5h14M5 10h14"/><path d="M12 14v3"/><circle cx="12" cy="18.5" r="1.5"/>',
+  security: '<path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>',
+  cameras: '<path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="12.5" r="3.5"/>',
+  utilities: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+  scenes: '<path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z"/><path d="M18 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>'
+};
+const rsLookOf = (rc) => {
+  const all = RS_LOOK_BTN.concat(RS_LOOK_BARE);
+  if (all.some((o) => o[0] === rc.look)) return rc.look;
+  return rc.iconShape === "square" ? "s-square" : rc.iconShape === "bare" ? "i-flat" : "s-flat";
+};
+const rsLookName = (l) => (l.indexOf("i-") === 0 ? "Icons only · " : "") + (RS_LOOK_BTN.concat(RS_LOOK_BARE).filter((o) => o[0] === l)[0] || [0, ""])[1];
+const rsGlowOf = (rc) => (RS_GLOWS.some((o) => o[0] === rc.accent) ? rc.accent : "warm");
+function rsIconMode(icons) {
+  const ks = Object.keys(icons || {});
+  if (!ks.length) return "line";
+  const srcs = ks.map((k) => String((icons[k] && icons[k].src) || ""));
+  if (srcs.some((s) => s && s.indexOf("lib:") !== 0)) return "up";
+  return "lib";
+}
+const RS_ICON_MODES = [["line", "Line icons"], ["lib", "Realistic icons"], ["up", "Realistic + your uploads"]];
+// one button as the panel draws it, for the preview (same classes as the panel, renamed)
+function rsMiniBtn(k, label, on, rc, look) {
+  const ic = rc.icons && rc.icons[k];
+  const src = ic && ic.src ? rsSrc(ic.src) : "";
+  const inner = src
+    ? /* @__PURE__ */ a.jsx("img", { alt: "", src: src })
+    : /* @__PURE__ */ a.jsx("svg", { className: "rsl", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", dangerouslySetInnerHTML: { __html: RS_LINE[k] || RS_LINE.scenes } });
+  return /* @__PURE__ */ a.jsxs("span", { className: "rsb" + (on ? " on" : ""), children: [
+    /* @__PURE__ */ a.jsxs("span", { className: "rsr" + (src && ic.fill ? " rsfill" : ""), children: [inner, look === "i-reflect" && /* @__PURE__ */ a.jsx("span", { className: "rsf", children: inner })] }),
+    /* @__PURE__ */ a.jsx("span", { className: "rslb", children: label })
+  ] }, k);
+}
+function ResidenceLook({ hass: h, device: t, onChange: r, rooms: R, fname: fn }) {
+  const rc = t.residence && typeof t.residence === "object" ? t.residence : {};
+  const save = (m) => {
+    const next = { ...rc, ...m };
+    Object.keys(next).forEach((k) => next[k] === void 0 && delete next[k]);
+    delete next.base; // Home Assistant adds this itself when it publishes
+    r({ residence: next });
+  };
+  // the editor's own save state (set by the header), so the preview can say "Not saved yet" and save
+  const [, tick] = M.useState(0);
+  M.useEffect(() => {
+    let last = "";
+    const id = setInterval(() => {
+      const S = window.__arnSave || {};
+      const now = (S.dirty ? 1 : 0) + "" + (S.saving ? 1 : 0);
+      if (now !== last) ((last = now), tick((n) => n + 1));
+    }, 400);
+    return () => clearInterval(id);
+  }, []);
+  const SV = window.__arnSave || {};
+  const pick = (x) => ({ houseImage: x.houseImage, icons: x.icons, look: x.look, iconShape: x.iconShape, accent: x.accent });
+  const savedRef = M.useRef(null);
+  if (!SV.dirty || !savedRef.current) savedRef.current = JSON.parse(JSON.stringify(pick(rc)));
+  const saved = savedRef.current;
+  const [busy, setBusy] = M.useState(!1), [err, setErr] = M.useState("");
+  const upPhoto = async (f) => {
+    if (!f) return;
+    setBusy(!0);
+    setErr("");
+    try {
+      save({ houseImage: await rsUpload(h, await rsPhoto(f), "jpg") });
+    } catch (e) {
+      setErr(e && e.message ? e.message : String(e));
+    }
+    setBusy(!1);
+  };
+  const bg = rc.houseImage || "preset:villa";
+  const look = rsLookOf(rc), glow = rsGlowOf(rc), mode = rsIconMode(rc.icons);
+  const glowRgb = RS_GLOWS.filter((o) => o[0] === glow)[0][3];
+  const bgName = (v) => (v.indexOf("preset:") === 0 ? (RS_PRESETS.filter((p) => p[0] === v.slice(7))[0] || [0, v.slice(7)])[1] : "Your photo");
+  const setLook = (v) => save({ look: v === "s-flat" ? void 0 : v, iconShape: void 0 });
+  const setMode = (v) => {
+    if (v === "line") return save({ icons: void 0 });
+    // keep uploads, fill every other button with the realistic icon
+    const m = {};
+    Object.keys(RS_REAL).forEach((k) => {
+      const cur = rc.icons && rc.icons[k];
+      m[k] = cur && cur.src && cur.src.indexOf("lib:") !== 0 && v === "up" ? cur : { src: "lib:" + RS_REAL[k] };
+    });
+    save({ icons: m });
+  };
+  const tileBtn = (key, label, on, onClick, thumbStyle, inner) => /* @__PURE__ */ a.jsxs("button", { type: "button", className: "rstile", "aria-pressed": on ? "true" : "false", onClick: onClick, children: [
+    /* @__PURE__ */ a.jsx("span", { className: "rsthumb", style: thumbStyle, children: inner }),
+    /* @__PURE__ */ a.jsx("span", { className: "rstl", children: label })
+  ] }, key);
+  const seg = (val, opts, set, dots) => /* @__PURE__ */ a.jsx("div", { className: "rsseg", children: opts.map((o) => /* @__PURE__ */ a.jsxs("button", { type: "button", "aria-pressed": val === o[0] ? "true" : "false", onClick: () => set(o[0]), children: [dots && /* @__PURE__ */ a.jsx("i", { className: "rsdot", style: { background: o[2] } }), o[1]] }, o[0])) });
+  const step = (n, title, now, hint, body) => /* @__PURE__ */ a.jsxs("div", { className: "rsstep", children: [
+    /* @__PURE__ */ a.jsxs("div", { className: "rssh", children: [/* @__PURE__ */ a.jsx("span", { className: "rsnum", children: n }), /* @__PURE__ */ a.jsx("h3", { children: title }), /* @__PURE__ */ a.jsx("span", { className: "rsnow", children: now })] }),
+    hint && /* @__PURE__ */ a.jsx("div", { className: "rshint", children: hint }),
+    body
+  ] });
+  const bgUrl = (v) => "url(" + rsSrc(v) + ")";
+  const bareCls = (l) => (l.indexOf("i-") === 0 ? "rsbare " : "") + l;
+  const lookTile = (l) => tileBtn(l[0], l[1], look === l[0], () => setLook(l[0]), { backgroundImage: bgUrl(bg) }, /* @__PURE__ */ a.jsxs("span", { className: "rsmini " + bareCls(l[0]), children: [rsMiniBtn("lights", "", !0, rc, l[0]), rsMiniBtn("music", "", !1, rc, l[0])] }));
+  const PV = [["lights", "Lights", !0], ["climate", "Comfort", !1], ["music", "Listen", !0], ["watch", "Watch", !1], ["shades", "Shades", !1], ["security", "Security", !1], ["cameras", "Cameras", !1], ["scenes", "Scenes", !1]];
+  const dirty = !!SV.dirty;
+  const rows = [
+    ["Background", bgName(bg), (saved.houseImage || "preset:villa") !== bg],
+    ["Icons", RS_ICON_MODES.filter((o) => o[0] === mode)[0][1], rsIconMode(saved.icons) !== mode || JSON.stringify(saved.icons || {}) !== JSON.stringify(rc.icons || {})],
+    ["Button look", rsLookName(look), rsLookOf(saved) !== look],
+    ["Glow", RS_GLOWS.filter((o) => o[0] === glow)[0][1], rsGlowOf(saved) !== glow]
+  ];
+  const lookChanged = rows.some((x) => x[2]);
+  return /* @__PURE__ */ a.jsxs("div", { className: "rsx", style: { marginTop: 18, "--acc": glowRgb }, children: [
+    /* @__PURE__ */ a.jsx("style", { children: RS_EDIT_CSS }),
+    /* @__PURE__ */ a.jsx("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "#c9a46a", margin: "0 0 4px" }, children: "Residence look" }),
+    /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginBottom: 10 }, children: "Only used by the Residence style. Pick in the four steps; the square on the right shows the panel as it will look. Each room can have its own photo too (open the room above)." }),
+    /* @__PURE__ */ a.jsxs("div", { className: "rslay", children: [
+      /* @__PURE__ */ a.jsxs("div", { className: "rsmain", children: [
+        step(1, "Background", bgName(bg), "The photo behind the buttons. Built-in ones, or upload a photo of the house.", /* @__PURE__ */ a.jsxs("div", { children: [
+          RS_BG_GROUPS.map((g) => /* @__PURE__ */ a.jsxs(M.Fragment, { children: [
+            /* @__PURE__ */ a.jsx("div", { className: "rsgrp", children: g }),
+            /* @__PURE__ */ a.jsxs("div", { className: "rstiles", children: [
+              RS_PRESETS.filter((p) => rsBgGroup(p[0]) === g).map((p) => tileBtn(p[0], p[1], bg === "preset:" + p[0], () => save({ houseImage: p[0] === "villa" ? void 0 : "preset:" + p[0] }), { backgroundImage: bgUrl("preset:" + p[0]) })),
+              g === "Scenes" && bg.indexOf("preset:") !== 0 && tileBtn("mine", "Your photo", !0, () => {}, { backgroundImage: bgUrl(bg) }),
+              g === "Scenes" && /* @__PURE__ */ a.jsxs("label", { className: "rstile", style: { overflow: "hidden" }, children: [
+                /* @__PURE__ */ a.jsx("span", { className: "rsthumb", style: { background: "#1f2125", display: "grid", placeItems: "center", fontSize: 22, color: "#9a9ca3" }, children: busy ? "…" : "+" }),
+                /* @__PURE__ */ a.jsx("span", { className: "rstl", children: busy ? "Uploading…" : "Upload photo" }),
+                /* @__PURE__ */ a.jsx("input", { type: "file", accept: "image/*", disabled: busy, style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }, onChange: (m) => (upPhoto(m.target.files && m.target.files[0]), (m.target.value = "")) })
+              ] }, "up")
+            ] })
+          ] }, g)),
+          err && /* @__PURE__ */ a.jsx("div", { className: "hint", style: { color: "#ff8f80", marginTop: 6 }, children: err })
+        ] })),
+        step(2, "Icons", RS_ICON_MODES.filter((o) => o[0] === mode)[0][1], "What's drawn on each button. Change single buttons (for example your own logo on Listen) under More options.", seg(mode, RS_ICON_MODES, setMode)),
+        step(3, "Button look", rsLookName(look), "Pick one. The first group draws a button behind each icon; the second has no button, just the icon with a 3D effect.", /* @__PURE__ */ a.jsxs("div", { children: [
+          /* @__PURE__ */ a.jsx("div", { className: "rsgrp", children: "With a button behind" }),
+          /* @__PURE__ */ a.jsx("div", { className: "rstiles", children: RS_LOOK_BTN.map(lookTile) }),
+          /* @__PURE__ */ a.jsx("div", { className: "rsgrp", children: "Icons only (no circle)" }),
+          /* @__PURE__ */ a.jsx("div", { className: "rstiles", children: RS_LOOK_BARE.map(lookTile) })
+        ] })),
+        step(4, "Glow when on", RS_GLOWS.filter((o) => o[0] === glow)[0][1], "", seg(glow, RS_GLOWS, (v) => save({ accent: v === "warm" ? void 0 : v }), !0)),
+        /* @__PURE__ */ a.jsxs("details", { className: "rsmore", children: [
+          /* @__PURE__ */ a.jsxs("summary", { children: ["More options", /* @__PURE__ */ a.jsx("small", { children: "Single-button icons and uploads, light drawings, shades, customer settings and PIN, calendar, Room Off and the music bar." })] }),
+          /* @__PURE__ */ a.jsx(ResidenceMore, { hass: h, rc: rc, save: save, rooms: R, fname: fn })
+        ] })
+      ] }),
+      /* @__PURE__ */ a.jsx("div", { className: "rsside", children: /* @__PURE__ */ a.jsxs("div", { className: "rspv", children: [
+        /* @__PURE__ */ a.jsxs("div", { className: "rspvh", children: [/* @__PURE__ */ a.jsx("b", { children: "Live preview" }), /* @__PURE__ */ a.jsx("span", { className: "rschip " + (dirty ? "dirty" : "clean"), children: SV.saving ? "Saving…" : dirty ? "Not saved yet" : "Saved" })] }),
+        /* @__PURE__ */ a.jsx("div", { className: "rsbezel", children: /* @__PURE__ */ a.jsxs("div", { className: "rsscreen " + bareCls(look), style: { backgroundImage: bgUrl(bg) }, children: [
+          /* @__PURE__ */ a.jsxs("div", { className: "rsptop", children: [/* @__PURE__ */ a.jsx("b", { children: ((R[0] && R[0].name) || "Living Room") + " ▾" }), /* @__PURE__ */ a.jsx("span", { children: "06:30" })] }),
+          /* @__PURE__ */ a.jsx("div", { className: "rsbtns", children: PV.map((b) => rsMiniBtn(b[0], b[1], b[2], rc, look)) }),
+          /* @__PURE__ */ a.jsxs("div", { className: "rspbar", children: [/* @__PURE__ */ a.jsx("i", { style: { width: "20%" } }), /* @__PURE__ */ a.jsx("i", { style: { flex: 1 } })] })
+        ] }) }),
+        /* @__PURE__ */ a.jsx("div", { className: "rspvs", children: rows.map((x) => /* @__PURE__ */ a.jsxs("div", { children: [/* @__PURE__ */ a.jsx("span", { children: x[0] }), /* @__PURE__ */ a.jsx("b", { children: (dirty && x[2] ? "● " : "") + x[1] })] }, x[0])) }),
+        /* @__PURE__ */ a.jsx("button", { type: "button", className: "btn primary rssave", disabled: !dirty || !!SV.saving || !SV.save, onClick: () => SV.save && SV.save(), children: SV.saving ? "Saving…" : "Save & Push" }),
+        dirty && lookChanged && /* @__PURE__ */ a.jsx("button", { type: "button", className: "rsundo", onClick: () => save(JSON.parse(JSON.stringify(saved))), children: "Undo look changes" })
+      ] }) })
+    ] })
   ] });
 }
 function ElegantCard({ hass: h, device: t, onChange: r }) {
@@ -11829,6 +11970,7 @@ function wA({ hass: e, narrow: t }) {
             ] }, R.device_id))
           ] })
         ] }),
+        (window.__arnSave = { dirty: !!Fn, saving: !!J, save: F1 }, null),
         /* @__PURE__ */ a.jsx("div", { className: "top-sp" }),
         /* @__PURE__ */ a.jsxs("div", { className: "savechip " + (Fn ? "dirty" : "saved"), children: [
           /* @__PURE__ */ a.jsx("span", { className: "dot" }),

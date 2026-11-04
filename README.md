@@ -115,7 +115,16 @@ the same as 4.0.8).
   Wi-Fi, connection, Clean screen, reset). The installer can hide the gear or set a PIN that
   locks the whole sheet or only the look.
 - **Whole Home**: in the room menu (with more than one room), with **All Off** for the house.
-- **Backgrounds**: 19 built in (scenery, marble, stone, metal, wood, leather, linen).
+- **Backgrounds**: 32 built in, in four groups: scenes, skies (blue sky, high clouds, golden
+  hour, pastel dawn, moonlit clouds), colours (midnight blue, emerald, bordeaux, champagne silk,
+  graphite silk, twilight, lagoon, amber glow) and stone & textures (4.3.0 added skies and colours).
+- **Button looks** (4.3.0): 13 in two groups. With a button behind: Circles, Squares, Glass dome,
+  Brushed metal, Keypad, Glass tile, Porcelain. Icons only: Plain, Standing shadow, Glass floor,
+  Backlit, Raised edge, Display stand. Stored as `residence.look`; older `iconShape` settings
+  still work (ring = Circles, square = Squares, bare = Plain). The customer can change it too.
+- **Editor** (4.3.0): the Residence look is four steps (Background, Icons, Button look, Glow when
+  on) with picture tiles and a live preview pinned beside them that shows *Not saved yet* until
+  you press *Save & Push*. Everything else is under *More options*.
 
 Uploaded images are stored in `<config>/ar_nspanel_pro_media/` (kept across updates) and served at
 `/ar_nspanel_pro_media/`. Code: `panel/src/residence.js`, `panel/src/residence.css` (built into
