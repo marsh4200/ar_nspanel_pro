@@ -124,13 +124,21 @@ the same as 4.0.8).
   a home room the panel returns to when idle, tap sounds) and *Panel* (panel ID, IP, versions,
   Wi-Fi, connection, Clean screen, reset). The installer can hide the gear or set a PIN that
   locks the whole sheet or only the look.
-- **Installer PIN** (4.3.5): asked when someone holds the top-left corner for 3 seconds, or taps
-  *Settings → Panel → Installer setup*, before the panel's setup screen opens. The customer Settings
-  sheet itself is open. A quick tap on the top-left corner reaches the back arrow under it.
+- **Installer PIN** (4.3.7): asked when the *Panel* tab in Settings is opened, and when someone
+  holds the top-left corner for 3 seconds (the panel's setup screen). Display, Look and Clock & room
+  stay open. Inside the Panel tab, *Installer setup* opens the setup screen without asking again.
+  A quick tap on the top-left corner reaches the back arrow under it.
+- **Volume buttons** (4.3.7): − and + beside the volume slider on Listen (Music Assistant, Spotify and
+  Home Assistant speakers). Tap = one step (5 %), hold = keeps going until you let go.
 - **Utilities** (4.3.5): realistic tiles instead of switches: a picture per switch picked from its
   name (pool, geyser, borehole pump, irrigation, gate, electric fence, EV charger, lights…; the
   installer can choose one per switch under *More options*), dimmed when off, lit with how long
   it has been running when on. Water pump and Electric fence added to the icon library (61).
+- **Small square panel** (4.3.6, NSPanel Pro): the home screen shows one big button at a time
+  with what's on under it ("3 of 4 on", the song playing); swipe left or right, or use the arrows
+  and dots, for the next one, while the background stays. Back to the first button when the panel
+  wakes or is left alone. Every button look works. Editor (More options): keep the grid instead,
+  or let the next buttons peek in at the sides. Bigger panels always keep the grid.
 - **Whole Home**: in the room menu (with more than one room), with **All Off** for the house.
 - **Backgrounds**: 32 built in, in four groups: scenes, skies (blue sky, high clouds, golden
   hour, pastel dawn, moonlit clouds), colours (midnight blue, emerald, bordeaux, champagne silk,

@@ -154,6 +154,7 @@ export function mountResidence(a) {
   const libUrl = (k) => (LIB[k] ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(LIB[k].svg) : "");
 
   function onRoom() {
+    sqIdx = 0;
     background();
     const lb = offBtn.querySelector("span");
     if (lb) lb.textContent = a.whole() ? "All Off" : "Room Off";
@@ -456,16 +457,176 @@ export function mountResidence(a) {
     if (src) return { html: '<img alt="" src="' + src.replace(/"/g, "%22") + '">', fill: !!ic.fill };
     return { html: line(k), fill: false };
   }
+  // --- small square screen (NSPanel Pro): one big button at a time, swiped -------------
+  // The Elegant canvas is 1000 wide; a square panel makes it ~1000 tall too. A tall
+  // tablet (portrait) and the wide panels keep the grid. Installer can switch it off
+  // (residence.squareGrid) and show the next buttons at the sides (residence.peek).
+  let sqIdx = 0;
+  function isSquare() {
+    if (rc.squareGrid) return false;
+    const f = window.__arFit || {};
+    const H = Math.round(((f.stageH || 288) * 1000) / 480);
+    return H >= 880 && H <= 1120;
+  }
+  function sqStatus(c, r) {
+    const n = (l) => (l || []).length;
+    if (c.key === "lights") {
+      const on = (r.lights || []).filter((e) => a.get(e).on).length;
+      return on ? on + " of " + n(r.lights) + " on" : "All off";
+    }
+    if (c.key === "climate") {
+      const e = (r.climate || []).filter((x) => (a.get(x).value || "off") !== "off")[0];
+      if (!e) return "Off";
+      const s = a.get(e);
+      return (typeof s.temp === "number" ? s.temp + "° · " : "") + String(s.value).replace(/_/g, " ").replace(/^./, (m) => m.toUpperCase());
+    }
+    if (c.key === "music") {
+      const e = (r.music || []).filter((x) => haMusic(a.get(x)))[0];
+      return e ? a.get(e).title || "Playing" : "Off";
+    }
+    if (c.key === "watch") return (r.watch || []).some((e) => a.get(e).on) ? "On" : "Off";
+    if (c.key === "shades") return n(r.shades) === 1 ? "1 shade" : n(r.shades) + " shades";
+    if (c.key === "cameras") {
+      const k = n(a.ents().cameras);
+      return k === 1 ? "1 camera" : k + " cameras";
+    }
+    if (c.key === "utilities") {
+      const on = (a.ents().utilities || []).filter((e) => a.get(e).on).length;
+      return on ? on + " running" : "All off";
+    }
+    if (c.key === "security") {
+      const e = (a.ents().security || [])[0];
+      return e ? String(a.get(e).value || "").replace(/_/g, " ").replace(/^./, (m) => m.toUpperCase()) : "";
+    }
+    if (c.key === "scenes") {
+      const k = a.clientScenes().length + a.scenes().length;
+      return k === 1 ? "1 scene" : k + " scenes";
+    }
+    return "";
+  }
+  function renderSquare(p, cs, r, mk) {
+    const peek = !!rc.peek;
+    const SW = peek ? 440 : 1000;
+    if (sqIdx >= cs.length) sqIdx = 0;
+    const box = el("div", "rs-sq" + (peek ? " peek" : ""));
+    const vp = el("div", "rs-sqvp");
+    const track = el("div", "rs-sqtrack");
+    vp.appendChild(track);
+    box.appendChild(vp);
+    const dots = el("div", "rs-sqdots");
+    cs.forEach((c, i) => {
+      const s = el("div", "rs-sqs");
+      const holder = el("div", "rs-sqb");
+      const btn = mk(c);
+      holder.appendChild(btn);
+      s.appendChild(holder);
+      if (btn.classList.contains("lit")) s.classList.add("lit");
+      s.appendChild(txt("div", "rs-sqst", sqStatus(c, r)));
+      s.addEventListener("click", (ev) => {
+        if (i !== sqIdx) {
+          ev.stopPropagation();
+          ev.preventDefault();
+          go(i);
+        }
+      }, true);
+      track.appendChild(s);
+      const d = el("span", "");
+      d.addEventListener("click", () => go(i));
+      dots.appendChild(d);
+    });
+    box.appendChild(dots);
+    const CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>';
+    const prev = el("div", "rs-sqarr l", CHEV);
+    const next = el("div", "rs-sqarr r", CHEV);
+    prev.addEventListener("click", () => go(sqIdx - 1));
+    next.addEventListener("click", () => go(sqIdx + 1));
+    box.appendChild(prev);
+    box.appendChild(next);
+    let base = 0;
+    function go(i, now) {
+      sqIdx = Math.max(0, Math.min(cs.length - 1, i));
+      base = 500 - SW / 2 - sqIdx * SW;
+      track.style.webkitTransition = track.style.transition = now ? "none" : "";
+      track.style.webkitTransform = track.style.transform = "translateX(" + base + "px)";
+      Array.prototype.forEach.call(track.children, (s, k) => s.classList.toggle("cur", k === sqIdx));
+      Array.prototype.forEach.call(dots.children, (d, k) => d.classList.toggle("cur", k === sqIdx));
+      prev.classList.toggle("gone", sqIdx === 0);
+      next.classList.toggle("gone", sqIdx === cs.length - 1);
+    }
+    // swipe: the finger moves the row; a short flick or a third of a button turns the page
+    let x0 = null, y0 = 0, t0 = 0, dx = 0, moved = false, scale = 1;
+    vp.addEventListener("pointerdown", (ev) => {
+      x0 = ev.clientX;
+      y0 = ev.clientY;
+      t0 = Date.now();
+      dx = 0;
+      moved = false;
+      const rr = root.getBoundingClientRect();
+      scale = rr.width ? rr.width / 1000 : 1;
+    });
+    vp.addEventListener("pointermove", (ev) => {
+      if (x0 === null) return;
+      const mx = (ev.clientX - x0) / scale;
+      if (!moved && Math.abs(mx) > 14 && Math.abs(mx) > Math.abs(ev.clientY - y0) / scale) {
+        moved = true;
+        a.setDragging(true);
+        window.__arClaimGesture = true;
+        track.style.webkitTransition = track.style.transition = "none";
+      }
+      if (!moved) return;
+      dx = mx;
+      const edge = (sqIdx === 0 && dx > 0) || (sqIdx === cs.length - 1 && dx < 0) ? 0.35 : 1;
+      track.style.webkitTransform = track.style.transform = "translateX(" + (base + dx * edge) + "px)";
+    });
+    const end = () => {
+      if (x0 === null) return;
+      x0 = null;
+      if (!moved) return;
+      window.__arClaimGesture = false;
+      a.setDragging(false);
+      const fast = Date.now() - t0 < 300 && Math.abs(dx) > 60;
+      if (dx < -SW / 3 || (fast && dx < 0)) go(sqIdx + 1);
+      else if (dx > SW / 3 || (fast && dx > 0)) go(sqIdx - 1);
+      else go(sqIdx);
+    };
+    vp.addEventListener("pointerup", end);
+    vp.addEventListener("pointercancel", end);
+    vp.addEventListener("pointerleave", end);
+    // a swipe is not a tap
+    vp.addEventListener("click", (ev) => {
+      if (moved) {
+        ev.stopPropagation();
+        ev.preventDefault();
+        moved = false;
+      }
+    }, true);
+    p.appendChild(box);
+    go(sqIdx, true);
+  }
+  // back to the first button when the panel wakes or is left alone
+  let sqWasAway = false;
+  const sqT = setInterval(() => {
+    if (!root.isConnected) return clearInterval(sqT);
+    const asleep = a.ctx.awake && !a.ctx.awake();
+    const dev = (a.ctx.device && a.ctx.device()) || {};
+    const idle = Date.now() - lastTouch > (dev.inactivityTimeout != null ? dev.inactivityTimeout : 60) * 1000;
+    if (asleep || idle) {
+      if (!sqWasAway && sqIdx !== 0 && isSquare()) {
+        sqIdx = 0;
+        if (a.current() === "home") renderHome(a.pages.home.el);
+      }
+      sqWasAway = true;
+    } else sqWasAway = false;
+  }, 5000);
+
   function renderHome(p) {
     p.innerHTML = "";
     const cs = cats().filter((c) => !c.hidden);
     const tall = root.classList.contains("tall");
     const n = cs.length;
     const cols = tall ? (n <= 4 ? 2 : 3) : n <= 4 ? n : n <= 10 ? Math.ceil(n / 2) : 5;
-    const grid = el("div", "rs-grid");
-    grid.style.width = cols * 210 + "px";
     const r = curRoom();
-    cs.forEach((c) => {
+    const mk = (c) => {
       const ic = iconHtml(c.key);
       const b = el("div", "rs-btn rs-k-" + c.key, '<div class="rs-ring' + (ic.fill ? " img-fill" : "") + '">' + ic.html + '<div class="rs-refl"><div class="rs-refl-in">' + ic.html + '</div></div><span class="rs-badge"></span></div><div class="rs-lbl"></div>');
       b.querySelector(".rs-lbl").textContent = c.title;
@@ -482,8 +643,15 @@ export function mountResidence(a) {
       b.classList.toggle("lit", lit);
       b.querySelector(".rs-badge").textContent = badge;
       b.addEventListener("click", () => a.go(c.key));
-      grid.appendChild(b);
-    });
+      return b;
+    };
+    if (isSquare() && cs.length) {
+      renderSquare(p, cs, r, mk);
+      return chrome();
+    }
+    const grid = el("div", "rs-grid");
+    grid.style.width = cols * 210 + "px";
+    cs.forEach((c) => grid.appendChild(mk(c)));
     p.appendChild(grid);
     chrome();
   }
@@ -665,9 +833,10 @@ export function mountResidence(a) {
   const BG_NAMES = { villa: "Villa at dusk", cape: "Cape dusk", "sunset-sea": "Sunset sea", mountains: "Misty mountains", "forest-mist": "Forest mist", dunes: "Desert dunes", stars: "Night sky", aurora: "Aurora", "city-night": "City lights", lounge: "Evening lounge", "marble-white": "White marble", "marble-black": "Black marble", slate: "Slate", concrete: "Concrete", steel: "Brushed steel", walnut: "Walnut", oak: "Oak", leather: "Leather", linen: "Linen", "colour-midnight": "Midnight blue", "colour-emerald": "Emerald", "colour-bordeaux": "Bordeaux", "colour-champagne": "Champagne silk", "colour-graphite": "Graphite silk", "colour-twilight": "Twilight", "colour-lagoon": "Lagoon", "colour-amber": "Amber glow", "sky-blue": "Blue sky", "sky-high": "High clouds", "sky-golden": "Golden hour", "sky-dawn": "Pastel dawn", "sky-moon": "Moonlit clouds" };
   const LANGS = [["en-GB", "English (UK)"], ["en-US", "English (US)"], ["af-ZA", "Afrikaans"], ["nl-NL", "Nederlands"], ["de-DE", "Deutsch"], ["fr-FR", "Français"], ["pt-PT", "Português"], ["es-ES", "Español"], ["it-IT", "Italiano"]];
   const TIMEOUTS = [[30, "30 s"], [60, "1 min"], [120, "2 min"], [300, "5 min"], [600, "10 min"], [0, "Never"]];
-  // installer PIN (editor): asked before the panel's setup opens (hold the
-  // top-left corner 3 s, or Settings > Panel > Installer setup). The customer
-  // Settings sheet itself is open.
+  // installer PIN (editor): asked when the Settings > Panel tab is opened, and when
+  // the top-left corner is held 3 s (the panel's setup screen). Display, Look and
+  // Clock & room stay open. Inside Panel, "Installer setup" opens the setup screen
+  // without asking again.
   const PIN = typeof rc.pin === "string" && /^\d{4,8}$/.test(rc.pin) ? rc.pin : "";
   let unlocked = false;
   const LD = () => (a.ctx && a.ctx.localDevice ? a.ctx.localDevice.get() : {});
@@ -716,7 +885,7 @@ export function mountResidence(a) {
     setupWithPin(open);
     return true;
   };
-  function pinPad(box, ok) {
+  function pinPad(box, ok, onCancel) {
     box.innerHTML = "";
     let code = "";
     const w = el("div", "rs-pin", '<b>Installer PIN</b><span class="rs-pind"></span><div class="rs-pinp"></div><span class="rs-pinx">Cancel</span>');
@@ -750,7 +919,7 @@ export function mountResidence(a) {
       });
       w.querySelector(".rs-pinp").appendChild(b);
     });
-    w.querySelector(".rs-pinx").addEventListener("click", () => (unlocked ? paintSettings(box) : closeSettings()));
+    w.querySelector(".rs-pinx").addEventListener("click", () => (onCancel ? onCancel() : unlocked ? paintSettings(box) : closeSettings()));
     box.appendChild(w);
   }
   const chipRow = (opts, cur, pick) => {
@@ -778,6 +947,13 @@ export function mountResidence(a) {
       const t = el("span", "rs-settab" + (setTab === tb[0] ? " on" : ""), line(tb[2]) + "<span></span>");
       t.lastChild.textContent = tb[1];
       t.addEventListener("click", () => {
+        if (tb[0] === "panel" && PIN && !unlocked) {
+          // the Panel tab (panel info, reset, installer setup) needs the installer PIN
+          return pinPad(box, () => {
+            setTab = "panel";
+            paintSettings(box);
+          }, () => paintSettings(box));
+        }
         setTab = tb[0];
         paintSettings(box);
       });
@@ -987,7 +1163,9 @@ export function mountResidence(a) {
         const inst = el("span", "rs-chip big", line("security") + "<span>Installer setup</span>");
         inst.addEventListener("click", () => {
           closeSettings();
-          a.ctx.openSetup();
+          // the PIN was entered to open this tab: straight to the setup screen
+          if (a.ctx.openSetupNow) a.ctx.openSetupNow();
+          else a.ctx.openSetup();
         });
         ft.appendChild(inst);
       }

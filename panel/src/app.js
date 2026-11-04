@@ -1617,6 +1617,8 @@ function holdOpensSetup() {
   else openSettings();
 }
 ctx.openSetup = holdOpensSetup;
+// the setup screen straight away (Residence: its PIN was already entered)
+ctx.openSetupNow = () => openSettings();
 let cornerDownAt = 0;
 cornerEl.addEventListener("pointerdown", () => {
   cornerDownAt = Date.now();

@@ -398,6 +398,46 @@ export function buildElegant(cfg, ctx, skin) {
   // lights
   let selLight = 0;
   let dragging = false;
+  // Residence: - / + beside a volume slider. Tap = one step, hold = keeps going
+  // until let go. apply(v) paints the bar and sends the level.
+  function volButtons(vol, apply) {
+    if (!RS) return;
+    const fill = vol.querySelector(".el-fill");
+    const cur = () => (parseFloat(fill.style.width) || 0) / 100;
+    const mk = (dir) => {
+      const b = el("div", "el-volb", svg(dir < 0 ? "minus" : "plus"));
+      let t1 = null;
+      let t2 = null;
+      b.addEventListener("pointerdown", (ev) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+        dragging = true;
+        window.__arClaimGesture = true;
+        b.classList.add("down");
+        apply(clamp(Math.round((cur() + dir * 0.05) * 100) / 100, 0, 1));
+        t1 = setTimeout(() => {
+          t2 = setInterval(() => apply(clamp(Math.round((cur() + dir * 0.03) * 100) / 100, 0, 1)), 220);
+        }, 450);
+        const up = () => {
+          clearTimeout(t1);
+          clearInterval(t2);
+          b.classList.remove("down");
+          dragging = false;
+          window.__arClaimGesture = false;
+          window.removeEventListener("pointerup", up);
+          window.removeEventListener("pointercancel", up);
+        };
+        window.addEventListener("pointerup", up);
+        window.addEventListener("pointercancel", up);
+      });
+      b.addEventListener("click", (ev) => ev.stopPropagation());
+      return b;
+    };
+    const sl = vol.querySelector(".el-slider");
+    vol.insertBefore(mk(-1), sl);
+    vol.insertBefore(mk(1), sl.nextSibling);
+    vol.classList.add("el-volbtns");
+  }
   if (ents.lights) {
     const lp = mkPage("lights");
     lp.render = function () {
@@ -1551,6 +1591,13 @@ export function buildElegant(cfg, ctx, skin) {
     };
     sl.addEventListener("pointerup", endV);
     sl.addEventListener("pointercancel", endV);
+    volButtons(vol, (v) => {
+      vol.querySelector(".el-fill").style.width = v * 100 + "%";
+      vol.querySelector(".el-volpc").textContent = Math.round(v * 100) + "%";
+      holds["M" + pl.player_id] = { v: Math.round(v * 100), until: Date.now() + 4000 };
+      if (gsz > 1) matchVolume(zoneIds(pl), Math.round(v * 100));
+      else maCmd("players/cmd/volume_set", { player_id: pl.player_id, volume_level: Math.round(v * 100) });
+    });
     right.appendChild(vol);
     // speakers: tap = play here, + = add to this group
     const members = pl.group_members || [];
@@ -2027,6 +2074,12 @@ export function buildElegant(cfg, ctx, skin) {
         sp.volume(Math.round(v * 100)).catch((e) => spErr(e));
       }
     };
+    volButtons(vol, (v) => {
+      vol.querySelector(".el-fill").style.width = v * 100 + "%";
+      vol.querySelector(".el-volpc").textContent = Math.round(v * 100) + "%";
+      hold("SPV", Math.round(v * 100));
+      sp.volume(Math.round(v * 100)).catch((e) => spErr(e));
+    });
     sl.addEventListener("pointerdown", (ev) => {
       ev.stopPropagation();
       dragging = true;
@@ -2327,6 +2380,11 @@ export function buildElegant(cfg, ctx, skin) {
       };
       sl.addEventListener("pointerup", end);
       sl.addEventListener("pointercancel", end);
+      volButtons(vol, (v) => {
+        patch(e, { vol: v });
+        paintVol(vol, get(e));
+        send("volume", { entity: e, v: v });
+      });
       side.appendChild(vol);
       const spk = el("div", "el-glass el-spk");
       ents.music.forEach((x, i) => {

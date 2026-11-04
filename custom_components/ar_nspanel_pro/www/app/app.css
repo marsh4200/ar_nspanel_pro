@@ -1418,3 +1418,32 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.skin-residence .rs-util.on .rs-usw{background:var(--acc)}
 .el-root.skin-residence .rs-util.on .rs-usw i{-webkit-transform:translateX(16px);transform:translateX(16px)}
 .el-root.skin-residence .rs-pinbox{width:420px}
+/* small square screen: one big button at a time (the same button, scaled up, so every look works) */
+.el-root.skin-residence .rs-sq{position:absolute;top:0;bottom:0;left:0;right:0}
+.el-root.skin-residence .rs-sqvp{position:absolute;top:0;bottom:70px;left:0;right:0;overflow:hidden;touch-action:pan-y}
+.el-root.skin-residence .rs-sqtrack{position:absolute;top:0;bottom:0;left:0;display:flex;-webkit-transition:-webkit-transform .32s cubic-bezier(.2,.8,.2,1);transition:transform .32s cubic-bezier(.2,.8,.2,1)}
+.el-root.skin-residence .rs-sqs{width:1000px;height:100%;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;-webkit-transition:opacity .25s,-webkit-transform .25s;transition:opacity .25s,transform .25s}
+.el-root.skin-residence .rs-sq.peek .rs-sqs{width:440px}
+.el-root.skin-residence .rs-sq.peek .rs-sqarr{display:none}
+.el-root.skin-residence .rs-sq.peek .rs-sqs:not(.cur){opacity:.28;-webkit-transform:scale(.7);transform:scale(.7)}
+.el-root.skin-residence .rs-sqb{position:relative;width:520px;height:480px}
+.el-root.skin-residence .rs-sqb .rs-btn{position:absolute;left:50%;top:50%;margin:-98px 0 0 -105px;-webkit-transform:scale(2.45);transform:scale(2.45)}
+.el-root.skin-residence .rs-sqb .rs-lbl{letter-spacing:.12em;text-transform:uppercase;font-size:17px}
+.el-root.skin-residence .rs-sqst{margin-top:-6px;font-size:30px;opacity:.72;letter-spacing:.03em;text-shadow:0 1px 8px rgba(0,0,0,.85);min-height:40px}
+.el-root.skin-residence .rs-sqs.lit .rs-sqst{color:var(--acc);opacity:1}
+.el-root.skin-residence .rs-sqdots{position:absolute;left:0;right:0;bottom:22px;display:flex;justify-content:center}
+.el-root.skin-residence .rs-sqdots span{width:16px;height:16px;margin:0 9px;border-radius:8px;background:rgba(255,255,255,.35);-webkit-transition:width .2s,background .2s;transition:width .2s,background .2s}
+.el-root.skin-residence .rs-sqdots span.cur{width:44px;background:rgba(255,255,255,.92)}
+.el-root.skin-residence .rs-sqarr{position:absolute;top:50%;width:90px;height:140px;margin-top:-105px;display:flex;align-items:center;justify-content:center;opacity:.5;z-index:2}
+.el-root.skin-residence .rs-sqarr svg{width:52px;height:52px}
+.el-root.skin-residence .rs-sqarr.l{left:4px}
+.el-root.skin-residence .rs-sqarr.r{right:4px;-webkit-transform:scaleX(-1);transform:scaleX(-1)}
+.el-root.skin-residence .rs-sqarr.gone{opacity:0;pointer-events:none}
+/* Listen: - / + beside the volume slider */
+.el-root.skin-residence .el-vol.el-volbtns .el-slider{margin:0 10px}
+.el-root.skin-residence .el-volb{width:44px;height:44px;border-radius:22px;flex:none;display:flex;align-items:center;justify-content:center;margin-left:8px;
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);cursor:pointer;-webkit-transition:background .15s,-webkit-transform .1s;transition:background .15s,transform .1s}
+.el-root.skin-residence .el-volb+.el-slider{margin-left:10px}
+.el-root.skin-residence .el-slider+.el-volb{margin:0 10px 0 0}
+.el-root.skin-residence .el-volb svg{width:20px;height:20px;color:#fff}
+.el-root.skin-residence .el-volb.down{background:rgba(var(--acc-rgb),.35);-webkit-transform:scale(.92);transform:scale(.92)}

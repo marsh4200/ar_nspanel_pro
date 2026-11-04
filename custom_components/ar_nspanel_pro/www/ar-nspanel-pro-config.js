@@ -9756,9 +9756,12 @@ function ResidenceMore({ hass: h, rc: rc, save: save, rooms: R, fname: fn, utili
         RS_STYPES.map((o) => /* @__PURE__ */ a.jsx("option", { value: o[0], children: o[1] }, o[0]))
       ] })
     ] }, e)) }),
+    /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Small square panel (NSPanel Pro)" }),
+    /* @__PURE__ */ a.jsx(et, { title: "One button at a time", sub: "On the square 4-inch screen the home screen shows one big button; swipe left or right for the next, the background stays. Untick to keep the small grid. Bigger panels always show the grid.", on: !rc.squareGrid, onChange: (m) => save({ squareGrid: m ? void 0 : !0 }) }),
+    !rc.squareGrid && /* @__PURE__ */ a.jsx(et, { title: "Show the next buttons at the sides", sub: "The buttons before and after peek in faintly at the edges, so it's clear there's more to swipe to.", on: !!rc.peek, onChange: (m) => save({ peek: m ? !0 : void 0 }) }),
     /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Customer settings" }),
     /* @__PURE__ */ a.jsx(et, { title: "Settings button (gear)", sub: "Next to the clock. The customer can set brightness, screensaver time and a night schedule, pick a built-in background, glow and buttons, 12/24-hour clock and date language, a home room, tap sounds, see the panel info and clean the screen. Kept on the panel; untick to hide the gear.", on: rc.settingsOn !== !1, onChange: (m) => save({ settingsOn: m ? void 0 : !1 }) }),
-    /* @__PURE__ */ a.jsx(X, { label: "Installer PIN", hint: "Optional, 4 to 8 digits. Asked when someone holds the top-left corner of the panel for 3 seconds, or taps Settings > Panel > Installer setup, before the panel's setup screen opens. The customer Settings stay open. A light lock against curious fingers, not a security code (it travels in the panel's settings).", children: /* @__PURE__ */ a.jsx("input", { className: "inp", inputMode: "numeric", placeholder: "e.g. 2580", value: rc.pin || "", onChange: (m) => {
+    /* @__PURE__ */ a.jsx(X, { label: "Installer PIN", hint: "Optional, 4 to 8 digits. Asked when someone opens the Panel tab in Settings, or holds the top-left corner of the panel for 3 seconds (the panel's setup screen). Inside the Panel tab, Installer setup then opens the setup screen without asking again. Display, Look and Clock & room stay open. A light lock against curious fingers, not a security code (it travels in the panel's settings).", children: /* @__PURE__ */ a.jsx("input", { className: "inp", inputMode: "numeric", placeholder: "e.g. 2580", value: rc.pin || "", onChange: (m) => {
       const v = m.target.value.replace(/\D/g, "").slice(0, 8);
       save({ pin: v || void 0 });
     } }) }),
