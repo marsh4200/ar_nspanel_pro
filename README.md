@@ -150,6 +150,9 @@ the same as 4.0.8).
   off everything the sources switched on and goes back to the room's home screen. Set up per room
   under *Residence look → More options → Watch sources*; without sources Watch shows the room's TVs as
   before. Code: `custom_components/ar_nspanel_pro/residence_watch.py`.
+  4.4.1: a step can use a media player, a **remote** (sends a command, e.g. an IR blaster: "power",
+  "HDMI1") or a **button** (pressed), plus a *Press a button* step. Room Off turns a remote off or
+  sends its off command, and presses the off button picked for a button.
 - **Whole Home**: in the room menu (with more than one room), with **All Off** for the house.
 - **Backgrounds**: 32 built in, in four groups: scenes, skies (blue sky, high clouds, golden
   hour, pastel dawn, moonlit clouds), colours (midnight blue, emerald, bordeaux, champagne silk,

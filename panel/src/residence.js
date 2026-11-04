@@ -743,10 +743,12 @@ export function mountResidence(a) {
   function stepText(st) {
     const n = st.e ? a.nameOf(st.e) : "";
     const v = st.v ? String(st.v) : "";
-    if (st.t === "on") return ["Turning on " + n, ""];
-    if (st.t === "input") return ["Switching to " + v, n];
-    if (st.t === "source") return ["Source " + v, n];
-    if (st.t === "app") return ["Opening " + v, n];
+    const btn = /^(input_)?button\./.test(st.e || "");
+    if (st.t === "on") return [(btn ? "Pressing " : "Turning on ") + n, ""];
+    if (st.t === "press") return ["Pressing " + n, ""];
+    if (st.t === "input") return ["Switching to " + (v || n), v ? n : ""];
+    if (st.t === "source") return ["Source " + (v || n), v ? n : ""];
+    if (st.t === "app") return ["Opening " + (v || n), v ? n : ""];
     if (st.t === "scene") return ["Running " + n, ""];
     if (st.t === "wait") return ["Waiting " + (st.s || 0) + " s", ""];
     if (st.t === "cmd") return ["Sending " + v, n];

@@ -9,6 +9,10 @@ Each room can have Watch sources (``device.elegant.rooms[i].rsWatch``)::
                {"t": "scene", "e": "scene.movie_night"},
                {"t": "wait", "s": 3},
                {"t": "cmd", "e": "remote.dstv", "v": "power"},
+               {"t": "on", "e": "remote.lounge_ir", "v": "power", "offV": "power"},   # IR TV
+               {"t": "input", "e": "button.tv_hdmi_1"},                           # a button
+               {"t": "on", "e": "button.tv_power_on", "offE": "button.tv_power_off"},
+               {"t": "press", "e": "button.soundbar_movie"},
                {"t": "action", "v": "light.turn_on", "e": "light.x", "d": {"brightness_pct": 20}}],
      "remote": {"e": "remote.apple_tv", "kind": "appletv"},
      "player": "media_player.apple_tv", "volume": "media_player.denon"}
@@ -88,6 +92,15 @@ def _ent(x: Any) -> str | None:
     return x if isinstance(x, str) and "." in x else None
 
 
+def _dom(e: str | None) -> str:
+    return e.split(".", 1)[0] if e else ""
+
+
+async def _press(hass: Any, e: str) -> None:
+    """button.* and input_button.* are pressed, never turned on / off."""
+    await _call(hass, "input_button" if _dom(e) == "input_button" else "button", "press", {"entity_id": e})
+
+
 class _Watch:
     """What runs / last ran per panel, and which source is on in each room."""
 
@@ -119,13 +132,15 @@ def step_label(hass: Any, st: dict[str, Any]) -> list[str]:
     t, e, v = st.get("t"), _ent(st.get("e")), st.get("v")
     n = _name(hass, e)
     if t == "on":
-        return ["Turning on " + n, ""]
+        return ["Turning on " + n, ""] if _dom(e) not in ("button", "input_button") else ["Pressing " + n, ""]
+    if t == "press":
+        return ["Pressing " + n, ""]
     if t == "input":
-        return ["Switching to " + str(v or "?"), n]
+        return ["Switching to " + str(v or n or "?"), n if v else ""]
     if t == "source":
-        return ["Source " + str(v or "?"), n]
+        return ["Source " + str(v or n or "?"), n if v else ""]
     if t == "app":
-        return ["Opening " + str(v or "?"), n]
+        return ["Opening " + str(v or n or "?"), n if v else ""]
     if t == "scene":
         return ["Running " + n, ""]
     if t == "wait":
@@ -158,6 +173,26 @@ async def run_step(hass: Any, st: dict[str, Any]) -> str:
     """Do one step. Returns "done" or "skip" (already so); raises on failure."""
     t, e, v = st.get("t"), _ent(st.get("e")), st.get("v")
     cur = hass.states.get(e) if e else None
+    d = _dom(e)
+    if t == "press" or (t in ("on", "input", "source", "app") and d in ("button", "input_button")):
+        if not e:
+            raise ValueError("no button picked")
+        await _press(hass, e)
+        return "done"
+    if t == "on" and d == "remote":
+        if isinstance(v, str) and v:
+            # an IR / RF remote: send its power command (we can't know whether the TV is on)
+            await _call(hass, "remote", "send_command", {"entity_id": e, "command": v})
+            return "done"
+        if cur is not None and cur.state not in OFF_STATES:
+            return "skip"
+        await _call(hass, "remote", "turn_on", {"entity_id": e})
+        return "done"
+    if t in ("input", "source", "app") and d == "remote":
+        if not isinstance(v, str) or not v:
+            raise ValueError("no command picked")
+        await _call(hass, "remote", "send_command", {"entity_id": e, "command": v})
+        return "done"
     if t == "on":
         if not e:
             raise ValueError("no device picked")
@@ -239,17 +274,36 @@ async def _run(bridge: Any, room: int, src: dict[str, Any]) -> None:
     await async_publish(bridge)
 
 
-def _turned_on(src: dict[str, Any]) -> list[str]:
-    """What Room Off switches off: every device a step switched on (or changed)."""
-    out: list[str] = []
+def _turned_on(src: dict[str, Any]) -> list[list[Any]]:
+    """What Room Off does, as [how, entity, command] items:
+    a media player / switch a step turned on (or changed) is turned off; a remote
+    is turned off, or sent its "off" command; a button can't be turned off, so its
+    "Room Off presses" button is pressed instead (if one was picked)."""
+    out: list[list[Any]] = []
+
+    def add(item: list[Any]) -> None:
+        if item not in out:
+            out.append(item)
+
     for st in src.get("steps") or []:
-        if isinstance(st, dict) and st.get("t") in ("on", "input", "source", "app") and st.get("off", True) is not False:
-            e = _ent(st.get("e"))
-            if e and e not in out and not e.startswith(("scene.", "script.")):
-                out.append(e)
+        if not isinstance(st, dict) or st.get("t") not in ("on", "input", "source", "app") or st.get("off", True) is False:
+            continue
+        e = _ent(st.get("e"))
+        d = _dom(e)
+        if not e or d in ("scene", "script"):
+            continue
+        if d in ("button", "input_button"):
+            if _ent(st.get("offE")):
+                add(["press", st["offE"], None])
+        elif d == "remote":
+            if st.get("t") != "on":
+                continue  # an input sent through a remote: the remote itself stays
+            add(["cmd", e, st["offV"]] if isinstance(st.get("offV"), str) and st["offV"] else ["off", e, None])
+        else:
+            add(["off", e, None])
     for e in (src.get("player"), src.get("volume")):
-        if _ent(e) and e not in out and src.get("offAll"):
-            out.append(e)
+        if _ent(e) and src.get("offAll"):
+            add(["off", e, None])
     return out
 
 
@@ -281,13 +335,17 @@ async def async_panel_event(bridge: Any, action: str, value: Any) -> bool:
             task.cancel()
         offs = list(w.used.get(bridge.device_id, {}).pop(str(room), []))
         if src is not None:
-            offs += [e for e in _turned_on(src) if e not in offs]
-        if offs:
-            for e in offs:
-                try:
+            offs += [x for x in _turned_on(src) if x not in offs]
+        for how, e, cmd in offs:
+            try:
+                if how == "press":
+                    await _press(hass, e)
+                elif how == "cmd":
+                    await _call(hass, "remote", "send_command", {"entity_id": e, "command": cmd})
+                else:
                     await _call(hass, "homeassistant", "turn_off", {"entity_id": e})
-                except Exception:  # noqa: BLE001
-                    _LOGGER.warning("watch: couldn't switch %s off", e, exc_info=True)
+            except Exception:  # noqa: BLE001
+                _LOGGER.warning("watch: couldn't switch %s off", e, exc_info=True)
         active.pop(str(room), None)
         run = w.run.get(bridge.device_id)
         if run and run.get("room") == room:

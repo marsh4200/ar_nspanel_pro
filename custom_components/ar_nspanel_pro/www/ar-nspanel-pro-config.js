@@ -9779,15 +9779,17 @@ function ResidenceMore({ hass: h, rc: rc, save: save, rooms: R, fname: fn, utili
 }
 // --- Residence: Watch sources per room (Control4-style "What would you like to watch?") ---
 const RS_STEP_TYPES = [
-  ["on", "Turn on", ["media_player", "switch", "remote", "light", "input_boolean"]],
-  ["input", "Switch TV input", ["media_player"]],
-  ["source", "Choose receiver source", ["media_player"]],
-  ["app", "Open app", ["media_player"]],
+  ["on", "Turn on", ["media_player", "remote", "button", "input_button", "switch", "light", "input_boolean"]],
+  ["input", "Switch TV input", ["media_player", "remote", "button", "input_button"]],
+  ["source", "Choose receiver source", ["media_player", "remote", "button", "input_button"]],
+  ["app", "Open app", ["media_player", "remote", "button", "input_button"]],
+  ["press", "Press a button", ["button", "input_button"]],
   ["scene", "Run a scene / script", ["scene", "script"]],
   ["cmd", "Send remote command", ["remote"]],
   ["wait", "Wait", []],
   ["action", "Other Home Assistant action", null]
 ];
+const RS_DOM_NAME = (id) => ({ media_player: "media player", remote: "remote", button: "button", input_button: "button", switch: "switch", light: "light", input_boolean: "toggle", scene: "scene", script: "script" })[String(id).split(".")[0]] || String(id).split(".")[0];
 const RS_REMOTE_KINDS = [["appletv", "Apple TV"], ["androidtv", "Android / Google TV"], ["roku", "Roku"], ["ir", "IR blaster (Broadlink etc.)"]];
 const rsWid = (name) => (String(name || "source").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "source") + "-" + Math.random().toString(36).slice(2, 6);
 function RsWatchSource({ hass: h, src: s, onChange: set, onRemove: del, onMove: move, first, last, fname: fn }) {
@@ -9813,7 +9815,7 @@ function RsWatchSource({ hass: h, src: s, onChange: set, onRemove: del, onMove: 
   const entSel = (val, doms, onPick, ph) => /* @__PURE__ */ a.jsxs("select", { className: "inp", style: { flex: "1 1 180px", minWidth: 0 }, value: val || "", onChange: (m) => onPick(m.target.value || void 0), children: [
     /* @__PURE__ */ a.jsx("option", { value: "", children: ph || "Pick a device" }),
     val && !states[val] && /* @__PURE__ */ a.jsx("option", { value: val, children: val }),
-    ids(doms).map((id) => /* @__PURE__ */ a.jsx("option", { value: id, children: fn(id) }, id))
+    ids(doms).map((id) => /* @__PURE__ */ a.jsx("option", { value: id, children: fn(id) + (doms && doms.length > 1 ? "  · " + RS_DOM_NAME(id) : "") }, id))
   ] });
   const srcList = (e) => {
     const l = e && states[e] && states[e].attributes && states[e].attributes.source_list;
@@ -9845,7 +9847,7 @@ function RsWatchSource({ hass: h, src: s, onChange: set, onRemove: del, onMove: 
       ] }),
       err && /* @__PURE__ */ a.jsx("div", { className: "hint", style: { color: "#ff8f80", marginTop: 6 }, children: err }),
       /* @__PURE__ */ a.jsx("div", { style: { fontSize: 12, fontWeight: 700, opacity: 0.7, letterSpacing: ".04em", textTransform: "uppercase", margin: "14px 0 4px" }, children: "When it's tapped, in this order" }),
-      /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginBottom: 6 }, children: "Steps that are already done (TV on, already on HDMI 1) are skipped, so changing source only changes what's different. Room Off switches off every device a step turned on." }),
+      /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginBottom: 6 }, children: "Each step can use a media player, a remote (sends a command, e.g. an IR blaster) or a button (pressed). Steps that are already done (TV on, already on HDMI 1) are skipped, so changing source only changes what's different. Room Off switches off every device a step turned on; for a remote you can give its off command, for a button pick the button that switches it off." }),
       steps.map((st, i) => {
         const ty = RS_STEP_TYPES.filter((q) => q[0] === st.t)[0] || RS_STEP_TYPES[0];
         const opts = srcList(st.e);
@@ -9853,7 +9855,8 @@ function RsWatchSource({ hass: h, src: s, onChange: set, onRemove: del, onMove: 
           /* @__PURE__ */ a.jsx("span", { style: { width: 22, height: 22, borderRadius: 11, display: "grid", placeItems: "center", fontSize: 12, background: "var(--surface2, rgba(255,255,255,.08))", flex: "none" }, children: i + 1 }),
           /* @__PURE__ */ a.jsx("select", { className: "inp", style: { flex: "0 1 200px", minWidth: 0 }, value: ty[0], onChange: (m) => setStep(i, { t: m.target.value, v: void 0, s: m.target.value === "wait" ? 3 : void 0 }), children: RS_STEP_TYPES.map((q) => /* @__PURE__ */ a.jsx("option", { value: q[0], children: q[1] }, q[0])) }),
           ty[0] !== "wait" && entSel(st.e, ty[2], (v) => setStep(i, { e: v }), ty[0] === "action" ? "Device (optional)" : void 0),
-          ["input", "source", "app"].includes(ty[0]) && (opts.length ? /* @__PURE__ */ a.jsxs("select", { className: "inp", style: { flex: "0 1 170px", minWidth: 0 }, value: st.v || "", onChange: (m) => setStep(i, { v: m.target.value || void 0 }), children: [
+          ["input", "source", "app"].includes(ty[0]) && /^remote\./.test(st.e || "") && /* @__PURE__ */ a.jsx("input", { className: "inp", style: { flex: "0 1 170px", minWidth: 0 }, placeholder: ty[0] === "app" ? "Remote command, e.g. netflix" : "Remote command, e.g. HDMI1", value: st.v || "", onChange: (m) => setStep(i, { v: m.target.value || void 0 }) }),
+          ["input", "source", "app"].includes(ty[0]) && !/^(remote|button|input_button)\./.test(st.e || "") && (opts.length ? /* @__PURE__ */ a.jsxs("select", { className: "inp", style: { flex: "0 1 170px", minWidth: 0 }, value: st.v || "", onChange: (m) => setStep(i, { v: m.target.value || void 0 }), children: [
             /* @__PURE__ */ a.jsx("option", { value: "", children: ty[0] === "app" ? "Pick the app" : "Pick the input" }),
             st.v && !opts.includes(st.v) && /* @__PURE__ */ a.jsx("option", { value: st.v, children: st.v }),
             opts.map((o) => /* @__PURE__ */ a.jsx("option", { value: o, children: o }, o))
@@ -9871,7 +9874,10 @@ function RsWatchSource({ hass: h, src: s, onChange: set, onRemove: del, onMove: 
               m.target.style.borderColor = "#ff8f80";
             }
           } }),
+          ty[0] === "on" && /^remote\./.test(st.e || "") && /* @__PURE__ */ a.jsx("input", { className: "inp", style: { flex: "0 1 150px", minWidth: 0 }, placeholder: "Command, e.g. power", title: "For an IR / RF remote: the command that switches the TV on. Leave empty to turn the remote (hub / activity) on.", value: st.v || "", onChange: (m) => setStep(i, { v: m.target.value || void 0 }) }),
           ty[0] === "on" && /* @__PURE__ */ a.jsxs("label", { style: { fontSize: 12.5, display: "flex", alignItems: "center", gap: 4 }, title: "Untick for something that should stay on after Room Off", children: [/* @__PURE__ */ a.jsx("input", { type: "checkbox", checked: st.off !== !1, onChange: (m) => setStep(i, { off: m.target.checked ? void 0 : !1 }) }), "off on Room Off"] }),
+          ty[0] === "on" && st.off !== !1 && /^remote\./.test(st.e || "") && /* @__PURE__ */ a.jsx("input", { className: "inp", style: { flex: "0 1 150px", minWidth: 0 }, placeholder: "Off command, e.g. power", title: "What Room Off sends to this remote. Empty = turn the remote off.", value: st.offV || "", onChange: (m) => setStep(i, { offV: m.target.value || void 0 }) }),
+          ty[0] === "on" && st.off !== !1 && /^(input_)?button\./.test(st.e || "") && entSel(st.offE, ["button", "input_button"], (v) => setStep(i, { offE: v }), "Room Off presses (pick the off button)"),
           /* @__PURE__ */ a.jsx("button", { className: "btn ghost", style: tiny, disabled: !i, onClick: () => setSteps(steps.map((x, k) => (k === i - 1 ? steps[i] : k === i ? steps[i - 1] : x))), children: "↑" }),
           /* @__PURE__ */ a.jsx("button", { className: "btn ghost", style: { ...tiny, color: "#ff8f80" }, onClick: () => setSteps(steps.filter((x, k) => k !== i)), children: "✕" })
         ] }, i);
