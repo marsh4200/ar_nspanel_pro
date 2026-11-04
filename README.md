@@ -128,6 +128,12 @@ the same as 4.0.8).
 - **Icons** (4.3.1): 8 more realistic icons. Scenes: Scenes (gold sparkles), Scene keypad, Magic,
   Day & night. Utilities: Energy (gold bolt), Smart meter, Usage gauge, Home energy. *Realistic
   icons* now puts Scenes on the Scenes button and Energy on Utilities (was Goodnight and Solar).
+- **Asleep amp** (4.3.3, Spotify page, every Elegant-based style): an idle amp drops out of Spotify
+  Connect and only a Spotify app on the same Wi-Fi can log it back in. Tapping it switches it on
+  and to its Spotify input; with the SpotifyPlus integration (HACS) installed, Home Assistant also
+  asks SpotifyPlus to re-activate it in Spotify Connect, and the panel then plays what you picked
+  on it. Spotify Connect only: the Spotify page never hands music to Music Assistant, and the
+  Music Assistant page is unchanged.
 
 Uploaded images are stored in `<config>/ar_nspanel_pro_media/` (kept across updates) and served at
 `/ar_nspanel_pro_media/`. Code: `panel/src/residence.js`, `panel/src/residence.css` (built into
