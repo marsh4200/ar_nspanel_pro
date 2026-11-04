@@ -80,6 +80,19 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Residence Lights: lamps that shine (4.5.1)
+
+Residence's Lights page is one tall glass fader per light. Its lamp hangs at the top (downlight,
+pendant, Edison bulb or cove LEDs, picked by *Match each light* or the lamp look in Residence
+settings) and really shines down the fader: the beam, the pool of light on the floor, the glow and
+the colour all follow the dimmer, warm amber when low and warm white near 100 %. Drag up / down
+anywhere on a fader (the rail on the right shows the level), tap the lamp to switch it on or off;
+on/off lights switch with a tap. Moods on the right are the customer's lighting scenes plus All on
+and All off (under the faders on a square panel). More lights than fit scroll sideways. On the
+Watch page a source is now just its logo, with no tile behind it. The old light cards are still
+there: Device Setup > Residence > Lights page > Layout: *Cards (old)*, and the customer can switch
+in Settings > Look > Lights page. Residence only; the other styles are unchanged.
+
 ## Cameras: pictures first, live on tap (4.5.0)
 
 The Cameras page (every Elegant-based style) shows up to 8 cameras as pictures that refresh every

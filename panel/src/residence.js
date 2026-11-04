@@ -13,6 +13,7 @@
 //   iconShape: "ring" | "square" | "bare" (older; used when look is not set),   accent: "warm" | "brass" | "ice"
 //   icons: { lights: {src: "lib:bulb_on" | "/local/…png", fill: bool}, … }
 //   lightLook: "match" | "lamp" | "edison" | "downlight" | "bulb"
+//   lightsPage: "faders" (default: a lamp shining down a fader per light) | "cards" (the old cards)
 //   lightTypes: { "light.x": "lamp" | "edison" | "downlight" | "bulb" }
 //   shadeTypes: { "cover.x": "roller" | "sheer" | "block" | "curtain" }
 //   musicBar: "anywhere" | "room",   roomOffLights: bool (default true)
@@ -128,6 +129,8 @@ export function mountResidence(a) {
     const l = lookNow();
     return l === "s-square" || l === "s-key" || l === "s-tile" ? "square" : l.charAt(0) === "i" ? "bare" : "ring";
   };
+  // Lights page: the customer's pick (Settings > Look) wins over the installer's
+  const lightsPage = () => (PREF.lights === "cards" || PREF.lights === "faders" ? PREF.lights : rc.lightsPage === "cards" ? "cards" : "faders");
   const accentNow = () => (ACCENTS[PREF.accent] ? PREF.accent : ACCENTS[rc.accent] ? rc.accent : "warm");
   function applyLook() {
     ["ring", "square", "bare"].forEach((s) => root.classList.toggle("rs-shape-" + s, s === shapeNow()));
@@ -1361,6 +1364,9 @@ export function mountResidence(a) {
         const bi = row("Icons only", "top");
         bi.appendChild(chipRow(LOOKS.slice(7), lookNow(), pickLook));
         body.appendChild(bi);
+        const lp = row("Lights page");
+        lp.appendChild(chipRow([["faders", "Lamp faders"], ["cards", "Cards"]], lightsPage(), (v) => ((PREF.lights = v), savePref(), again())));
+        body.appendChild(lp);
       }
     } else if (setTab === "clock") {
       const dev = (a.ctx.device && a.ctx.device()) || {};
@@ -1420,7 +1426,7 @@ export function mountResidence(a) {
         });
         ft.appendChild(inst);
       }
-      const changed = PREF.bg || PREF.accent || PREF.shape || PREF.look || PREF.sound || typeof PREF.room === "number" || (a.ctx.brightness && a.ctx.brightness.get() != null) || Object.keys(LD()).length;
+      const changed = PREF.bg || PREF.accent || PREF.shape || PREF.look || PREF.lights || PREF.sound || typeof PREF.room === "number" || (a.ctx.brightness && a.ctx.brightness.get() != null) || Object.keys(LD()).length;
       if (changed) {
         const rs = txt("span", "rs-chip big", "Back to how it was set up");
         rs.addEventListener("click", () => {
@@ -1877,5 +1883,5 @@ export function mountResidence(a) {
     }
   }
 
-  return { cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, decorateCover, paintCover, startRoom: homeRoom, utilCards };
+  return { cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightsPage, decorateCover, paintCover, startRoom: homeRoom, utilCards };
 }

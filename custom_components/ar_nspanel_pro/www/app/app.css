@@ -1465,20 +1465,19 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.skin-residence .rs-wpick{position:absolute;top:0;bottom:0;left:0;right:0;display:flex;flex-direction:column;align-items:center}
 .el-root.skin-residence .rs-wask{font-size:28px;font-weight:300;letter-spacing:.02em;margin:2px 0 14px;text-shadow:0 1px 8px rgba(0,0,0,.8)}
 .el-root.skin-residence .rs-wsrcs{flex:1;min-height:0;width:870px;max-width:100%;display:flex;flex-wrap:wrap;align-content:flex-start;justify-content:center;overflow-y:auto;touch-action:pan-y}
-.el-root.skin-residence .rs-wsrc{position:relative;width:196px;height:170px;margin:8px;border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;
-  background:linear-gradient(160deg,rgba(255,255,255,.13),rgba(255,255,255,.03) 55%,rgba(0,0,0,.2)),rgba(18,18,22,.55);border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 16px 28px -16px rgba(0,0,0,.95);-webkit-transition:-webkit-transform .15s;transition:transform .15s}
+/* a source is just its logo (no tile behind it): the logo the installer uploaded, its name under it */
+.el-root.skin-residence .rs-wsrc{position:relative;width:196px;height:180px;margin:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;-webkit-transition:-webkit-transform .15s;transition:transform .15s}
 .el-root.skin-residence .rs-wsrc:active{-webkit-transform:scale(.96);transform:scale(.96)}
-.el-root.skin-residence .rs-wsrc b{margin-top:12px;font-weight:400;font-size:18px;letter-spacing:.06em;max-width:176px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.el-root.skin-residence .rs-wsrc small{position:absolute;top:10px;left:0;right:0;text-align:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);opacity:0}
-.el-root.skin-residence .rs-wsrc.last{border-color:rgba(var(--acc-rgb),.5)}
+.el-root.skin-residence .rs-wsrc b{margin-top:10px;font-weight:400;font-size:18px;letter-spacing:.06em;max-width:176px;text-shadow:0 1px 8px rgba(0,0,0,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-wsrc small{position:absolute;top:0;left:0;right:0;text-shadow:0 1px 6px rgba(0,0,0,.8);text-align:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);opacity:0}
+.el-root.skin-residence .rs-wsrc.last b{color:var(--acc)}
 .el-root.skin-residence .rs-wsrc.last small{opacity:.9}
-.el-root.skin-residence .rs-wlogo{width:88px;height:88px;display:flex;align-items:center;justify-content:center}
-.el-root.skin-residence .rs-wlogo img{max-width:100%;max-height:100%;object-fit:contain}
+.el-root.skin-residence .rs-wlogo{width:130px;height:110px;display:flex;align-items:center;justify-content:center}
+.el-root.skin-residence .rs-wlogo img{max-width:100%;max-height:100%;object-fit:contain;-webkit-filter:drop-shadow(0 6px 14px rgba(0,0,0,.6));filter:drop-shadow(0 6px 14px rgba(0,0,0,.6))}
 .el-root.skin-residence .rs-wlg0 svg{width:64px;height:64px;opacity:.8}
 .el-root.skin-residence .rs-wstart{position:absolute;top:0;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center}
-.el-root.skin-residence .rs-wbig{width:230px;height:230px;border-radius:34px;margin-right:56px;flex:none;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(255,255,255,.03) 55%,rgba(0,0,0,.2)),rgba(18,18,22,.6);border:1px solid rgba(var(--acc-rgb),.45);box-shadow:0 0 40px -10px rgba(var(--acc-rgb),.45),inset 0 1px 0 rgba(255,255,255,.2)}
-.el-root.skin-residence .rs-wbig img{width:150px;height:150px;object-fit:contain}
+.el-root.skin-residence .rs-wbig{width:230px;height:230px;margin-right:56px;flex:none;display:flex;align-items:center;justify-content:center}
+.el-root.skin-residence .rs-wbig img{max-width:220px;max-height:200px;object-fit:contain;-webkit-filter:drop-shadow(0 8px 20px rgba(0,0,0,.6));filter:drop-shadow(0 8px 20px rgba(0,0,0,.6))}
 .el-root.skin-residence .rs-wbig .rs-wlg0 svg{width:110px;height:110px}
 .el-root.skin-residence .rs-wchk{min-width:400px;max-width:520px}
 .el-root.skin-residence .rs-wchk h3{margin:0 0 14px;font-weight:300;font-size:28px}
@@ -1524,3 +1523,35 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.skin-residence.tall .rs-wpad{flex:1 1 100%;margin-right:0;-webkit-box-ordinal-group:3;order:2}
 .el-root.skin-residence.tall .rs-wstart{flex-direction:column}
 .el-root.skin-residence.tall .rs-wbig{margin:0 0 30px}
+/* ===== Lights: a tall fader per light, its lamp shining down it ===== */
+.el-root.skin-residence .rs-lt{position:absolute;top:0;bottom:6px;left:26px;right:26px;display:flex}
+.el-root.skin-residence .rs-ltcols{flex:1;min-width:0;display:flex;justify-content:center;overflow-x:auto;overflow-y:hidden;touch-action:pan-x;-webkit-overflow-scrolling:touch}
+.el-root.skin-residence .rs-ltcols.many{justify-content:flex-start}
+.el-root.skin-residence .rs-ltcols::-webkit-scrollbar{display:none}
+.el-root.skin-residence .rs-ltcol{position:relative;width:170px;flex:none;margin:0 8px;border-radius:30px;overflow:hidden;cursor:ns-resize;touch-action:pan-x;
+  background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.025) 55%,rgba(0,0,0,.22)),rgba(16,16,20,.55);border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 18px 30px -18px rgba(0,0,0,.95)}
+.el-root.skin-residence .rs-ltcol.sw{cursor:pointer}
+.el-root.skin-residence .rs-ltcol::before{content:"";position:absolute;left:0;right:0;bottom:0;height:60%;background:radial-gradient(90% 60% at 50% 100%,rgba(255,200,130,.3),rgba(255,200,130,0));opacity:var(--lv,0);-webkit-transition:opacity .2s;transition:opacity .2s}
+.el-root.skin-residence .rs-ltcol .lsc{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.el-root.skin-residence .rs-ltcol .ls-o{-webkit-transition:opacity .18s;transition:opacity .18s}
+.el-root.skin-residence .rs-lthit{position:absolute;left:20px;right:20px;top:0;height:120px;cursor:pointer;z-index:3}
+.el-root.skin-residence .rs-ltrail{position:absolute;right:13px;top:128px;bottom:96px;width:8px;border-radius:4px;background:rgba(0,0,0,.45);box-shadow:inset 0 1px 3px rgba(0,0,0,.6);z-index:2}
+.el-root.skin-residence .rs-ltrail i{position:absolute;left:0;right:0;bottom:0;border-radius:4px;background:-webkit-linear-gradient(bottom,#ffb965,#fff1d4);background:linear-gradient(0deg,#ffb965,#fff1d4);box-shadow:0 0 10px rgba(255,210,150,.8)}
+.el-root.skin-residence .rs-ltrail b{position:absolute;left:50%;width:22px;height:22px;margin:0 0 -11px -11px;border-radius:11px;background:radial-gradient(circle at 40% 35%,#fff,#e9e2d4);box-shadow:0 2px 6px rgba(0,0,0,.6)}
+.el-root.skin-residence .rs-ltcol.off .rs-ltrail i{background:rgba(255,255,255,.14);box-shadow:none}
+.el-root.skin-residence .rs-ltpc{position:absolute;left:0;right:0;bottom:46px;text-align:center;font-size:34px;font-weight:300;z-index:2;text-shadow:0 1px 8px rgba(0,0,0,.6)}
+.el-root.skin-residence .rs-ltcol.off .rs-ltpc{opacity:.6}
+.el-root.skin-residence .rs-ltnm{position:absolute;left:10px;right:10px;bottom:18px;text-align:center;font-size:16px;letter-spacing:.06em;z-index:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 6px rgba(0,0,0,.7)}
+.el-root.skin-residence .rs-ltmoods{width:190px;flex:none;margin-left:14px;display:flex;flex-direction:column;overflow-y:auto}
+.el-root.skin-residence .rs-lth{margin:0 0 10px;font-size:13px;letter-spacing:.16em;text-transform:uppercase;opacity:.7}
+.el-root.skin-residence .rs-ltmood{height:62px;flex:none;margin-bottom:12px;border-radius:20px;display:flex;align-items:center;padding:0 16px;font-size:18px;cursor:pointer;
+  background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.025) 55%,rgba(0,0,0,.22)),rgba(16,16,20,.55);border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
+.el-root.skin-residence .rs-ltmood i{width:34px;height:34px;margin-right:12px;border-radius:17px;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+.el-root.skin-residence .rs-ltmood span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-ltmood.hit,.el-root.skin-residence .rs-ltmood:active{border-color:rgba(var(--acc-rgb),.6);box-shadow:0 0 24px -8px rgba(var(--acc-rgb),.6),inset 0 1px 0 rgba(255,255,255,.2)}
+/* square panels: moods go under the faders */
+.el-root.skin-residence.tall .rs-lt{-webkit-flex-direction:column;flex-direction:column}
+.el-root.skin-residence.tall .rs-ltmoods{width:auto;margin:14px 0 0;-webkit-flex-direction:row;flex-direction:row;overflow-x:auto;overflow-y:hidden}
+.el-root.skin-residence.tall .rs-lth{display:none}
+.el-root.skin-residence.tall .rs-ltmood{margin:0 12px 0 0;min-width:180px}
+.el-root.skin-residence.lite .rs-wlogo img,.el-root.skin-residence.gsafe .rs-wlogo img,.el-root.skin-residence.lite .rs-wbig img,.el-root.skin-residence.gsafe .rs-wbig img{-webkit-filter:none;filter:none}

@@ -9732,6 +9732,10 @@ function ResidenceMore({ hass: h, rc: rc, save: save, rooms: R, fname: fn, utili
     /* @__PURE__ */ a.jsx("div", { style: { ...lbl, marginTop: 6 }, children: "Single-button icons" }),
     RS_BUTTONS.map((b) => /* @__PURE__ */ a.jsx(RsIconPick, { hass: h, keyName: b[0], label: b[1], value: rc.icons && rc.icons[b[0]], onChange: (v) => setIcon(b[0], v) }, b[0])),
     /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Lights page" }),
+    /* @__PURE__ */ a.jsx(X, { label: "Layout", hint: "Lamp faders: a tall fader per light with its lamp shining down it. Cards: the old light cards. The customer can also change this in Settings > Look on the panel.", children: /* @__PURE__ */ a.jsxs("select", { className: "inp", value: rc.lightsPage === "cards" ? "cards" : "faders", onChange: (m) => save({ lightsPage: m.target.value === "cards" ? "cards" : void 0 }), children: [
+      /* @__PURE__ */ a.jsx("option", { value: "faders", children: "Lamp faders" }),
+      /* @__PURE__ */ a.jsx("option", { value: "cards", children: "Cards (old)" })
+    ] }) }),
     /* @__PURE__ */ a.jsx(X, { label: "Light drawing", hint: "Match each light: a pendant, filament bulb, downlight or LED glow per light (set below). They all dim with the brightness.", children: /* @__PURE__ */ a.jsx("select", { className: "inp", value: look, onChange: (m) => save({ lightLook: m.target.value === "match" ? void 0 : m.target.value }), children: RS_LOOKS.map((o) => /* @__PURE__ */ a.jsx("option", { value: o[0], children: o[1] }, o[0])) }) }),
     look === "match" && lights.length > 0 && /* @__PURE__ */ a.jsx("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8 }, children: lights.map((e) => /* @__PURE__ */ a.jsxs("label", { style: { display: "flex", alignItems: "center", gap: 8, fontSize: 13 }, children: [
       /* @__PURE__ */ a.jsx("span", { style: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, title: e, children: fn(e) }),

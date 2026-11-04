@@ -16,6 +16,7 @@ import { playHls } from "./livevideo.js";
 import * as native from "./native.js";
 import { mountIntercom, intercomIcon } from "./intercom.js";
 import { mountResidence } from "./residence.js";
+import { scene as lightScene, paintScene } from "./lightscene.js";
 
 const W = 1000;
 const ICON = {
@@ -449,7 +450,10 @@ export function buildElegant(cfg, ctx, skin) {
     const lp = mkPage("lights");
     lp.render = function () {
       if (dragging) return;
+      // Residence: lamp faders, unless the old cards were picked (Settings > Look / Device Setup)
+      if (RS && RX && RX.lightsPage() !== "cards") return rsLights(lp.el);
       const p = lp.el;
+      p.__rsLt = null;
       p.innerHTML = "";
       const pres = presenceLine();
       p.classList.toggle("pres", !!pres);
@@ -491,6 +495,148 @@ export function buildElegant(cfg, ctx, skin) {
       ents.lights.forEach((e, i) => g.appendChild(levelCard(e, i, "light")));
       p.appendChild(g);
     };
+  }
+
+  // Residence Lights: one tall fader per light, its lamp hanging at the top and
+  // really shining down the fader (lightscene.js). Drag up / down anywhere on it
+  // (the rail on the right shows the level), tap the lamp to switch it. Moods on
+  // the right: the customer's lighting scenes, All on, All off. More lights than
+  // fit scroll sideways. Built once; HA updates and the knob only repaint it.
+  function rsLights(p) {
+    const list = ents.lights || [];
+    const H = Math.max(260, (p.clientHeight || 436) - 6 - (root.classList.contains("tall") ? 76 : 0));
+    const sc = clientScenes();
+    const key = list.join(",") + "|" + H + "|" + sc.map((s) => s.entity).join(",") + "|" + whole;
+    if (p.__rsLt !== key) {
+      p.__rsLt = key;
+      p.innerHTML = "";
+      const wrap = el("div", "rs-lt");
+      const cols = el("div", "rs-ltcols" + (list.length > 4 ? " many" : ""));
+      list.forEach((e, i) => cols.appendChild(rsFader(e, i, H)));
+      wrap.appendChild(cols);
+      const moods = el("div", "rs-ltmoods");
+      moods.appendChild(txt("div", "rs-lth", "Moods"));
+      const mood = (nm, dot, fn) => {
+        const b = el("div", "rs-ltmood", '<i style="background:' + dot + '"></i><span></span>');
+        b.querySelector("span").textContent = nm;
+        b.addEventListener("click", () => fn(b));
+        moods.appendChild(b);
+      };
+      sc.forEach((s) => mood(s.name || nameOf(s.entity), "radial-gradient(circle at 40% 35%,#fff,#ffcf8a)", (b) => runScene(b, s.entity, s.name || nameOf(s.entity))));
+      mood("All on", "radial-gradient(circle at 40% 35%,#fff,#fff4d6)", () => {
+        list.forEach((e) => {
+          patch(e, { on: true, brightness: 1 });
+          send("dim", { entity: e, v: 1 });
+        });
+        rsLightsPaint(p);
+        toast("All lights on");
+      });
+      mood("All off", "radial-gradient(circle at 40% 35%,#8a8d94,#3a3d44)", () => {
+        list.forEach((e) => {
+          if (get(e).on) {
+            patch(e, { on: false });
+            send("dim", { entity: e, v: 0 });
+          }
+        });
+        rsLightsPaint(p);
+        toast("All lights off");
+      });
+      wrap.appendChild(moods);
+      p.appendChild(wrap);
+    }
+    rsLightsPaint(p);
+  }
+  function rsFader(e, i, H) {
+    const dimmable = e.split(".")[0] === "light" && get(e).dim !== false;
+    const c = el("div", "rs-ltcol" + (dimmable ? "" : " sw"));
+    c.innerHTML = lightScene(lightIconOf(e), 170, H - 96, LITE || GSAFE) + '<div class="rs-lthit"></div>' + (dimmable ? '<div class="rs-ltrail"><i></i><b></b></div>' : "") + '<div class="rs-ltpc"></div><div class="rs-ltnm"></div>';
+    c.querySelector(".rs-ltnm").textContent = whole && lightRoom[e] ? nameOf(e) + " · " + lightRoom[e] : nameOf(e);
+    c.__e = e;
+    const toggle = () => {
+      selLight = i;
+      patch(e, { on: !get(e).on });
+      send("toggle", { entity: e });
+      rsPaintFader(c);
+    };
+    c.querySelector(".rs-lthit").addEventListener("click", toggle);
+    if (!dimmable) {
+      c.addEventListener("click", (ev) => {
+        if (!(ev.target.closest && ev.target.closest(".rs-lthit"))) toggle();
+      });
+      return c;
+    }
+    const rail = c.querySelector(".rs-ltrail");
+    let y0 = 0;
+    let x0 = 0;
+    let moved = false;
+    const set = (ev, commit) => {
+      const r = rail.getBoundingClientRect();
+      const v = clamp(1 - (ev.clientY - r.top) / r.height, 0, 1);
+      patch(e, { on: v > 0.02, brightness: Math.max(0.01, v) });
+      rsPaintFader(c);
+      if (commit) send("dim", { entity: e, v: v > 0.02 ? v : 0 });
+    };
+    // a sideways swipe scrolls the faders (many lights); up / down dims
+    c.addEventListener("pointerdown", (ev) => {
+      if (ev.target.closest && ev.target.closest(".rs-lthit")) return;
+      selLight = i;
+      y0 = ev.clientY;
+      x0 = ev.clientX;
+      moved = false;
+      c.__pid = ev.pointerId;
+      c.onpointermove = (m) => {
+        if (!moved) {
+          if (Math.abs(m.clientY - y0) < 6 && Math.abs(m.clientX - x0) < 6) return;
+          if (Math.abs(m.clientX - x0) > Math.abs(m.clientY - y0)) {
+            c.onpointermove = null;
+            return;
+          }
+          moved = true;
+          dragging = true;
+          window.__arClaimGesture = true;
+          try {
+            c.setPointerCapture(c.__pid);
+          } catch (x) {
+            /* ignore */
+          }
+        }
+        set(m, false);
+      };
+    });
+    const end = (ev) => {
+      c.onpointermove = null;
+      if (moved) {
+        moved = false;
+        dragging = false;
+        window.__arClaimGesture = false;
+        set(ev, true);
+      } else if (ev.type === "pointerup" && !(ev.target.closest && ev.target.closest(".rs-lthit"))) {
+        // a tap on the fader sets that level straight away
+        if (Math.abs(ev.clientY - y0) < 6 && Math.abs(ev.clientX - x0) < 6) set(ev, true);
+      }
+    };
+    c.addEventListener("pointerup", end);
+    c.addEventListener("pointercancel", end);
+    return c;
+  }
+  function rsPaintFader(c) {
+    const e = c.__e;
+    const v = levelOf(e, "light");
+    const on = v > 0;
+    c.classList.toggle("off", !on);
+    paintScene(c, on, v);
+    const sw = c.classList.contains("sw");
+    c.querySelector(".rs-ltpc").textContent = on ? (sw ? "On" : Math.round(v * 100) + "%") : "Off";
+    const rail = c.querySelector(".rs-ltrail");
+    if (rail) {
+      const h = (on ? v * 100 : 0) + "%";
+      rail.firstChild.style.height = h;
+      rail.lastChild.style.bottom = h;
+    }
+    c.style.setProperty("--lv", on ? String(Math.max(0.15, v)) : "0");
+  }
+  function rsLightsPaint(p) {
+    Array.prototype.forEach.call(p.querySelectorAll(".rs-ltcol"), rsPaintFader);
   }
 
   // utilities: pool pump, borehole, irrigation, geyser… tap a card to switch it
