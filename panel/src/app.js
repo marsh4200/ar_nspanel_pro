@@ -1611,12 +1611,26 @@ watermarkEl.addEventListener("click", () => {
 // when the installer set one (Device Setup > Licence > ⋮)
 let cornerTimer = null;
 function holdOpensSetup() {
+  // Residence: its installer PIN (Device -> Residence look) guards the setup
+  if (ctx.setupGate && ctx.setupGate(openSettings)) return;
   if (pinSet(device.setupPin)) askPin(stage, device.setupPin, openSettings);
   else openSettings();
 }
+ctx.openSetup = holdOpensSetup;
+let cornerDownAt = 0;
 cornerEl.addEventListener("pointerdown", () => {
+  cornerDownAt = Date.now();
   clearTimeout(cornerTimer);
   cornerTimer = setTimeout(holdOpensSetup, 3000);
+});
+// Residence: the back arrow sits under this corner, so a short tap goes through
+// to whatever is under it (a hold still opens setup). Other styles unchanged.
+cornerEl.addEventListener("pointerup", (ev) => {
+  if (Date.now() - cornerDownAt > 700 || !document.querySelector(".el-root.skin-residence")) return;
+  cornerEl.style.pointerEvents = "none";
+  const t = document.elementFromPoint(ev.clientX, ev.clientY);
+  cornerEl.style.pointerEvents = "";
+  if (t && t !== cornerEl) t.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, clientX: ev.clientX, clientY: ev.clientY }));
 });
 ["pointerup", "pointercancel", "pointerleave"].forEach((e) => cornerEl.addEventListener(e, () => clearTimeout(cornerTimer)));
 

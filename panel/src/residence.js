@@ -398,6 +398,58 @@ export function mountResidence(a) {
     }
   }
   // --- home: icon buttons over the photo -----------------------------------------
+  // --- utilities: realistic tiles instead of switches ----------------------------
+  // each switch gets a realistic picture from its name (installer can pick one per
+  // switch in the editor: residence.utilIcons {entity: libKey}); off = dimmed
+  const UTIL_GUESS = [
+    [/light|lamp|led\b/, "bulb_on"],
+    [/irrigat|sprinkl|garden|lawn|zone|drip/, "sprinkler"],
+    [/pool|pond|fountain|jacuzzi|spa\b/, "pool"],
+    [/borehole|pump|well\b/, "pump"],
+    [/geyser|boiler|hot ?water|water ?heat/, "geyser"],
+    [/fence/, "fence"],
+    [/garage/, "garage"],
+    [/gate/, "gate"],
+    [/door/, "front_door"],
+    [/tank|water|valve|tap\b/, "water_tank"],
+    [/solar|inverter|pv\b/, "solar"],
+    [/batter|ups\b|backup/, "battery"],
+    [/\bev\b|charger|car\b|tesla/, "ev"],
+    [/heat|towel|underfloor|heater/, "heater"],
+    [/aircon|\bac\b|air con/, "aircon"],
+    [/fan\b|extractor/, "fan"],
+    [/wi-?fi|router|internet|network/, "wifi"],
+    [/alarm|siren/, "siren"],
+    [/lock/, "lock"],
+  ];
+  function utilKey(e) {
+    const pick = rc.utilIcons && rc.utilIcons[e];
+    if (pick && LIB[pick]) return pick;
+    const n = (a.nameOf(e) + " " + e).toLowerCase().replace(/_/g, " ");
+    const hit = UTIL_GUESS.filter((g) => g[0].test(n))[0];
+    return hit ? hit[1] : "plug";
+  }
+  function runFor(since) {
+    if (!since) return "";
+    const m = Math.max(0, Math.round((Date.now() / 1000 - since) / 60));
+    return m < 1 ? " · just now" : m < 60 ? " · " + m + " min" : " · " + Math.floor(m / 60) + " h " + (m % 60) + " min";
+  }
+  function utilCards(list, tap) {
+    const g = el("div", "rs-utils" + (list.length > 8 ? " many" : ""));
+    list.forEach((e) => {
+      const s = a.get(e) || {};
+      const off = s.value === "unavailable";
+      let key = utilKey(e);
+      if (key === "bulb_on" && !s.on) key = "bulb_off";
+      const c = el("div", "rs-util" + (s.on ? " on" : "") + (off ? " na" : ""), '<div class="rs-uimg"><img alt=""></div><b></b><small></small><span class="rs-usw"><i></i></span>');
+      c.querySelector("img").src = libUrl(key);
+      c.querySelector("b").textContent = a.nameOf(e);
+      c.querySelector("small").textContent = off ? "Offline" : s.on ? "Running" + runFor(s.since) : "Off";
+      if (!off) c.addEventListener("click", () => tap(e));
+      g.appendChild(c);
+    });
+    return g;
+  }
   function iconHtml(k) {
     const ic = rc.icons && rc.icons[k];
     const src = ic && typeof ic.src === "string" ? (ic.src.indexOf("lib:") === 0 ? libUrl(ic.src.slice(4)) : url(ic.src)) : "";
@@ -613,9 +665,10 @@ export function mountResidence(a) {
   const BG_NAMES = { villa: "Villa at dusk", cape: "Cape dusk", "sunset-sea": "Sunset sea", mountains: "Misty mountains", "forest-mist": "Forest mist", dunes: "Desert dunes", stars: "Night sky", aurora: "Aurora", "city-night": "City lights", lounge: "Evening lounge", "marble-white": "White marble", "marble-black": "Black marble", slate: "Slate", concrete: "Concrete", steel: "Brushed steel", walnut: "Walnut", oak: "Oak", leather: "Leather", linen: "Linen", "colour-midnight": "Midnight blue", "colour-emerald": "Emerald", "colour-bordeaux": "Bordeaux", "colour-champagne": "Champagne silk", "colour-graphite": "Graphite silk", "colour-twilight": "Twilight", "colour-lagoon": "Lagoon", "colour-amber": "Amber glow", "sky-blue": "Blue sky", "sky-high": "High clouds", "sky-golden": "Golden hour", "sky-dawn": "Pastel dawn", "sky-moon": "Moonlit clouds" };
   const LANGS = [["en-GB", "English (UK)"], ["en-US", "English (US)"], ["af-ZA", "Afrikaans"], ["nl-NL", "Nederlands"], ["de-DE", "Deutsch"], ["fr-FR", "Français"], ["pt-PT", "Português"], ["es-ES", "Español"], ["it-IT", "Italiano"]];
   const TIMEOUTS = [[30, "30 s"], [60, "1 min"], [120, "2 min"], [300, "5 min"], [600, "10 min"], [0, "Never"]];
-  // installer PIN (editor): "all" locks the whole sheet, "look" only backgrounds / glow / buttons
+  // installer PIN (editor): asked before the panel's setup opens (hold the
+  // top-left corner 3 s, or Settings > Panel > Installer setup). The customer
+  // Settings sheet itself is open.
   const PIN = typeof rc.pin === "string" && /^\d{4,8}$/.test(rc.pin) ? rc.pin : "";
-  const PIN_ALL = PIN && rc.pinLock !== "look";
   let unlocked = false;
   const LD = () => (a.ctx && a.ctx.localDevice ? a.ctx.localDevice.get() : {});
   function setLD(m) {
@@ -641,9 +694,28 @@ export function mountResidence(a) {
     const box = el("div", "el-glass rs-setbox");
     setEl.appendChild(box);
     root.appendChild(setEl);
-    if (PIN_ALL) pinPad(box, () => paintSettings(box));
-    else paintSettings(box);
+    paintSettings(box);
   }
+  // the installer PIN, then the panel's setup screen
+  function setupWithPin(open) {
+    closeSettings();
+    setEl = el("div", "rs-set");
+    const dim = el("div", "rs-setdim");
+    dim.addEventListener("click", closeSettings);
+    setEl.appendChild(dim);
+    const box = el("div", "el-glass rs-setbox rs-pinbox");
+    setEl.appendChild(box);
+    root.appendChild(setEl);
+    pinPad(box, () => {
+      closeSettings();
+      open();
+    });
+  }
+  if (a.ctx) a.ctx.setupGate = (open) => {
+    if (!PIN || !document.body.contains(root)) return false;
+    setupWithPin(open);
+    return true;
+  };
   function pinPad(box, ok) {
     box.innerHTML = "";
     let code = "";
@@ -666,9 +738,13 @@ export function mountResidence(a) {
           code = "";
           return paint(true);
         } else if (code.length < 8) code += k;
-        if (code.length === PIN.length && code === PIN) {
-          unlocked = true;
-          return ok();
+        if (code.length === PIN.length) {
+          if (code === PIN) {
+            unlocked = true;
+            return ok();
+          }
+          code = "";
+          return paint(true);
         }
         paint();
       });
@@ -806,7 +882,7 @@ export function mountResidence(a) {
         }
       }
     } else if (setTab === "look") {
-      if (PIN && !PIN_ALL && !unlocked) {
+      if (false) {
         const lk = el("div", "rs-locked", line("security") + "<b>Locked by your installer</b><span>Backgrounds, glow and buttons need the installer PIN.</span>");
         const ub = txt("span", "rs-chip big", "Enter PIN");
         ub.addEventListener("click", () => pinPad(box, () => ((setTab = "look"), again())));
@@ -907,11 +983,18 @@ export function mountResidence(a) {
         cleanScreen();
       });
       ft.appendChild(clean);
+      if (a.ctx.openSetup) {
+        const inst = el("span", "rs-chip big", line("security") + "<span>Installer setup</span>");
+        inst.addEventListener("click", () => {
+          closeSettings();
+          a.ctx.openSetup();
+        });
+        ft.appendChild(inst);
+      }
       const changed = PREF.bg || PREF.accent || PREF.shape || PREF.look || PREF.sound || typeof PREF.room === "number" || (a.ctx.brightness && a.ctx.brightness.get() != null) || Object.keys(LD()).length;
       if (changed) {
         const rs = txt("span", "rs-chip big", "Back to how it was set up");
         rs.addEventListener("click", () => {
-          if (PIN && !PIN_ALL && !unlocked && (PREF.bg || PREF.accent || PREF.shape || PREF.look)) return pinPad(box, () => rs.click());
           PREF = {};
           savePref();
           if (a.ctx.brightness) a.ctx.brightness.set(null);
@@ -1365,5 +1448,5 @@ export function mountResidence(a) {
     }
   }
 
-  return { cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, decorateCover, paintCover, startRoom: homeRoom };
+  return { cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, decorateCover, paintCover, startRoom: homeRoom, utilCards };
 }

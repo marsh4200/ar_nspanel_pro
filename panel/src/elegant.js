@@ -625,6 +625,19 @@ export function buildElegant(cfg, ctx, skin) {
         p.appendChild(txt("div", "el-libmsg sl-none", "No switches in Utilities yet: tap Solar above."));
         return;
       }
+      if (RX && RX.utilCards) {
+        // Residence: realistic tiles (residence.js); the switching is the same
+        const tile = RX.utilCards(ents.utilities, (e) => {
+          const turnOn = !get(e).on;
+          patch(e, { on: turnOn, since: Date.now() / 1000 });
+          send("toggle", { entity: e });
+          up.render();
+          toast(nameOf(e) + (turnOn ? " on" : " off"));
+        });
+        if (SOLAR) tile.classList.add("tabbed");
+        p.appendChild(tile);
+        return;
+      }
       const g = el("div", "el-cards top el-utils" + (SOLAR ? " tabbed" : ""));
       ents.utilities.forEach((e) => {
         const s = get(e);
