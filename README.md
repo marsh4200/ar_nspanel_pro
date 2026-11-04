@@ -80,6 +80,16 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## TDX panel (4.3.4)
+
+A Rockchip RK3566 wall panel (model `TDX_0XXE`, build `TDX_024Ev3_LVDS_1920X1080`), Android 11,
+1920 × 1080, ILITEK touch, IR remote and buttons, no camera, ADB on port 5555 as root. In
+**Device Setup / Update** pick **TDX** (Connect also detects it), Install, then **Use AR app (TDX
+extras off)**: the maker's factory / RAM / device / stress test apps, Rockchip's OTA updater, Fully
+Kiosk and Android's setup wizard are switched off (nothing deleted), the AR app becomes Home and is
+locked in (kiosk; remove any Google account first). **Back to stock** switches it all back on and
+makes the stock launcher Home. Code: `TDX_PKGS` / `_is_tdx` in `adb.py`.
+
 ## Residence dashboard style (4.1.0)
 
 A sixth home-screen style next to Elegant, Aurora, Nordic, Studio and Tiles: a full-screen

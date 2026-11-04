@@ -89,6 +89,30 @@ def _is_galaxy_tab(model: str) -> bool:
     return bool(_GALAXY_TAB_A7_LITE.match((model or "").strip()))
 
 
+#: TDX panel: Rockchip RK3566, Android 11 userdebug (ADB runs as root),
+#: 1920x1080 LVDS, ILITEK touch, IR remote + ADC buttons, no camera. Model
+#: "TDX_0XXE", build id "TDX_024Ev3_LVDS_...". Stock Launcher3 is Home; the
+#: maker (Youngfeel) leaves its factory / RAM / device / stress test apps and
+#: Rockchip's OTA updater on, and Fully Kiosk ships as a device admin. "Use AR
+#: app" switches those off; "Back to stock" switches them on again.
+TDX_HOME = "com.android.launcher3/.uioverrides.QuickstepLauncher"
+TDX_PKGS = (
+    "com.youngfeel.factorytest",
+    "com.youngfeel.yfddrtest",
+    "com.DeviceTest",
+    "com.cghs.stresstest",
+    "android.rockchip.update.service",
+    "de.ozerov.fully",
+)
+
+
+def _is_tdx(device: Any) -> bool:
+    """A TDX panel: model TDX_… or a TDX_… build (the model can be generic)."""
+    model = (device.shell("getprop ro.product.model") or "").strip()
+    build = (device.shell("getprop ro.build.display.id") or "").strip()
+    return model.upper().startswith("TDX_") or build.upper().startswith("TDX_")
+
+
 KIOSK_ADMIN = f"{APP_PACKAGE}/.KioskAdmin"
 _KIOSK_CTRL = f"{APP_PACKAGE}/.KioskControl"
 
@@ -108,11 +132,12 @@ def _is_source7(device: Any) -> bool:
 
 
 def _kiosk_lock(device: Any) -> tuple[bool, str]:
-    """HDL SOURCE 7 ONLY: make the app device owner and lock the panel in
-    (kiosk), and push the navigation bar off screen. (locked, message) -- the bar
-    is hidden even when Android refuses the lock. Every other panel (the HDL
-    Source 10, the NSPanel Pro) is left exactly as it was."""
-    if not _is_source7(device):
+    """HDL SOURCE 7 and TDX ONLY: make the app device owner and lock the panel
+    in (kiosk), and push the navigation bar off screen (Android 10 and older).
+    (locked, message) -- the bar is hidden even when Android refuses the lock.
+    Every other panel (the HDL Source 10, the NSPanel Pro) is left exactly as
+    it was."""
+    if not (_is_source7(device) or _is_tdx(device)):
         return False, ""
     bar = _navbar_hide(device)
     tail = (" " + bar) if bar else ""
@@ -275,6 +300,8 @@ def _vendor(device: Any) -> tuple[str, list[str], str] | None:
         ).strip().splitlines()
         home = resolved[-1].strip() if resolved and "/" in resolved[-1] else f"{AKUBELA_APP}/.MainActivity"
         return "Akubela", [p for p in AKUBELA_PKGS if _installed(device, p)], home
+    if _is_tdx(device):
+        return "TDX", [p for p in TDX_PKGS if _installed(device, p)], TDX_HOME
     return None
 
 
@@ -473,6 +500,7 @@ class PanelAdb:
                 "hdl_disabled": bool(found) and f"package:{found[1]}" in disabled,
                 "panel_type": ("source10" if found[1] == HDL_LAUNCHER else "source7") if found
                 else "akubela" if _installed(device, AKUBELA_APP)
+                else "tdx" if _is_tdx(device)
                 else "samsung" if _is_galaxy_tab(model)
                 else "nspanel",
             }
@@ -593,7 +621,7 @@ class PanelAdb:
                     # the Akubela software) takes Home after a reboot: mark the
                     # panel set up, switch the wizard off, and make ours Home again.
                     d.shell("settings put global device_provisioned 1; settings put secure user_setup_complete 1")
-                    if name == "Akubela" and _installed(d, "com.android.provision"):
+                    if name in ("Akubela", "TDX") and _installed(d, "com.android.provision"):
                         log.append("com.android.provision: " + (d.shell("pm disable-user --user 0 com.android.provision") or "").strip())
                     log.append(_set_home(d, f"{APP_PACKAGE}/{APP_ACTIVITY}", APP_PACKAGE, strict=False))
                     if name == "Akubela":
@@ -625,6 +653,8 @@ class PanelAdb:
                 log.append(_run_panel_script(d, "aku-restore.sh"))
                 if _installed(d, "com.android.provision"):
                     d.shell("pm enable com.android.provision")
+            elif name == "TDX" and _installed(d, "com.android.provision"):
+                d.shell("pm enable com.android.provision")
             log += [f"{pkg}: " + (d.shell(f"pm enable {pkg}") or "").strip() for pkg in pkgs]
             log.append(_set_home(d, home, home.split("/", 1)[0]))
             d.shell("input keyevent 3")
@@ -735,8 +765,8 @@ class PanelAdb:
             if not _installed(d, APP_PACKAGE):
                 raise AdbError("not_installed", "Install the app first.")
             if lock:
-                if not _is_source7(d):
-                    raise AdbError("kiosk_failed", "The kiosk lock is for the HDL Source 7 only.")
+                if not (_is_source7(d) or _is_tdx(d)):
+                    raise AdbError("kiosk_failed", "The kiosk lock is for the HDL Source 7 and the TDX panel only.")
                 ok, msg = _kiosk_lock(d)
                 if not ok:
                     raise AdbError("kiosk_failed", msg)

@@ -11267,7 +11267,7 @@ function IA({
     }
     // The Source 10 keeps network ADB on 8555; the Source 7 and NSPanel Pro use 5555.
     if (z === "source10" && d === 5555) o(8555);
-    if ((z === "nspanel" || z === "source7" || z === "akubela" || z === "samsung") && d === 8555) o(5555);
+    if ((z === "nspanel" || z === "source7" || z === "akubela" || z === "samsung" || z === "tdx") && d === 8555) o(5555);
   }
   if (M.useEffect(() => {
     localStorage.setItem(Ad, i);
@@ -11310,7 +11310,7 @@ function IA({
     const Z = await J("probe", () => l.adbProbe(S, d));
     if (!Z) return;
     q(Z);
-    Z.panel_type && Z.panel_type !== adbType && (setAdbType(Z.panel_type), T(Z.panel_type === "source10" ? "Detected an HDL Source 10 — switched to its tools." : Z.panel_type === "source7" ? "Detected an HDL Source 7" + (Z.hdl_launcher ? " (" + Z.hdl_launcher + ")" : "") + " — switched to its tools." : Z.panel_type === "akubela" ? "Detected an Akubela panel — switched to its tools." : Z.panel_type === "samsung" ? "Detected a Samsung Galaxy Tab A7 Lite — switched to its tools." : "Detected an NSPanel Pro — switched to its tools."));
+    Z.panel_type && Z.panel_type !== adbType && (setAdbType(Z.panel_type), T(Z.panel_type === "source10" ? "Detected an HDL Source 10 — switched to its tools." : Z.panel_type === "source7" ? "Detected an HDL Source 7" + (Z.hdl_launcher ? " (" + Z.hdl_launcher + ")" : "") + " — switched to its tools." : Z.panel_type === "akubela" ? "Detected an Akubela panel — switched to its tools." : Z.panel_type === "samsung" ? "Detected a Samsung Galaxy Tab A7 Lite — switched to its tools." : Z.panel_type === "tdx" ? "Detected a TDX panel — switched to its tools." : "Detected an NSPanel Pro — switched to its tools."));
     const K = [Z.model || "Device", Z.android ? `Android ${Z.android}` : null, Z.screen || null, Z.hdl ? (Z.hdl_disabled ? "HDL off" : "HDL on") : null].filter(Boolean).join(" · "), te = Z.app_installed ? `app v${Z.app_version} installed` : "app not installed", Be = `Connected — ${K} · ${te}`;
     p({ kind: "ok", text: Be }), T(Be, "ok");
   }
@@ -11369,12 +11369,14 @@ function IA({
     p({ kind: "ok", text: okText }), T(okText, "ok"), Oe();
   }
   async function hdlTakeover() {
-    if (!window.confirm(adbType === "akubela" ? "Switch the Akubela software off on this panel? The Akubela app, its voice assistant, updater, log service, factory test and stress-test apps are disabled, and their background services (their own Home Assistant, KNX, SIP, SSH server, cloud clients) are switched off at boot, so only Android and the AR app run. Network ADB is kept on. \"Back to Akubela screen\" switches it all on again." : "Switch HDL off on this panel? On some HDL panels, HDL's software also runs the panel's network and ADB — with HDL off the panel can lose its IP address until HDL is switched back on from Android Settings → Apps.")) return;
-    await runLogged("takeover", () => l.adbHdlTakeover(S, d), (adbType === "akubela" ? "Akubela" : "HDL") + " is off — the app is Home and opens on every boot. If the panel drops off for a moment, reconnect.");
+    if (adbType === "tdx" && !window.confirm("Switch the TDX panel over to the AR app? The maker's factory test, RAM test, device test and stress test apps, Rockchip's OTA updater and Fully Kiosk are switched off (nothing is deleted), Android's setup wizard is turned off, and the AR app becomes Home and is locked in (kiosk). \"Back to stock\" switches them all on again.")) return;
+    if (adbType !== "tdx" && !window.confirm(adbType === "akubela" ? "Switch the Akubela software off on this panel? The Akubela app, its voice assistant, updater, log service, factory test and stress-test apps are disabled, and their background services (their own Home Assistant, KNX, SIP, SSH server, cloud clients) are switched off at boot, so only Android and the AR app run. Network ADB is kept on. \"Back to Akubela screen\" switches it all on again." : "Switch HDL off on this panel? On some HDL panels, HDL's software also runs the panel's network and ADB — with HDL off the panel can lose its IP address until HDL is switched back on from Android Settings → Apps.")) return;
+    await runLogged("takeover", () => l.adbHdlTakeover(S, d), (adbType === "akubela" ? "Akubela" : adbType === "tdx" ? "The stock TDX software" : "HDL") + " is off — the app is Home and opens on every boot. If the panel drops off for a moment, reconnect.");
   }
   async function hdlRestore() {
-    if (!window.confirm(adbType === "akubela" ? "Switch this panel back to the Akubela screen? The Akubela apps and background services are switched back on and the Akubela app becomes Home again. The AR app stays installed." : "Switch this panel back to the HDL screen? HDL's app and launcher are re-enabled and become Home again. The AR app stays installed.")) return;
-    await runLogged("restore", () => l.adbHdlRestore(S, d), adbType === "akubela" ? "Back on the Akubela screen." : "Back on the HDL screen.");
+    if (adbType === "tdx" && !window.confirm("Put this TDX panel back to stock? The maker's apps, the OTA updater, Fully Kiosk and the setup wizard are switched back on, the kiosk lock is released and the stock launcher becomes Home again. The AR app stays installed.")) return;
+    if (adbType !== "tdx" && !window.confirm(adbType === "akubela" ? "Switch this panel back to the Akubela screen? The Akubela apps and background services are switched back on and the Akubela app becomes Home again. The AR app stays installed." : "Switch this panel back to the HDL screen? HDL's app and launcher are re-enabled and become Home again. The AR app stays installed.")) return;
+    await runLogged("restore", () => l.adbHdlRestore(S, d), adbType === "akubela" ? "Back on the Akubela screen." : adbType === "tdx" ? "Back to stock: the stock launcher is Home again." : "Back on the HDL screen.");
   }
   async function optimisePanel() {
     if (!window.confirm("Optimise this panel? Apps a wall panel never uses are switched off (browser, gallery, camera, music, calendar, contacts, clock, wallpapers, printing, SMS, screensavers, factory test), Akubela apps that keep running although they are off are removed for the panel's user, Rockchip's AI-chip server is stopped and animations are turned off. Nothing is deleted: \"Undo optimise\" puts it all back.")) return;
@@ -11429,7 +11431,7 @@ function IA({
     /* @__PURE__ */ a.jsxs("div", { className: "modal-b", children: [
       /* @__PURE__ */ a.jsxs("div", { className: "note", children: [
         "Bring a new ",
-        /* @__PURE__ */ a.jsx("b", { children: isS10 ? hdlName : "NSPanel Pro" }),
+        /* @__PURE__ */ a.jsx("b", { children: isS10 ? hdlName : adbType === "tdx" ? "TDX panel" : "NSPanel Pro" }),
         " online over ADB — install or update the app and control the device — before it shows up in the panel menu. Enable ",
         /* @__PURE__ */ a.jsx("b", { children: "ADB" }),
         " on the panel, then ",
@@ -11449,7 +11451,8 @@ function IA({
         /* @__PURE__ */ a.jsx("button", { className: "btn " + (adbType === "source7" ? "primary" : "ghost"), disabled: u !== null, onClick: () => setAdbType("source7"), children: "HDL Source 7" }),
         /* @__PURE__ */ a.jsx("button", { className: "btn " + (adbType === "akubela" ? "primary" : "ghost"), disabled: u !== null, onClick: () => setAdbType("akubela"), children: "Akubela" }),
         /* @__PURE__ */ a.jsx("button", { className: "btn " + (adbType === "samsung" ? "primary" : "ghost"), disabled: u !== null, onClick: () => setAdbType("samsung"), children: "Samsung Tab" }),
-        /* @__PURE__ */ a.jsx("div", { className: "hint", style: { flex: 1, minWidth: 160 }, children: adbType === "source7" ? "Knob panel, 1280 × 720; ADB port 5555. Installing leaves HDL on." : isS10 ? "Knob panel; ADB port 8555. Installing leaves HDL on." : adbType === "akubela" ? "10\" touch panel, 2560 × 1600, no knob; ADB port 5555. Installing leaves the Akubela app on; Set as Home makes ours open on boot." : adbType === "samsung" ? "Galaxy Tab A7 Lite, 800 × 1340, no knob; ADB port 5555. Installs like an NSPanel — Set as Home makes ours open on boot." : "Square touch panel, no knob; ADB port 5555." })
+        /* @__PURE__ */ a.jsx("button", { className: "btn " + (adbType === "tdx" ? "primary" : "ghost"), disabled: u !== null, onClick: () => setAdbType("tdx"), children: "TDX" }),
+        /* @__PURE__ */ a.jsx("div", { className: "hint", style: { flex: 1, minWidth: 160 }, children: adbType === "source7" ? "Knob panel, 1280 × 720; ADB port 5555. Installing leaves HDL on." : isS10 ? "Knob panel; ADB port 8555. Installing leaves HDL on." : adbType === "akubela" ? "10\" touch panel, 2560 × 1600, no knob; ADB port 5555. Installing leaves the Akubela app on; Set as Home makes ours open on boot." : adbType === "samsung" ? "Galaxy Tab A7 Lite, 800 × 1340, no knob; ADB port 5555. Installs like an NSPanel — Set as Home makes ours open on boot." : adbType === "tdx" ? "Rockchip RK3566 panel, 1920 × 1080, IR remote + buttons, no camera; ADB port 5555 (root). Install, then “Use AR app” switches the maker's test apps, OTA updater and Fully Kiosk off and locks ours in." : "Square touch panel, no knob; ADB port 5555." })
       ] }),
       /* @__PURE__ */ a.jsxs("div", { className: "adb-row", children: [
         /* @__PURE__ */ a.jsxs("div", { className: "field", style: { flex: 1, minWidth: 160 }, children: [
@@ -11519,13 +11522,13 @@ function IA({
           /* @__PURE__ */ a.jsx(j, { d: N.close, size: 18 }),
           u === "unsethome" ? "Unsetting…" : "Unset Home"
         ] }),
-        (isS10 || adbType === "akubela") && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: hdlTakeover, title: adbType === "akubela" ? "Switches off the Akubela app, its voice assistant, updater, log service, factory test and stress test: only Android and the AR app run." : void 0, children: [
+        (isS10 || adbType === "akubela" || adbType === "tdx") && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: hdlTakeover, title: adbType === "tdx" ? "Switches off the maker's test apps, Rockchip's OTA updater and Fully Kiosk, makes the AR app Home and locks it in." : adbType === "akubela" ? "Switches off the Akubela app, its voice assistant, updater, log service, factory test and stress test: only Android and the AR app run." : void 0, children: [
           /* @__PURE__ */ a.jsx(j, { d: N.home, size: 18 }),
-          u === "takeover" ? "Switching…" : adbType === "akubela" ? "Use AR app (Akubela off)" : "Use AR app (HDL off)"
+          u === "takeover" ? "Switching…" : adbType === "akubela" ? "Use AR app (Akubela off)" : adbType === "tdx" ? "Use AR app (TDX extras off)" : "Use AR app (HDL off)"
         ] }),
-        (isS10 || adbType === "akubela") && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: hdlRestore, children: [
+        (isS10 || adbType === "akubela" || adbType === "tdx") && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: hdlRestore, children: [
           /* @__PURE__ */ a.jsx(j, { d: N.reload, size: 18 }),
-          u === "restore" ? "Restoring…" : adbType === "akubela" ? "Back to Akubela screen" : "Back to HDL screen"
+          u === "restore" ? "Restoring…" : adbType === "akubela" ? "Back to Akubela screen" : adbType === "tdx" ? "Back to stock" : "Back to HDL screen"
         ] }),
         /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: optimisePanel, title: "Switches off what a wall panel never uses, so only Android and the AR app run. Nothing is deleted.", children: [
           /* @__PURE__ */ a.jsx(j, { d: N.check, size: 18 }),
@@ -11539,7 +11542,7 @@ function IA({
           /* @__PURE__ */ a.jsx(j, { d: N.check, size: 18 }),
           u === "camcheck" ? "Checking…" : "Check camera"
         ] }),
-        adbType === "source7" && b?.app_installed && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: b?.kiosk ? kioskUnlock : kioskLock, title: "Kiosk lock: install does this by itself", children: [
+        (adbType === "source7" || adbType === "tdx") && b?.app_installed && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: b?.kiosk ? kioskUnlock : kioskLock, title: "Kiosk lock: install does this by itself", children: [
           /* @__PURE__ */ a.jsx(j, { d: "M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z", size: 18 }),
           u === "klock" ? "Locking…" : u === "kunlock" ? "Unlocking…" : b?.kiosk ? "Unlock panel" : "Lock panel"
         ] }),
