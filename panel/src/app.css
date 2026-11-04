@@ -506,6 +506,20 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-cams.c1{grid-template-columns:1fr}
 .el-cams.c2{grid-template-columns:1fr 1fr}
 .el-cams.c4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+.el-cams.c6{grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr}
+.el-cams.c8{grid-template-columns:1fr 1fr 1fr 1fr;grid-template-rows:1fr 1fr}
+.el-root.tall .el-cams.c6{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr 1fr}
+.el-root.tall .el-cams.c8{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr 1fr 1fr}
+.el-cams.snaps .el-cam{cursor:pointer}
+.el-snapimg{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}
+.el-cams.snaps .el-camoff{display:none}
+.el-cams.snaps .el-cam.noimg .el-camoff{display:flex;align-items:center;justify-content:center;text-align:center}
+.el-cams.snaps .el-cam.noimg .el-snapimg{visibility:hidden}
+.el-cams.big{grid-template-columns:70px 1fr 70px}
+.el-camnav{display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:18px;background:rgba(var(--ink-rgb),.06)}
+.el-camnav svg{width:34px;height:34px;-webkit-transform:rotate(180deg);transform:rotate(180deg);opacity:.8}
+.el-camnav.r svg{-webkit-transform:none;transform:none}
+.el-camnav:active{background:rgba(var(--ink-rgb),.14)}
 .el-cam{position:relative;border-radius:16px;overflow:hidden;border:1px solid rgba(var(--fg-rgb),.12);background:#0b0c0e;min-height:0}
 .el-cam img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}
 .el-cl{position:absolute;left:12px;bottom:10px;font-weight:700;font-size:14px;text-shadow:0 1px 3px #000}

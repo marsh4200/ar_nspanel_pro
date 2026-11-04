@@ -47,6 +47,7 @@ from . import panel_config, licensing
 from . import residence_calendar
 from . import residence_watch
 from .residence_media import residence_public
+from .cam_snap import snap_public
 from .const import (
     ELEGANT_STYLES,
     topic_intercom_peer,
@@ -1829,6 +1830,11 @@ class PanelBridge:
         if public_cfg.get("dashboardStyle") == "residence":
             ha_url = self._ha_base_url()
             public_cfg = residence_public(public_cfg, await self._panel_reachable_url(ha_url) if ha_url else None)
+        # RTSP cameras: Home Assistant makes their snapshots for the Cameras grid
+        el_pub = public_cfg.get("elegant")
+        if isinstance(el_pub, dict) and el_pub.get("rtsp"):
+            ha_url = self._ha_base_url()
+            public_cfg = snap_public(public_cfg, await self._panel_reachable_url(ha_url) if ha_url else None, self.device_id, self.entry.entry_id)
         await mqtt.async_publish(
             self.hass,
             topic_config_panels(self.device_id),

@@ -148,7 +148,13 @@ export function buildElegant(cfg, ctx, skin) {
   const rtspCam = (e) => RTSP[Number(e.slice(5))] || {};
   // Utilities (pool pump, borehole, irrigation…): house-wide, only when the
   // installer ticked "Utilities section" in Device Setup
-  const house = { cameras: list(cfg.cameras).concat(RTSP.map((c, i) => "rtsp:" + i)).slice(0, 4), security: list(cfg.security), utilities: cfg.utilitiesOn ? list(cfg.utilities) : [] };
+  // Cameras: a grid of snapshots (Home Assistant makes the RTSP ones, see
+  // cam_snap.py), live video only for the one camera opened - so up to 8 fit.
+  // camLiveGrid = the old way: up to 4, all of them live at once.
+  const CAM_LIVE_GRID = !!cfg.camLiveGrid;
+  const CAM_MAX = CAM_LIVE_GRID ? 4 : 8;
+  const SNAP = cfg.snap && typeof cfg.snap.url === "string" && cfg.snap.url ? cfg.snap : null;
+  const house = { cameras: list(cfg.cameras).concat(RTSP.map((c, i) => "rtsp:" + i)).slice(0, CAM_MAX), security: list(cfg.security), utilities: cfg.utilitiesOn ? list(cfg.utilities) : [] };
   // Solar (a tab in Utilities): cfg.solar = {pv, load, grid, battery, soc, today}
   // sensor entity ids; grid + = buying, battery + = discharging (HA's convention)
   const SOLAR = cfg.utilitiesOn && cfg.solar && typeof cfg.solar.pv === "string" && cfg.solar.pv ? cfg.solar : null;
@@ -2421,11 +2427,23 @@ export function buildElegant(cfg, ctx, skin) {
     cmp.render = function () {
       stopCams(true); // keep RTSP players running: placeRtsp moves / trims them
       const p = cmp.el;
-      const all = ents.cameras.slice(0, 4);
+      const all = ents.cameras.slice(0, CAM_MAX);
       if (camBig && all.indexOf(camBig) < 0) camBig = null;
+      if (!CAM_LIVE_GRID && !camBig && all.length > 1) return camSnapGrid(p, all);
       const shown = camBig ? [camBig] : all;
       const n = shown.length;
-      const g = el("div", "el-cams c" + (n === 1 ? 1 : n === 2 ? 2 : 4));
+      const g = el("div", "el-cams c" + (n === 1 ? 1 : n === 2 ? 2 : 4) + (camBig && !CAM_LIVE_GRID && all.length > 1 ? " big" : ""));
+      // one camera open from the snapshot grid: ‹ › go to the camera before / after
+      const step = (d) => {
+        const i = all.indexOf(camBig);
+        camBig = all[(i + d + all.length) % all.length];
+        cmp.render();
+      };
+      if (camBig && !CAM_LIVE_GRID && all.length > 1) {
+        const pv = el("div", "el-camnav", svg("chev"));
+        pv.addEventListener("click", () => step(-1));
+        g.appendChild(pv);
+      }
       shown.forEach((e) => {
         const c = el("div", "el-cam");
         // tap a camera for full size, tap again for all of them
@@ -2503,9 +2521,73 @@ export function buildElegant(cfg, ctx, skin) {
         c.appendChild(txt("span", "el-cl", nameOf(e)));
         g.appendChild(c);
       });
+      if (camBig && !CAM_LIVE_GRID && all.length > 1) {
+        const nx = el("div", "el-camnav r", svg("chev"));
+        nx.addEventListener("click", () => step(1));
+        g.appendChild(nx);
+      }
       p.appendChild(g);
       placeRtsp();
     };
+  }
+  // the still picture of a camera: HA cameras from their camera proxy, RTSP ones
+  // from Home Assistant's snapshot service (cam_snap.py)
+  function camStill(e) {
+    if (isRtsp(e)) return SNAP ? SNAP.url + Number(e.slice(5)) + "?k=" + encodeURIComponent(SNAP.k || "") : null;
+    const s = get(e);
+    return s.stream ? s.stream.replace("/camera_proxy_stream/", "/camera_proxy/") : null;
+  }
+  const withT = (u) => u + (u.indexOf("?") < 0 ? "?" : "&") + "t=" + Date.now();
+  function camSnapGrid(p, all) {
+    const n = all.length;
+    const g = el("div", "el-cams snaps " + (n === 2 ? "c2" : n <= 4 ? "c4" : n <= 6 ? "c6" : "c8"));
+    const imgs = [];
+    all.forEach((e) => {
+      const u = camStill(e);
+      const c = el("div", "el-cam" + (u ? "" : " noimg"));
+      c.addEventListener("click", () => {
+        camBig = e;
+        pages.cameras.render();
+      });
+      if (u) {
+        const img = el("img", "el-snapimg");
+        img.alt = "";
+        img.onerror = () => c.classList.add("noimg");
+        img.onload = () => c.classList.remove("noimg");
+        img.src = withT(u);
+        c.appendChild(img);
+        imgs.push([img, u]);
+      }
+      c.appendChild(txt("div", "el-camoff", u ? "Camera not answering: tap for live" : "Tap for live"));
+      c.appendChild(txt("span", "el-live snap", "Tap for live"));
+      c.appendChild(txt("span", "el-cl", nameOf(e)));
+      g.appendChild(c);
+    });
+    p.appendChild(g);
+    // fresh pictures every few seconds while the page is open and the screen is on;
+    // the next one loads off screen and swaps in, so nothing flickers
+    const t = setInterval(() => {
+      if (current !== "cameras" || (window.__arHidden && window.__arHidden())) return;
+      imgs.forEach((x) => {
+        const img = x[0];
+        if (img.__busy) return;
+        img.__busy = true;
+        const nx = new Image();
+        nx.onload = () => {
+          img.__busy = false;
+          img.src = nx.src;
+          img.parentNode && img.parentNode.classList.remove("noimg");
+        };
+        nx.onerror = () => {
+          img.__busy = false;
+        };
+        nx.src = withT(x[1]);
+      });
+    }, 4000);
+    camStops.push(() => {
+      clearInterval(t);
+      imgs.forEach((x) => (x[0].src = ""));
+    });
   }
   // Lay the RTSP players over their tiles (screen pixels), once the page has its layout.
   function placeRtsp() {
@@ -2554,7 +2636,8 @@ export function buildElegant(cfg, ctx, skin) {
     pages.cameras.el.innerHTML = "";
   }
   function camsChanged() {
-    return (ents.cameras || []).slice(0, 4).some((e) => {
+    if (!CAM_LIVE_GRID && !camBig && (ents.cameras || []).length > 1) return false; // the snapshot grid has no live streams
+    return (ents.cameras || []).slice(0, CAM_MAX).some((e) => {
       if (isRtsp(e)) return false;
       const h = get(e).hls;
       return (h && !camFailed[h] ? h : null) !== (camPlaying[e] || null);

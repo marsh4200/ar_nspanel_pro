@@ -80,6 +80,17 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Cameras: pictures first, live on tap (4.5.0)
+
+The Cameras page (every Elegant-based style) shows up to 8 cameras as pictures that refresh every
+few seconds; tapping one plays it live full screen, with ‹ › to the next camera. Only the camera you
+open streams, so the panel isn't decoding 8 videos at once. Home Assistant makes the pictures of the
+RTSP cameras (`cam_snap.py`): Hikvision and Dahua from the camera's own snapshot (digest / basic
+login from the RTSP address), any other brand from a typed snapshot address or one frame grabbed
+from the stream with ffmpeg; a picture is reused for a few seconds and nothing is fetched while
+nobody is looking. A single camera still opens live straight away. *All cameras live at once (old
+way)* in Device Setup brings back the old live grid of up to 4.
+
 ## TDX panel (4.3.4)
 
 A Rockchip RK3566 wall panel (model `TDX_0XXE`, build `TDX_024Ev3_LVDS_1920X1080`), Android 11,

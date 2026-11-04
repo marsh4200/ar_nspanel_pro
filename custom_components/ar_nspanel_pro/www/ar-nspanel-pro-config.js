@@ -9280,7 +9280,7 @@ const EL_ROOM_CATS = [
   { key: "presence", title: "Presence", hint: "motion / occupancy sensors — the Lights page shows \"Motion in <room>\"", domains: ["binary_sensor"], max: 3 }
 ];
 const EL_HOUSE_CATS = [
-  { key: "cameras", title: "Cameras", hint: "up to 4, live video", domains: ["camera"], max: 4 },
+  { key: "cameras", title: "Cameras", hint: "up to 8 with the RTSP ones: pictures, tap one for live", domains: ["camera"], max: 8 },
   { key: "security", title: "Security", hint: "one alarm panel (e.g. Alarmo)", domains: ["alarm_control_panel"], max: 1 },
   { key: "utilities", title: "Utilities", hint: "pool pump, borehole, irrigation, geyser… (tap to switch on the panel)", domains: ["switch", "input_boolean", "valve"] }
 ];
@@ -9321,7 +9321,7 @@ function elRooms(cfg) {
 // straight from the camera. Hikvision quick fill uses the light sub-stream (102).
 function ElRtsp({ list: L, entityCams: nE, onChange: set }) {
   const [mode, setMode] = M.useState("hik"), [nm, setNm] = M.useState(""), [ip, setIp] = M.useState(""), [us, setUs] = M.useState("admin"), [pw, setPw] = M.useState(""), [ch, setCh] = M.useState("102"), [url, setUrl] = M.useState("");
-  const room = 4 - nE - L.length;
+  const room = 8 - nE - L.length;
   // the IP box takes just the address: typed http:// / rtsp://, ports, slashes and spaces are dropped
   const ipc = ip.replace(/\s+/g, "").replace(/^[a-z]+:\/\//i, "").split("/")[0].split(":")[0];
   const built = mode === "hik" ? (ipc ? `rtsp://${encodeURIComponent(us.trim())}:${encodeURIComponent(pw)}@${ipc}:554/Streaming/Channels/${ch.replace(/\D/g, "") || "102"}` : "") : url.trim();
@@ -9336,11 +9336,16 @@ function ElRtsp({ list: L, entityCams: nE, onChange: set }) {
   const row = { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 6 };
   return /* @__PURE__ */ a.jsxs("div", { style: { marginTop: 12 }, children: [
     /* @__PURE__ */ a.jsx("div", { style: lbl, children: "RTSP cameras" }),
-    /* @__PURE__ */ a.jsx("div", { className: "hint", children: "Played by the panel straight from the camera (smooth, hardware video). They show on the Cameras page with the cameras above, 4 in total. Needs panel app 1.9.3 or newer." }),
+    /* @__PURE__ */ a.jsx("div", { className: "hint", children: "Up to 8 cameras in total with the ones above. The Cameras page shows them all as pictures that Home Assistant refreshes every few seconds (Hikvision and Dahua: the camera's own snapshot; others: a frame from the stream, or the snapshot address you give below); tap one for live video, played by the panel straight from the camera. Only the camera you open streams." }),
     L.map((c, i) => /* @__PURE__ */ a.jsxs("div", { style: { ...row, padding: "8px 10px", borderRadius: 10, background: "var(--chip-bg, rgba(127,127,127,.12))" }, children: [
       /* @__PURE__ */ a.jsx("b", { style: { minWidth: 110 }, children: c.name }),
       /* @__PURE__ */ a.jsx("code", { style: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12 }, children: hide(c.url) }),
-      /* @__PURE__ */ a.jsx("button", { className: "btn ghost", onClick: () => set(L.filter((x, n) => n !== i)), children: "Remove" })
+      /* @__PURE__ */ a.jsx("button", { className: "btn ghost", onClick: () => set(L.filter((x, n) => n !== i)), children: "Remove" }),
+      /* @__PURE__ */ a.jsx("input", { className: "inp", style: { flex: "1 1 100%", fontSize: 12 }, placeholder: /\/streaming\/channels\//i.test(c.url) ? "Snapshot: automatic (Hikvision)" : /\/cam\/realmonitor/i.test(c.url) ? "Snapshot: automatic (Dahua)" : "Snapshot address (optional), e.g. http://user:pass@192.168.1.70/snap.jpg; empty = a frame from the stream", defaultValue: c.snap || "", onBlur: (m) => {
+        const v = m.target.value.trim();
+        if ((v || void 0) === (c.snap || void 0)) return;
+        set(L.map((x, n) => (n === i ? { ...x, snap: v || void 0 } : x)));
+      } })
     ] }, i)),
     room > 0 ? /* @__PURE__ */ a.jsxs("div", { style: { marginTop: 10, padding: 12, borderRadius: 12, border: "1px solid var(--divider-color, rgba(127,127,127,.25))" }, children: [
       /* @__PURE__ */ a.jsxs("div", { style: row, children: [
@@ -9359,7 +9364,7 @@ function ElRtsp({ list: L, entityCams: nE, onChange: set }) {
       ] }),
       built && /* @__PURE__ */ a.jsxs("div", { className: "hint", style: { marginTop: 6 }, children: ["Will use: ", /* @__PURE__ */ a.jsx("code", { children: hide(built) })] }),
       mode === "hik" && /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 6 }, children: "Channel 102 is the sub-stream: light and smooth, best for the panel. On an NVR use 202, 302… for cameras 2, 3…" })
-    ] }) : /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 8 }, children: "4 cameras already — remove one to add another." })
+    ] }) : /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 8 }, children: "8 cameras already — remove one to add another." })
   ] });
 }
 // ===== Residence dashboard style: its own settings (device.residence) =====
@@ -10259,6 +10264,7 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
       !!cfg.utilitiesOn && !!(cfg.solar && cfg.solar.grid) && /* @__PURE__ */ a.jsx(et, { title: "Grid shows the wrong way round", sub: "Tick if your inverter reports selling as + and buying as −.", on: !!cfg.solar.invertGrid, onChange: (m) => save({ solar: Object.assign({}, cfg.solar, { invertGrid: m || void 0 }) }) }),
       !!cfg.utilitiesOn && !!(cfg.solar && cfg.solar.battery) && /* @__PURE__ */ a.jsx(et, { title: "Battery shows the wrong way round", sub: "Tick if your inverter reports charging as + and discharging as −.", on: !!cfg.solar.invertBattery, onChange: (m) => save({ solar: Object.assign({}, cfg.solar, { invertBattery: m || void 0 }) }) }),
       /* @__PURE__ */ a.jsx(ElRtsp, { list: Array.isArray(cfg.rtsp) ? cfg.rtsp : [], entityCams: elList(cfg.cameras).length, onChange: (v) => save({ rtsp: v.length ? v : void 0 }) }),
+      /* @__PURE__ */ a.jsx(et, { title: "All cameras live at once (old way)", sub: "Off (recommended): the Cameras page shows pictures and only the camera you tap plays live, so 8 cameras are no load on the panel. On: up to 4 cameras, all playing live at the same time.", on: !!cfg.camLiveGrid, onChange: (m) => save({ camLiveGrid: m ? !0 : void 0 }) }),
       /* @__PURE__ */ a.jsx(X, { label: "Weather", hint: "Leave on automatic to use the first weather entity.", children: /* @__PURE__ */ a.jsxs("select", { className: "inp", value: cfg.weather ?? "", onChange: (m) => save({ weather: m.target.value || void 0 }), children: [
         /* @__PURE__ */ a.jsx("option", { value: "", children: "Automatic" }),
         ids(["weather"]).map((id) => /* @__PURE__ */ a.jsx("option", { value: id, children: fname(id) }, id))
