@@ -172,6 +172,7 @@ export function buildElegant(cfg, ctx, skin) {
   union.presence.forEach((e) => keys.push(slugify(e)));
   if (RS) union.watch.forEach((e) => keys.push(slugify(e)));
   if (RS) keys.push("rs_cal"); // Residence: its Calendar page
+  if (RS) keys.push("rs_watch"); // Residence: Watch sources (steps running, what's on)
   const WHOLE = RS ? "Whole Home" : "Whole House";
   SOLAR_KEYS.forEach((k) => keys.push(slugify(SOLAR[k])));
   // lighting scenes the customer made in the AR Lighting Scenes card and pushed

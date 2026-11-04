@@ -139,6 +139,17 @@ the same as 4.0.8).
   and dots, for the next one, while the background stays. Back to the first button when the panel
   wakes or is left alone. Every button look works. Editor (More options): keep the grid instead,
   or let the next buttons peek in at the sides. Bigger panels always keep the grid.
+- **Watch sources** (4.4.0, Control4 style): tapping Watch asks "What would you like to watch?" and
+  shows the room's sources as tiles with your logos (uploaded, background removed). Tapping one runs
+  its steps in Home Assistant, in order and for real: turn on, switch TV input, choose receiver
+  source, open app, run a scene, send a remote command, wait, or any action. The panel ticks each one
+  off as it finishes; steps already done are skipped, so changing source only changes what's
+  different. Then the remote: arrows and OK (Apple TV, Android / Google TV, Roku or an IR blaster),
+  back / home / menu, play / pause, rewind / forward, volume − / + (hold to keep going) and mute,
+  Change source and TV off. The bar shows what's on. Room Off, from any page of the room, switches
+  off everything the sources switched on and goes back to the room's home screen. Set up per room
+  under *Residence look → More options → Watch sources*; without sources Watch shows the room's TVs as
+  before. Code: `custom_components/ar_nspanel_pro/residence_watch.py`.
 - **Whole Home**: in the room menu (with more than one room), with **All Off** for the house.
 - **Backgrounds**: 32 built in, in four groups: scenes, skies (blue sky, high clouds, golden
   hour, pastel dawn, moonlit clouds), colours (midnight blue, emerald, bordeaux, champagne silk,

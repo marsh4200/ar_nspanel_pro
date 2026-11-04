@@ -45,6 +45,7 @@ from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from . import panel_config, licensing
 from . import residence_calendar
+from . import residence_watch
 from .residence_media import residence_public
 from .const import (
     ELEGANT_STYLES,
@@ -246,6 +247,7 @@ class PanelBridge:
         await self.async_publish_intercom_peer()
         # Residence style only: its Calendar page (reminders to phones, events)
         await residence_calendar.async_attach(self)
+        await residence_watch.async_attach(self)
 
     async def async_publish_intercom_peer(self, remove: bool = False) -> None:
         """Intercom directory: every panel lists the others from these retained
@@ -261,6 +263,7 @@ class PanelBridge:
 
     async def async_unload(self) -> None:
         residence_calendar.async_detach(self)
+        residence_watch.async_detach(self)
         for unsub in self._unsubs:
             unsub()
         self._unsubs.clear()
@@ -1004,7 +1007,11 @@ class PanelBridge:
             return
         if button == "rs":
             # Residence style: Calendar page (reminders); ignored for other styles
-            self.hass.async_create_task(residence_calendar.async_panel_event(self, action, value))
+            if isinstance(action, str) and action.startswith("watch_"):
+                # Residence Watch sources: run a source's steps, its remote, Room Off
+                self.hass.async_create_task(residence_watch.async_panel_event(self, action, value))
+            else:
+                self.hass.async_create_task(residence_calendar.async_panel_event(self, action, value))
             return
         if button == "sp" and action == "token":
             # the panel's Spotify screen asks for a (fresh) access token

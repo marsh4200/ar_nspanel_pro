@@ -1447,3 +1447,66 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.skin-residence .el-slider+.el-volb{margin:0 10px 0 0}
 .el-root.skin-residence .el-volb svg{width:20px;height:20px;color:#fff}
 .el-root.skin-residence .el-volb.down{background:rgba(var(--acc-rgb),.35);-webkit-transform:scale(.92);transform:scale(.92)}
+/* ===== Watch sources ===== */
+.el-root.skin-residence .rs-wpick{position:absolute;top:0;bottom:0;left:0;right:0;display:flex;flex-direction:column;align-items:center}
+.el-root.skin-residence .rs-wask{font-size:28px;font-weight:300;letter-spacing:.02em;margin:2px 0 14px;text-shadow:0 1px 8px rgba(0,0,0,.8)}
+.el-root.skin-residence .rs-wsrcs{flex:1;min-height:0;width:870px;max-width:100%;display:flex;flex-wrap:wrap;align-content:flex-start;justify-content:center;overflow-y:auto;touch-action:pan-y}
+.el-root.skin-residence .rs-wsrc{position:relative;width:196px;height:170px;margin:8px;border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;
+  background:linear-gradient(160deg,rgba(255,255,255,.13),rgba(255,255,255,.03) 55%,rgba(0,0,0,.2)),rgba(18,18,22,.55);border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 16px 28px -16px rgba(0,0,0,.95);-webkit-transition:-webkit-transform .15s;transition:transform .15s}
+.el-root.skin-residence .rs-wsrc:active{-webkit-transform:scale(.96);transform:scale(.96)}
+.el-root.skin-residence .rs-wsrc b{margin-top:12px;font-weight:400;font-size:18px;letter-spacing:.06em;max-width:176px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-wsrc small{position:absolute;top:10px;left:0;right:0;text-align:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);opacity:0}
+.el-root.skin-residence .rs-wsrc.last{border-color:rgba(var(--acc-rgb),.5)}
+.el-root.skin-residence .rs-wsrc.last small{opacity:.9}
+.el-root.skin-residence .rs-wlogo{width:88px;height:88px;display:flex;align-items:center;justify-content:center}
+.el-root.skin-residence .rs-wlogo img{max-width:100%;max-height:100%;object-fit:contain}
+.el-root.skin-residence .rs-wlg0 svg{width:64px;height:64px;opacity:.8}
+.el-root.skin-residence .rs-wstart{position:absolute;top:0;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center}
+.el-root.skin-residence .rs-wbig{width:230px;height:230px;border-radius:34px;margin-right:56px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(255,255,255,.03) 55%,rgba(0,0,0,.2)),rgba(18,18,22,.6);border:1px solid rgba(var(--acc-rgb),.45);box-shadow:0 0 40px -10px rgba(var(--acc-rgb),.45),inset 0 1px 0 rgba(255,255,255,.2)}
+.el-root.skin-residence .rs-wbig img{width:150px;height:150px;object-fit:contain}
+.el-root.skin-residence .rs-wbig .rs-wlg0 svg{width:110px;height:110px}
+.el-root.skin-residence .rs-wchk{min-width:400px;max-width:520px}
+.el-root.skin-residence .rs-wchk h3{margin:0 0 14px;font-weight:300;font-size:28px}
+.el-root.skin-residence .rs-wli{display:flex;align-items:center;font-size:19px;padding:7px 0;opacity:.35;-webkit-transition:opacity .25s;transition:opacity .25s}
+.el-root.skin-residence .rs-wli.go,.el-root.skin-residence .rs-wli.done,.el-root.skin-residence .rs-wli.skip,.el-root.skin-residence .rs-wli.fail{opacity:1}
+.el-root.skin-residence .rs-wli i{width:26px;height:26px;margin-right:14px;border-radius:13px;border:2px solid rgba(255,255,255,.35);flex:none;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:14px;box-sizing:border-box}
+.el-root.skin-residence .rs-wli.go i{border-color:var(--acc);border-top-color:transparent;-webkit-animation:rsspin .7s linear infinite;animation:rsspin .7s linear infinite}
+.el-root.skin-residence .rs-wli.done i,.el-root.skin-residence .rs-wli.skip i{background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
+.el-root.skin-residence .rs-wli.fail i{background:#e8705a;border-color:#e8705a;color:#fff}
+.el-root.skin-residence .rs-wli small{opacity:.6;font-size:15px;margin-left:auto;padding-left:14px;white-space:nowrap}
+.el-root.skin-residence .rs-wwarn{margin:12px 0;font-size:16px;color:#ffb4a4}
+@-webkit-keyframes rsspin{to{-webkit-transform:rotate(360deg)}}
+@keyframes rsspin{to{transform:rotate(360deg)}}
+.el-root.skin-residence .rs-wrem{position:absolute;top:0;bottom:0;left:26px;right:26px;display:flex}
+.el-root.skin-residence .rs-wrem>div{margin-right:18px}
+.el-root.skin-residence .rs-wrem>div:last-child{margin-right:0}
+.el-root.skin-residence .rs-wnow{width:270px;flex:none;padding:20px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.el-root.skin-residence .rs-wnow .rs-wlogo{width:120px;height:120px}
+.el-root.skin-residence .rs-wnow b{font-weight:400;font-size:26px;margin-top:6px}
+.el-root.skin-residence .rs-wnow>span:nth-of-type(2){font-size:15px;opacity:.7;margin:2px 0 auto}
+.el-root.skin-residence .rs-wchip{height:52px;margin-top:10px;align-self:stretch;border-radius:26px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer}
+.el-root.skin-residence .rs-wchip svg{width:20px;height:20px;margin-right:10px}
+.el-root.skin-residence .rs-wchip:active,.el-root.skin-residence .rs-wk:active,.el-root.skin-residence .rs-dk:active,.el-root.skin-residence .rs-dok:active,.el-root.skin-residence .rs-wvb.down,.el-root.skin-residence .rs-dk.down{background:rgba(var(--acc-rgb),.28)}
+.el-root.skin-residence .rs-wpad{flex:1;min-width:0;padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.el-root.skin-residence .rs-dpad{position:relative;width:290px;height:290px;margin-bottom:18px;border-radius:50%;background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.12),rgba(255,255,255,.03) 60%),rgba(10,10,12,.5);border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.15),0 16px 30px -18px #000}
+.el-root.skin-residence .rs-dk{position:absolute;width:76px;height:76px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:38px}
+.el-root.skin-residence .rs-dk svg{width:30px;height:30px;opacity:.85}
+.el-root.skin-residence .rs-dk.u{left:107px;top:6px}.el-root.skin-residence .rs-dk.d{left:107px;bottom:6px}.el-root.skin-residence .rs-dk.l{left:6px;top:107px}.el-root.skin-residence .rs-dk.r{right:6px;top:107px}
+.el-root.skin-residence .rs-dok{position:absolute;left:85px;top:85px;width:120px;height:120px;border-radius:60px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-size:20px;letter-spacing:.1em;cursor:pointer}
+.el-root.skin-residence .rs-wrow{display:flex}
+.el-root.skin-residence .rs-wk{width:54px;height:54px;margin:0 5px;border-radius:27px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+.el-root.skin-residence .rs-wk svg{width:24px;height:24px}
+.el-root.skin-residence .rs-wk.big{background:rgba(244,241,234,.95);color:#15161a}
+.el-root.skin-residence .rs-wvol{width:150px;flex:none;padding:16px 0;display:flex;flex-direction:column;align-items:center;justify-content:space-between}
+.el-root.skin-residence .rs-wvl{font-size:13px;letter-spacing:.14em;text-transform:uppercase;opacity:.7}
+.el-root.skin-residence .rs-wvb{width:84px;height:84px;border-radius:42px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.el-root.skin-residence .rs-wvb svg{width:32px;height:32px}
+.el-root.skin-residence .rs-wvn{font-size:13px;opacity:.6;text-align:center;padding:0 10px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* tall / square screens: what's on and volume side by side, the remote under them */
+.el-root.skin-residence.tall .rs-wrem{flex-wrap:wrap;align-content:flex-start}
+.el-root.skin-residence.tall .rs-wnow{width:auto;flex:1 1 0;margin-bottom:18px}
+.el-root.skin-residence.tall .rs-wvol{margin-right:0;margin-bottom:18px}
+.el-root.skin-residence.tall .rs-wpad{flex:1 1 100%;margin-right:0;-webkit-box-ordinal-group:3;order:2}
+.el-root.skin-residence.tall .rs-wstart{flex-direction:column}
+.el-root.skin-residence.tall .rs-wbig{margin:0 0 30px}

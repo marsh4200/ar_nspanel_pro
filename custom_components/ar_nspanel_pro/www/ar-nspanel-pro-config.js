@@ -9777,6 +9777,156 @@ function ResidenceMore({ hass: h, rc: rc, save: save, rooms: R, fname: fn, utili
     ] }) })
   ] });
 }
+// --- Residence: Watch sources per room (Control4-style "What would you like to watch?") ---
+const RS_STEP_TYPES = [
+  ["on", "Turn on", ["media_player", "switch", "remote", "light", "input_boolean"]],
+  ["input", "Switch TV input", ["media_player"]],
+  ["source", "Choose receiver source", ["media_player"]],
+  ["app", "Open app", ["media_player"]],
+  ["scene", "Run a scene / script", ["scene", "script"]],
+  ["cmd", "Send remote command", ["remote"]],
+  ["wait", "Wait", []],
+  ["action", "Other Home Assistant action", null]
+];
+const RS_REMOTE_KINDS = [["appletv", "Apple TV"], ["androidtv", "Android / Google TV"], ["roku", "Roku"], ["ir", "IR blaster (Broadlink etc.)"]];
+const rsWid = (name) => (String(name || "source").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "source") + "-" + Math.random().toString(36).slice(2, 6);
+function RsWatchSource({ hass: h, src: s, onChange: set, onRemove: del, onMove: move, first, last, fname: fn }) {
+  const [open, setOpen] = M.useState(!s.name);
+  const [busy, setBusy] = M.useState(!1), [err, setErr] = M.useState(""), [cut, setCut] = M.useState(!0);
+  const states = (h && h.states) || {};
+  const ids = (doms) => Object.keys(states).filter((id) => !doms || doms.includes(id.split(".")[0])).sort((x, y) => fn(x).localeCompare(fn(y)));
+  const steps = Array.isArray(s.steps) ? s.steps : [];
+  const setSteps = (v) => set({ ...s, steps: v });
+  const setStep = (i, m) => setSteps(steps.map((x, k) => (k === i ? { ...x, ...m } : x)));
+  const up = async (f) => {
+    if (!f) return;
+    setBusy(!0);
+    setErr("");
+    try {
+      const url = await rsUpload(h, await rsIcon(f, { cut, fill: !1, white: !1, tol: 20 }), "png");
+      set({ ...s, logo: { src: url } });
+    } catch (e) {
+      setErr(e && e.message ? e.message : String(e));
+    }
+    setBusy(!1);
+  };
+  const entSel = (val, doms, onPick, ph) => /* @__PURE__ */ a.jsxs("select", { className: "inp", style: { flex: "1 1 180px", minWidth: 0 }, value: val || "", onChange: (m) => onPick(m.target.value || void 0), children: [
+    /* @__PURE__ */ a.jsx("option", { value: "", children: ph || "Pick a device" }),
+    val && !states[val] && /* @__PURE__ */ a.jsx("option", { value: val, children: val }),
+    ids(doms).map((id) => /* @__PURE__ */ a.jsx("option", { value: id, children: fn(id) }, id))
+  ] });
+  const srcList = (e) => {
+    const l = e && states[e] && states[e].attributes && states[e].attributes.source_list;
+    return Array.isArray(l) ? l : [];
+  };
+  const box = { border: "1px solid var(--divider, rgba(127,127,127,.25))", borderRadius: 12, padding: "10px 12px", marginTop: 10, background: "var(--surface, rgba(255,255,255,.03))" };
+  const row = { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" };
+  const logo = s.logo && s.logo.src;
+  const lprev = { width: 56, height: 56, borderRadius: 12, flex: "none", display: "grid", placeItems: "center", background: "repeating-conic-gradient(#2b2d32 0 25%,#1f2125 0 50%) 0 0/14px 14px", border: "1px solid rgba(255,255,255,.15)", overflow: "hidden" };
+  const tiny = { padding: "4px 9px", minWidth: 0 };
+  return /* @__PURE__ */ a.jsxs("div", { style: box, children: [
+    /* @__PURE__ */ a.jsxs("div", { style: row, children: [
+      /* @__PURE__ */ a.jsx("span", { style: lprev, children: logo ? /* @__PURE__ */ a.jsx("img", { alt: "", src: rsSrc(logo), style: { maxWidth: "86%", maxHeight: "86%", objectFit: "contain" } }) : /* @__PURE__ */ a.jsx("span", { style: { fontSize: 10, opacity: 0.6 }, children: "Logo" }) }),
+      /* @__PURE__ */ a.jsx("input", { className: "inp", style: { flex: "1 1 160px", minWidth: 0 }, placeholder: "Name on the panel, e.g. Netflix", value: s.name || "", onChange: (m) => set({ ...s, name: m.target.value }) }),
+      /* @__PURE__ */ a.jsx("button", { className: "btn ghost", style: tiny, disabled: first, title: "Move up", onClick: () => move(-1), children: "↑" }),
+      /* @__PURE__ */ a.jsx("button", { className: "btn ghost", style: tiny, disabled: last, title: "Move down", onClick: () => move(1), children: "↓" }),
+      /* @__PURE__ */ a.jsx("button", { className: "btn ghost", style: tiny, onClick: () => setOpen(!open), children: open ? "Done" : "Edit" }),
+      /* @__PURE__ */ a.jsx("button", { className: "btn ghost", style: { ...tiny, color: "#ff8f80" }, onClick: del, children: "Remove" })
+    ] }),
+    !open && /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 6 }, children: steps.length ? steps.map((x) => (RS_STEP_TYPES.filter((q) => q[0] === x.t)[0] || [0, "Step"])[1] + (x.e ? " " + fn(x.e) : "") + (x.v ? " → " + x.v : "") + (x.t === "wait" ? " " + (x.s || 0) + " s" : "")).join(" · ") : "No steps yet" }),
+    open && /* @__PURE__ */ a.jsxs("div", { style: { marginTop: 10 }, children: [
+      /* @__PURE__ */ a.jsxs("div", { style: { ...row, fontSize: 13 }, children: [
+        /* @__PURE__ */ a.jsxs("label", { className: "btn ghost", style: { position: "relative", overflow: "hidden" }, children: [
+          busy ? "Uploading…" : logo ? "Change logo" : "Upload logo",
+          /* @__PURE__ */ a.jsx("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/svg+xml", disabled: busy, style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }, onChange: (m) => (up(m.target.files && m.target.files[0]), (m.target.value = "")) })
+        ] }),
+        /* @__PURE__ */ a.jsxs("label", { children: [/* @__PURE__ */ a.jsx("input", { type: "checkbox", checked: cut, onChange: (m) => setCut(m.target.checked) }), " Remove the background (only the logo shows)"] }),
+        logo && /* @__PURE__ */ a.jsx("button", { className: "btn ghost", style: tiny, onClick: () => set({ ...s, logo: void 0 }), children: "No logo" })
+      ] }),
+      err && /* @__PURE__ */ a.jsx("div", { className: "hint", style: { color: "#ff8f80", marginTop: 6 }, children: err }),
+      /* @__PURE__ */ a.jsx("div", { style: { fontSize: 12, fontWeight: 700, opacity: 0.7, letterSpacing: ".04em", textTransform: "uppercase", margin: "14px 0 4px" }, children: "When it's tapped, in this order" }),
+      /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginBottom: 6 }, children: "Steps that are already done (TV on, already on HDMI 1) are skipped, so changing source only changes what's different. Room Off switches off every device a step turned on." }),
+      steps.map((st, i) => {
+        const ty = RS_STEP_TYPES.filter((q) => q[0] === st.t)[0] || RS_STEP_TYPES[0];
+        const opts = srcList(st.e);
+        return /* @__PURE__ */ a.jsxs("div", { style: { ...row, padding: "6px 0", borderTop: i ? "1px solid var(--divider, rgba(127,127,127,.2))" : "none" }, children: [
+          /* @__PURE__ */ a.jsx("span", { style: { width: 22, height: 22, borderRadius: 11, display: "grid", placeItems: "center", fontSize: 12, background: "var(--surface2, rgba(255,255,255,.08))", flex: "none" }, children: i + 1 }),
+          /* @__PURE__ */ a.jsx("select", { className: "inp", style: { flex: "0 1 200px", minWidth: 0 }, value: ty[0], onChange: (m) => setStep(i, { t: m.target.value, v: void 0, s: m.target.value === "wait" ? 3 : void 0 }), children: RS_STEP_TYPES.map((q) => /* @__PURE__ */ a.jsx("option", { value: q[0], children: q[1] }, q[0])) }),
+          ty[0] !== "wait" && entSel(st.e, ty[2], (v) => setStep(i, { e: v }), ty[0] === "action" ? "Device (optional)" : void 0),
+          ["input", "source", "app"].includes(ty[0]) && (opts.length ? /* @__PURE__ */ a.jsxs("select", { className: "inp", style: { flex: "0 1 170px", minWidth: 0 }, value: st.v || "", onChange: (m) => setStep(i, { v: m.target.value || void 0 }), children: [
+            /* @__PURE__ */ a.jsx("option", { value: "", children: ty[0] === "app" ? "Pick the app" : "Pick the input" }),
+            st.v && !opts.includes(st.v) && /* @__PURE__ */ a.jsx("option", { value: st.v, children: st.v }),
+            opts.map((o) => /* @__PURE__ */ a.jsx("option", { value: o, children: o }, o))
+          ] }) : /* @__PURE__ */ a.jsx("input", { className: "inp", style: { flex: "0 1 170px", minWidth: 0 }, placeholder: ty[0] === "app" ? "App name, e.g. Netflix" : "Input, e.g. HDMI 1", value: st.v || "", onChange: (m) => setStep(i, { v: m.target.value || void 0 }) })),
+          ty[0] === "cmd" && /* @__PURE__ */ a.jsx("input", { className: "inp", style: { flex: "0 1 170px", minWidth: 0 }, placeholder: "Command, e.g. power", value: st.v || "", onChange: (m) => setStep(i, { v: m.target.value || void 0 }) }),
+          ty[0] === "wait" && /* @__PURE__ */ a.jsxs("label", { style: { fontSize: 13, display: "flex", alignItems: "center", gap: 6 }, children: [/* @__PURE__ */ a.jsx("input", { className: "inp", type: "number", min: 1, max: 30, style: { width: 70 }, value: st.s || 3, onChange: (m) => setStep(i, { s: Math.max(1, Math.min(30, Number(m.target.value) || 1)) }) }), "seconds (a TV that needs time before it takes an input)"] }),
+          ty[0] === "action" && /* @__PURE__ */ a.jsx("input", { className: "inp", style: { flex: "0 1 190px", minWidth: 0 }, placeholder: "Action, e.g. light.turn_on", value: st.v || "", onChange: (m) => setStep(i, { v: m.target.value.trim() || void 0 }) }),
+          ty[0] === "action" && /* @__PURE__ */ a.jsx("input", { className: "inp", style: { flex: "1 1 200px", minWidth: 0 }, placeholder: 'Data (optional), e.g. {"brightness_pct": 20}', defaultValue: st.d ? JSON.stringify(st.d) : "", onBlur: (m) => {
+            const t = m.target.value.trim();
+            if (!t) return setStep(i, { d: void 0 });
+            try {
+              const d = JSON.parse(t);
+              if (d && typeof d === "object" && !Array.isArray(d)) setStep(i, { d: d });
+            } catch (x) {
+              m.target.style.borderColor = "#ff8f80";
+            }
+          } }),
+          ty[0] === "on" && /* @__PURE__ */ a.jsxs("label", { style: { fontSize: 12.5, display: "flex", alignItems: "center", gap: 4 }, title: "Untick for something that should stay on after Room Off", children: [/* @__PURE__ */ a.jsx("input", { type: "checkbox", checked: st.off !== !1, onChange: (m) => setStep(i, { off: m.target.checked ? void 0 : !1 }) }), "off on Room Off"] }),
+          /* @__PURE__ */ a.jsx("button", { className: "btn ghost", style: tiny, disabled: !i, onClick: () => setSteps(steps.map((x, k) => (k === i - 1 ? steps[i] : k === i ? steps[i - 1] : x))), children: "↑" }),
+          /* @__PURE__ */ a.jsx("button", { className: "btn ghost", style: { ...tiny, color: "#ff8f80" }, onClick: () => setSteps(steps.filter((x, k) => k !== i)), children: "✕" })
+        ] }, i);
+      }),
+      /* @__PURE__ */ a.jsx("button", { className: "btn ghost", style: { marginTop: 6 }, onClick: () => setSteps(steps.concat([{ t: steps.length ? "input" : "on" }])), children: "+ Add a step" }),
+      /* @__PURE__ */ a.jsx("div", { style: { fontSize: 12, fontWeight: 700, opacity: 0.7, letterSpacing: ".04em", textTransform: "uppercase", margin: "14px 0 4px" }, children: "The remote on the panel" }),
+      /* @__PURE__ */ a.jsxs("div", { style: row, children: [
+        /* @__PURE__ */ a.jsx("span", { style: { width: 120, fontSize: 13 }, children: "Arrows and OK" }),
+        entSel(s.remote && s.remote.e, ["remote"], (v) => set({ ...s, remote: v ? { ...(s.remote || {}), e: v } : void 0 }), "No arrows (no remote)"),
+        s.remote && s.remote.e && /* @__PURE__ */ a.jsx("select", { className: "inp", style: { flex: "0 1 200px", minWidth: 0 }, value: s.remote.kind || "appletv", onChange: (m) => set({ ...s, remote: { ...s.remote, kind: m.target.value } }), children: RS_REMOTE_KINDS.map((k) => /* @__PURE__ */ a.jsx("option", { value: k[0], children: k[1] }, k[0])) })
+      ] }),
+      /* @__PURE__ */ a.jsxs("div", { style: { ...row, marginTop: 6 }, children: [
+        /* @__PURE__ */ a.jsx("span", { style: { width: 120, fontSize: 13 }, children: "Play / pause" }),
+        entSel(s.player, ["media_player"], (v) => set({ ...s, player: v }), "None")
+      ] }),
+      /* @__PURE__ */ a.jsxs("div", { style: { ...row, marginTop: 6 }, children: [
+        /* @__PURE__ */ a.jsx("span", { style: { width: 120, fontSize: 13 }, children: "Volume" }),
+        entSel(s.volume, ["media_player"], (v) => set({ ...s, volume: v }), "Same as play / pause")
+      ] })
+    ] })
+  ] });
+}
+function RsWatchEditor({ hass: h, device: t, onChange: r, fname: fn }) {
+  const cfg = t.elegant ?? {};
+  const rooms = elRooms(cfg);
+  const [ri, setRi] = M.useState(0);
+  const i = Math.min(ri, Math.max(0, rooms.length - 1));
+  if (!rooms.length) return /* @__PURE__ */ a.jsx("div", { className: "hint", children: "Add a room first (above)." });
+  const room = rooms[i] || {};
+  const list = Array.isArray(room.rsWatch) ? room.rsWatch : [];
+  const saveList = (v) => {
+    const next = { ...cfg, rooms: rooms.map((x, k) => (k === i ? { ...x, rsWatch: v.length ? v : void 0 } : x)) };
+    ["title", "lights", "climate", "music", "shades", "scenes"].forEach((k) => delete next[k]);
+    r({ elegant: next });
+  };
+  const tv = elList(room.watch)[0];
+  const add = () => saveList(list.concat([{ id: rsWid(""), name: "", steps: tv ? [{ t: "on", e: tv }, { t: "input", e: tv }] : [{ t: "on" }] }]));
+  return /* @__PURE__ */ a.jsxs("div", { children: [
+    /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginBottom: 8 }, children: "Tapping Watch on the panel asks \"What would you like to watch?\" and shows these as tiles with your logos. Tapping one runs its steps in Home Assistant (TV on, input, receiver source, app, lights) and ticks them off on the panel, then shows the remote. Without sources, Watch shows the room's TVs as before." }),
+    rooms.length > 1 && /* @__PURE__ */ a.jsx(X, { label: "Room", children: /* @__PURE__ */ a.jsx("select", { className: "inp", value: i, onChange: (m) => setRi(Number(m.target.value)), children: rooms.map((x, k) => /* @__PURE__ */ a.jsx("option", { value: k, children: (x.name || "Room " + (k + 1)) + (Array.isArray(x.rsWatch) && x.rsWatch.length ? " (" + x.rsWatch.length + ")" : "") }, k)) }) }),
+    list.map((s, k) => /* @__PURE__ */ a.jsx(RsWatchSource, { hass: h, src: s, fname: fn, first: k === 0, last: k === list.length - 1,
+      onChange: (v) => saveList(list.map((x, n) => (n === k ? { ...v, id: x.id || rsWid(v.name) } : x))),
+      onRemove: () => saveList(list.filter((x, n) => n !== k)),
+      onMove: (d) => {
+        const j = k + d;
+        if (j < 0 || j >= list.length) return;
+        const v = list.slice();
+        v[k] = list[j];
+        v[j] = list[k];
+        saveList(v);
+      } }, s.id || k)),
+    /* @__PURE__ */ a.jsx("button", { className: "btn ghost", style: { marginTop: 10 }, onClick: add, children: "+ Add a source" + (rooms.length > 1 ? " to " + (room.name || "this room") : "") })
+  ] });
+}
+
 const RS_EDIT_CSS = ".rsx{--acc:243,217,164}.rsx .rslay{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}.rsx .rsmain{flex:1 1 440px;min-width:0}.rsx .rsside{flex:0 1 380px;min-width:280px;position:sticky;top:8px}.rsx .rsstep{background:var(--surface,#222933);border:1px solid var(--divider,rgba(255,255,255,.09));border-radius:14px;padding:12px 14px;margin-bottom:12px}.rsx .rssh{display:flex;align-items:center;gap:10px;margin-bottom:6px}.rsx .rsnum{width:24px;height:24px;border-radius:12px;background:#c9a46a;color:#1d160a;font-weight:700;font-size:12.5px;display:grid;place-items:center;flex:none}.rsx .rssh h3{margin:0;font-size:15px;font-weight:600}.rsx .rsnow{margin-left:auto;font-size:12.5px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}.rsx .rshint{font-size:12.5px;color:var(--text2);margin:0 0 10px}.rsx .rsgrp{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin:10px 0 6px}.rsx .rstiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}.rsx .rstile{font:inherit;color:var(--text);background:var(--surface2,#2b333e);border:2px solid transparent;border-radius:11px;padding:5px;cursor:pointer;text-align:left;min-width:0;position:relative;display:block}.rsx .rstile[aria-pressed=\"true\"]{border-color:#c9a46a;box-shadow:0 0 0 1px #c9a46a}.rsx .rstile[aria-pressed=\"true\"]::after{content:\"\\2713\";position:absolute;top:5px;right:5px;width:19px;height:19px;border-radius:10px;background:#c9a46a;color:#1d160a;font-size:11px;font-weight:700;display:grid;place-items:center;z-index:5}.rsx .rsthumb{height:58px;border-radius:7px;background-size:cover;background-position:center;position:relative;overflow:hidden;display:block}.rsx .rstl{display:block;font-size:12px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rsx .rsseg{display:flex;flex-wrap:wrap;gap:6px}.rsx .rsseg button{font:inherit;font-size:13px;color:var(--text);background:var(--surface2,#2b333e);border:1px solid var(--divider,rgba(255,255,255,.12));border-radius:999px;padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:8px}.rsx .rsseg button[aria-pressed=\"true\"]{border-color:#c9a46a;background:rgba(201,164,106,.15);color:#f3e3c4}.rsx .rsdot{width:14px;height:14px;border-radius:7px;display:inline-block}.rsx .rspv{background:var(--surface,#222933);border:1px solid var(--divider,rgba(255,255,255,.09));border-radius:14px;padding:12px}.rsx .rspvh{display:flex;align-items:center;gap:8px;margin-bottom:10px}.rsx .rspvh b{font-weight:600;font-size:14px;flex:1}.rsx .rschip{font-size:11.5px;font-weight:700;letter-spacing:.03em;padding:3px 9px;border-radius:999px}.rsx .rschip.dirty{background:rgba(255,183,77,.16);color:#ffcc80}.rsx .rschip.clean{background:rgba(102,187,106,.16);color:#a5d6a7}.rsx .rsbezel{background:linear-gradient(160deg,#2b2c2f,#151618 60%,#0b0b0c);border-radius:14px;padding:9px;box-shadow:inset 0 1px 0 #3a3b3f}.rsx .rsscreen{position:relative;aspect-ratio:5/3;border-radius:4px;overflow:hidden;background-size:cover;background-position:center;font-family:\"Jost\",\"Avenir Next\",\"Segoe UI\",Roboto,sans-serif;color:#f4f1ea;background-color:#222}.rsx .rsscreen::after{content:\"\";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.12) 30%,rgba(0,0,0,.2) 70%,rgba(0,0,0,.6))}.rsx .rsptop{position:absolute;left:4%;right:4%;top:3%;display:flex;align-items:center;z-index:2;font-size:12px}.rsx .rsptop b{font-weight:400;font-size:13px;flex:1}.rsx .rsptop span{opacity:.85;font-size:15px;font-weight:300}.rsx .rsbtns{position:absolute;left:3%;right:3%;top:16%;bottom:16%;z-index:1;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);align-items:center;justify-items:center}.rsx .rspbar{position:absolute;left:4%;right:4%;bottom:3%;z-index:2;display:flex;gap:6px}.rsx .rspbar i{height:16px;border-radius:8px;background:rgba(12,12,14,.55);border:1px solid rgba(255,255,255,.16)}.rsx .rspvs{margin-top:10px;font-size:12.5px;color:var(--text2)}.rsx .rspvs div{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--divider,rgba(255,255,255,.09))}.rsx .rspvs div:last-child{border:0}.rsx .rspvs b{color:var(--text);font-weight:500;text-align:right}.rsx .rssave{margin-top:12px;width:100%;justify-content:center}.rsx .rsundo{margin-top:6px;width:100%;font:inherit;font-size:13px;background:none;border:0;color:var(--text2);cursor:pointer;padding:6px}.rsx details.rsmore{background:var(--surface,#222933);border:1px dashed var(--divider,rgba(255,255,255,.18));border-radius:14px;padding:10px 14px}.rsx details.rsmore>summary{cursor:pointer;font-size:14px;font-weight:600;list-style:none}.rsx details.rsmore>summary::-webkit-details-marker{display:none}.rsx details.rsmore>summary::before{content:\"\\25B8  \";color:#c9a46a}.rsx details.rsmore[open]>summary::before{content:\"\\25BE  \"}.rsx details.rsmore>summary small{display:block;font-weight:400;color:var(--text2);font-size:12.5px;margin-top:2px}.rsx .s-flat .rsr{border-radius:50%;border:1.5px solid rgba(255,255,255,.42);background:rgba(10,10,12,.3)}.rsx .s-flat .rsb.on .rsr{border-color:rgb(var(--acc));box-shadow:0 0 20px -4px rgba(var(--acc),.6)}.rsx .s-flat .rsb.on svg.rsl{color:rgb(var(--acc))}.rsx .s-dome .rsr{border-radius:50%;background:radial-gradient(120% 120% at 50% 0%,rgba(255,255,255,.22) 0%,rgba(255,255,255,.06) 38%,rgba(0,0,0,.1) 60%,rgba(0,0,0,.45) 100%),rgba(22,22,26,.72);box-shadow:inset 0 1px 1px rgba(255,255,255,.45),inset 0 -6px 12px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.6),0 10px 18px -6px rgba(0,0,0,.85),0 2px 3px rgba(0,0,0,.5)}.rsx .s-dome .rsr::before{content:\"\";position:absolute;left:16%;right:16%;top:6%;height:38%;border-radius:50% 50% 45% 45%;background:linear-gradient(180deg,rgba(255,255,255,.32),rgba(255,255,255,0));pointer-events:none;z-index:3}.rsx .s-dome .rsb.on .rsr{background:radial-gradient(120% 120% at 50% 0%,rgba(255,240,210,.35) 0%,rgba(var(--acc),.22) 45%,rgba(60,40,10,.5) 100%),rgba(40,32,20,.8);box-shadow:inset 0 1px 1px rgba(255,255,255,.55),inset 0 -6px 12px rgba(0,0,0,.45),0 0 0 1px rgba(var(--acc),.55),0 0 26px -2px rgba(var(--acc),.55),0 10px 18px -6px rgba(0,0,0,.85)}.rsx .s-dome .rsb.on svg.rsl{color:#fff6e0;filter:drop-shadow(0 0 6px rgba(var(--acc),.9))}.rsx .s-metal .rsr{border-radius:50%;background:conic-gradient(from 210deg,#8f9399,#f4f5f6,#9ba0a6,#5f646b,#c9cdd2,#7f848b,#eef0f2,#8f9399);box-shadow:0 10px 18px -6px rgba(0,0,0,.85),0 1px 2px rgba(0,0,0,.6)}.rsx .s-metal .rsr::before{content:\"\";position:absolute;inset:9%;border-radius:50%;background:radial-gradient(circle at 50% 35%,#2b2e34,#121418 70%);box-shadow:inset 0 3px 6px rgba(0,0,0,.8),inset 0 -1px 1px rgba(255,255,255,.12)}.rsx .s-metal .rsr svg.rsl,.rsx .s-metal .rsr img{position:relative;z-index:2}.rsx .s-metal svg.rsl{color:#d8dbe0;filter:drop-shadow(0 -1px 0 rgba(0,0,0,.8)) drop-shadow(0 1px 0 rgba(255,255,255,.15))}.rsx .s-metal .rsb.on .rsr::before{background:radial-gradient(circle at 50% 40%,rgba(var(--acc),.35),#1a1610 72%)}.rsx .s-metal .rsb.on svg.rsl{color:rgb(var(--acc));filter:drop-shadow(0 0 6px rgba(var(--acc),.8))}.rsx .s-key .rsr{border-radius:22%;background:linear-gradient(180deg,#34363c,#1e2024);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 -2px 0 rgba(0,0,0,.5),0 0 0 1px rgba(0,0,0,.7),0 12px 16px -8px rgba(0,0,0,.9),0 3px 0 #0e0f11}.rsx .s-key svg.rsl{color:#c7c9cd;filter:drop-shadow(0 1px 0 rgba(0,0,0,.9))}.rsx .s-key .rsr::after{content:\"\";position:absolute;bottom:9%;left:34%;right:34%;height:4%;min-height:3px;border-radius:3px;background:rgba(255,255,255,.12)}.rsx .s-key .rsb.on .rsr::after{background:rgb(var(--acc));box-shadow:0 0 8px rgba(var(--acc),.9),0 0 18px rgba(var(--acc),.5)}.rsx .s-key .rsb.on svg.rsl{color:#fff3da}.rsx .s-key .rsb:active .rsr{transform:translateY(2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 0 0 1px rgba(0,0,0,.7),0 6px 10px -6px rgba(0,0,0,.9),0 1px 0 #0e0f11}.rsx .s-tile .rsr{border-radius:24%;background:linear-gradient(150deg,rgba(255,255,255,.2),rgba(255,255,255,.04) 45%,rgba(0,0,0,.25)),rgba(30,30,36,.62);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 1px 0 0 rgba(255,255,255,.12),inset 0 -1px 0 rgba(0,0,0,.4),0 18px 24px -12px rgba(0,0,0,.9),0 4px 8px -2px rgba(0,0,0,.5)}.rsx .s-tile .rsb.on .rsr{background:linear-gradient(150deg,rgba(255,245,220,.4),rgba(var(--acc),.2) 50%,rgba(70,50,20,.35)),rgba(40,34,24,.7);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 0 0 1px rgba(var(--acc),.5),0 0 30px -4px rgba(var(--acc),.6),0 18px 24px -12px rgba(0,0,0,.9)}.rsx .s-tile .rsb.on svg.rsl{color:#fff6e0}.rsx .s-porc .rsr{border-radius:50%;background:radial-gradient(circle at 40% 30%,#ffffff,#e9e6e0 55%,#c7c2b8);box-shadow:inset 0 -3px 6px rgba(0,0,0,.18),inset 0 2px 2px rgba(255,255,255,.9),0 10px 18px -6px rgba(0,0,0,.85),0 0 0 1px rgba(0,0,0,.25)}.rsx .s-porc svg.rsl{color:#3a3630}.rsx .s-porc .rsb.on .rsr{background:radial-gradient(circle at 40% 30%,#fff8e8,#f3d9a4 55%,#c69a52);box-shadow:inset 0 -3px 6px rgba(80,50,0,.25),inset 0 2px 2px rgba(255,255,255,.9),0 0 24px -2px rgba(var(--acc),.7),0 10px 18px -6px rgba(0,0,0,.85)}.rsx .s-porc .rsb.on svg.rsl{color:#5a3a08}.rsx .rsbare .rsr{background:none!important;box-shadow:none!important;border:0!important}.rsx .rsbare .rsr img,.rsx .rsbare .rsr svg.rsl{width:86%;height:86%;position:relative;z-index:2;transition:transform .2s,filter .2s}.rsx .rsbare svg.rsl{stroke-width:1.4}.rsx .i-flat .rsr img,.rsx .i-flat svg.rsl{filter:drop-shadow(0 2px 6px rgba(0,0,0,.7))}.rsx .i-flat .rsb.on svg.rsl{color:rgb(var(--acc))}.rsx .i-shadow .rsr::after{content:\"\";position:absolute;left:14%;right:14%;bottom:-6%;height:16%;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.75),rgba(0,0,0,0));z-index:1;transition:transform .2s,opacity .2s}.rsx .i-shadow .rsr img,.rsx .i-shadow svg.rsl{transform:translateY(-8%);filter:drop-shadow(0 6px 6px rgba(0,0,0,.45))}.rsx .i-shadow .rsb.on .rsr img,.rsx .i-shadow .rsb.on svg.rsl{transform:translateY(-14%);filter:drop-shadow(0 10px 8px rgba(0,0,0,.4)) drop-shadow(0 0 14px rgba(var(--acc),.55))}.rsx .i-shadow .rsb.on .rsr::after{transform:scaleX(.82);opacity:.7}.rsx .i-shadow .rsb.on svg.rsl{color:rgb(var(--acc))}.rsx .i-reflect .rsr{margin-bottom:14%}.rsx .i-reflect .rsf{position:absolute;left:7%;right:7%;top:96%;height:40%;overflow:hidden;z-index:1;opacity:.32;-webkit-transform:scaleY(-1);transform:scaleY(-1);-webkit-mask-image:linear-gradient(0deg,rgba(0,0,0,.9),rgba(0,0,0,0) 55%);mask-image:linear-gradient(0deg,rgba(0,0,0,.9),rgba(0,0,0,0) 55%);pointer-events:none}.rsx .i-reflect .rsf img,.rsx .i-reflect .rsf svg.rsl{position:absolute;left:0;bottom:0;width:100%;height:215%;filter:none}.rsx .i-reflect .rsr img,.rsx .i-reflect .rsr>svg.rsl{filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}.rsx .i-reflect .rsr::before{content:\"\";position:absolute;left:-10%;right:-10%;top:96%;height:2px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);z-index:2}.rsx .i-reflect .rsb.on .rsr>img,.rsx .i-reflect .rsb.on .rsr>svg.rsl{filter:drop-shadow(0 0 14px rgba(var(--acc),.6))}.rsx .i-reflect .rsb.on svg.rsl{color:rgb(var(--acc))}.rsx .i-glow .rsr::before{content:\"\";position:absolute;left:-18%;right:-18%;top:-18%;bottom:-18%;border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.14),rgba(255,255,255,0));z-index:1;transition:opacity .2s}.rsx .i-glow .rsr img,.rsx .i-glow svg.rsl{filter:drop-shadow(0 3px 5px rgba(0,0,0,.6))}.rsx .i-glow .rsb.on .rsr::before{background:radial-gradient(closest-side,rgba(var(--acc),.7),rgba(var(--acc),.18) 55%,rgba(var(--acc),0))}.rsx .i-glow .rsb.on .rsr img,.rsx .i-glow .rsb.on svg.rsl{filter:drop-shadow(0 0 10px rgba(var(--acc),.9)) drop-shadow(0 3px 5px rgba(0,0,0,.5))}.rsx .i-glow .rsb.on svg.rsl{color:#fff6e0}.rsx .i-emboss .rsr img,.rsx .i-emboss svg.rsl{filter:drop-shadow(0 -1px 0 rgba(255,255,255,.55)) drop-shadow(0 1.5px 0 rgba(0,0,0,.85)) drop-shadow(0 8px 10px rgba(0,0,0,.6))}.rsx .i-emboss .rsb.on .rsr img,.rsx .i-emboss .rsb.on svg.rsl{filter:drop-shadow(0 -1px 0 rgba(255,255,255,.7)) drop-shadow(0 1.5px 0 rgba(0,0,0,.8)) drop-shadow(0 0 14px rgba(var(--acc),.7))}.rsx .i-emboss .rsb.on svg.rsl{color:rgb(var(--acc))}.rsx .i-plinth .rsr{margin-bottom:6%}.rsx .i-plinth .rsr::after{content:\"\";position:absolute;left:4%;right:4%;bottom:-10%;height:22%;border-radius:50%;z-index:1;background:radial-gradient(ellipse at 50% 30%,rgba(255,255,255,.35),rgba(255,255,255,.06) 60%,rgba(0,0,0,.1));box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 6px 10px -2px rgba(0,0,0,.8);transition:box-shadow .2s,background .2s}.rsx .i-plinth .rsr img,.rsx .i-plinth svg.rsl{transform:translateY(-10%);filter:drop-shadow(0 5px 4px rgba(0,0,0,.5))}.rsx .i-plinth .rsb.on .rsr::after{background:radial-gradient(ellipse at 50% 30%,rgba(255,248,230,.85),rgba(var(--acc),.4) 60%,rgba(80,50,10,.3));box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 0 22px rgba(var(--acc),.7),0 6px 10px -2px rgba(0,0,0,.8)}.rsx .i-plinth .rsb.on svg.rsl{color:rgb(var(--acc))}.rsx .s-square .rsr{border-radius:24%;border:1.5px solid rgba(255,255,255,.42);background:rgba(10,10,12,.3)}.rsx .s-square .rsb.on .rsr{border-color:rgb(var(--acc));box-shadow:0 0 20px -4px rgba(var(--acc),.6)}.rsx .s-square .rsb.on svg.rsl{color:rgb(var(--acc))}.rsx .rsb{display:flex;flex-direction:column;align-items:center;color:#f4f1ea;width:100%}.rsx .rsr{position:relative;aspect-ratio:1;display:grid;place-items:center;width:44px}.rsx .rsr svg.rsl{width:46%;height:46%;stroke-width:1.5}.rsx .rsr img{width:62%;height:62%;object-fit:contain;position:relative;z-index:2}.rsx .rsr.rsfill img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%}.rsx .s-square .rsr.rsfill img,.rsx .s-key .rsr.rsfill img,.rsx .s-tile .rsr.rsfill img{border-radius:24%}.rsx .rslb{letter-spacing:.06em;text-shadow:0 1px 5px rgba(0,0,0,.8);font-size:9.5px;margin-top:3px;white-space:nowrap}.rsx .rsbare .rsr{background:none!important;box-shadow:none!important;border:0!important;width:48px}.rsx .rsbare .rsr img,.rsx .rsbare .rsr svg.rsl{width:86%;height:86%;position:relative;z-index:2}.rsx .rsmini{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:12%;background:rgba(0,0,0,.25)}.rsx .rsmini .rsb{width:auto}.rsx .rsmini .rsr{width:34px!important}.rsx .rsmini .rslb{display:none}";
 const RS_LOOK_BTN = [["s-flat", "Circles"], ["s-square", "Squares"], ["s-dome", "Glass dome"], ["s-metal", "Brushed metal"], ["s-key", "Keypad"], ["s-tile", "Glass tile"], ["s-porc", "Porcelain"]];
 const RS_LOOK_BARE = [["i-flat", "Plain"], ["i-shadow", "Standing shadow"], ["i-reflect", "Glass floor"], ["i-glow", "Backlit"], ["i-emboss", "Raised edge"], ["i-plinth", "Display stand"]];
@@ -9925,8 +10075,10 @@ function ResidenceLook({ hass: h, device: t, onChange: r, rooms: R, fname: fn })
         ] })),
         step(4, "Glow when on", RS_GLOWS.filter((o) => o[0] === glow)[0][1], "", seg(glow, RS_GLOWS, (v) => save({ accent: v === "warm" ? void 0 : v }), !0)),
         /* @__PURE__ */ a.jsxs("details", { className: "rsmore", children: [
-          /* @__PURE__ */ a.jsxs("summary", { children: ["More options", /* @__PURE__ */ a.jsx("small", { children: "Single-button icons and uploads, light drawings, shades, customer settings and PIN, calendar, Room Off and the music bar." })] }),
-          /* @__PURE__ */ a.jsx(ResidenceMore, { hass: h, rc: rc, save: save, rooms: R, fname: fn, utilities: elList((t.elegant || {}).utilities) })
+          /* @__PURE__ */ a.jsxs("summary", { children: ["More options", /* @__PURE__ */ a.jsx("small", { children: "Single-button icons and uploads, light drawings, shades, customer settings and PIN, calendar, Room Off and the music bar, and the Watch sources (Netflix, Apple TV, DStv… with your logos and what each one switches on)." })] }),
+          /* @__PURE__ */ a.jsx(ResidenceMore, { hass: h, rc: rc, save: save, rooms: R, fname: fn, utilities: elList((t.elegant || {}).utilities) }),
+          /* @__PURE__ */ a.jsx("div", { style: { fontSize: 12, fontWeight: 700, opacity: 0.7, letterSpacing: ".04em", textTransform: "uppercase", margin: "20px 0 6px" }, children: "Watch sources (what to watch)" }),
+          /* @__PURE__ */ a.jsx(RsWatchEditor, { hass: h, device: t, onChange: r, fname: fn })
         ] })
       ] }),
       /* @__PURE__ */ a.jsx("div", { className: "rsside", children: /* @__PURE__ */ a.jsxs("div", { className: "rspv", children: [

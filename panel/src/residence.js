@@ -172,6 +172,7 @@ export function mountResidence(a) {
     const e = a.ents();
     if (k === "security" || k === "scenes") return true; // always there
     if (k === "music") return (e.music && e.music.length) || a.maOn || a.spOn;
+    if (k === "watch") return !!((e.watch && e.watch.length) || watchSources().length);
     if (k === "utilities") return (e.utilities && e.utilities.length) || a.hasSolar;
     return !!(e[k] && e[k].length);
   }
@@ -186,6 +187,7 @@ export function mountResidence(a) {
     return RS_TITLES[k] || "";
   }
   function intercept(k) {
+    if (k === "watch") watchEnter();
     if (k === "security" && !(a.ents().security || []).length) {
       a.toast("No alarm set up yet: add one in Device Setup");
       return true;
@@ -240,6 +242,17 @@ export function mountResidence(a) {
     return !INPUT_RE.test(String(x.active_source || "") + " " + (m.title || "") + " " + (m.media_type === "unknown" ? "line in" : ""));
   }
   function nowPlaying() {
+    const wa = watchActive();
+    if (wa) {
+      const lg = wa.logo && wa.logo.src;
+      return {
+        title: wa.name,
+        sub: "Watching · " + (curRoom().name || ""),
+        art: lg ? (lg.indexOf("lib:") === 0 ? libUrl(lg.slice(4)) : url(lg)) : "",
+        page: "watch",
+        pause: () => a.rsEvent("watch_key", { room: a.roomIdx(), k: "play" }),
+      };
+    }
     const onlyRoom = rc.musicBar === "room";
     const r = curRoom();
     const sp = a.sp;
@@ -338,10 +351,19 @@ export function mountResidence(a) {
           ma.cmd("players/cmd/pause", { player_id: x.synced_to || x.player_id }).catch(() => {});
         });
     }
+    // Watch sources: Home Assistant switches off what they switched on
+    if (watchSources().length && (watchActive() || wv.view === "start")) {
+      a.rsEvent("watch_off", { room: a.roomIdx() });
+      mu++;
+    }
+    wv.view = null;
+    wv.src = null;
     if (mu) done.push("music and TV");
     a.toast((r.name || "Room") + " off" + (done.length ? ": " + done.join(", ") : ""));
     setTimeout(chrome, 50);
-    if (a.current() === "home") a.pages.home.render();
+    // from any page of the room, Room Off goes back to the room's home screen
+    if (a.current() !== "home") a.go("home");
+    else a.pages.home.render();
   }
 
   // --- bottom bar -------------------------------------------------------------------
@@ -371,7 +393,7 @@ export function mountResidence(a) {
       }
       return;
     }
-    a.go("music");
+    a.go((npNow && npNow.page) || "music");
   });
   // Spotify only polls while its own page is open: away from it, look now and
   // then (chrome() runs on every Home Assistant change and every 20 s) so the
@@ -638,7 +660,7 @@ export function mountResidence(a) {
         badge = on ? String(on) : "";
       } else if (c.key === "climate") lit = (r.climate || []).some((e) => (a.get(e).value || "off") !== "off");
       else if (c.key === "music") lit = roomPlaying(r);
-      else if (c.key === "watch") lit = (r.watch || []).some((e) => a.get(e).on);
+      else if (c.key === "watch") lit = (r.watch || []).some((e) => a.get(e).on) || !!watchActive();
       else if (c.key === "security") lit = (a.ents().security || []).some((e) => a.get(e).on);
       b.classList.toggle("lit", lit);
       b.querySelector(".rs-badge").textContent = badge;
@@ -696,11 +718,238 @@ export function mountResidence(a) {
     p.appendChild(grid);
   };
 
+
+  // ===== Watch sources (Control4 style): "What would you like to watch?" =====
+  // rooms[i].rsWatch = [{id, name, logo:{src}, steps:[…], remote:{e, kind}, player, volume}]
+  // Home Assistant runs a source's steps (residence_watch.py) and reports each one
+  // on state/rs_watch, so the checklist ticks as they really finish.
+  function watchSources() {
+    if (a.whole()) return [];
+    const r = raw[a.roomIdx()] || {};
+    return (Array.isArray(r.rsWatch) ? r.rsWatch : []).filter((s) => s && typeof s.id === "string" && s.id);
+  }
+  const rsw = () => a.get("rs_watch") || {};
+  function watchActive() {
+    if (a.whole()) return null;
+    const act = rsw().active || {};
+    const id = act[String(a.roomIdx())];
+    return id ? watchSources().filter((s) => s.id === id)[0] || null : null;
+  }
+  function logoHtml(src) {
+    const lg = src && src.logo && src.logo.src;
+    const u = lg ? (lg.indexOf("lib:") === 0 ? libUrl(lg.slice(4)) : url(lg)) : "";
+    return u ? '<img alt="" src="' + u.replace(/"/g, "%22") + '">' : '<span class="rs-wlg0">' + line("watch") + "</span>";
+  }
+  function stepText(st) {
+    const n = st.e ? a.nameOf(st.e) : "";
+    const v = st.v ? String(st.v) : "";
+    if (st.t === "on") return ["Turning on " + n, ""];
+    if (st.t === "input") return ["Switching to " + v, n];
+    if (st.t === "source") return ["Source " + v, n];
+    if (st.t === "app") return ["Opening " + v, n];
+    if (st.t === "scene") return ["Running " + n, ""];
+    if (st.t === "wait") return ["Waiting " + (st.s || 0) + " s", ""];
+    if (st.t === "cmd") return ["Sending " + v, n];
+    return [st.label || v || "Action", n];
+  }
+  const wv = { view: null, src: null, prevRun: null, t0: 0, room: -1, last: {} };
+  function watchEnter() {
+    wv.view = null;
+  }
+  function renderWatch(p, list) {
+    const room = a.roomIdx();
+    if (wv.room !== room) {
+      wv.room = room;
+      wv.view = null;
+    }
+    const act = watchActive();
+    if (!wv.view) {
+      wv.view = act ? "remote" : "pick";
+      wv.src = act;
+    }
+    p.innerHTML = "";
+    p.classList.add("rs-inside");
+    if (wv.view === "pick") return watchPick(p, list);
+    if (wv.view === "start") return watchStart(p);
+    return watchRemote(p);
+  }
+  function watchPick(p, list) {
+    const box = el("div", "rs-wpick" + (list.length > 8 ? " many" : ""));
+    box.appendChild(txt("div", "rs-wask", "What would you like to watch?"));
+    const g = el("div", "rs-wsrcs");
+    const last = wv.last[wv.room];
+    list.forEach((s) => {
+      const t = el("div", "rs-wsrc" + (last === s.id ? " last" : ""), '<small>Last watched</small><span class="rs-wlogo">' + logoHtml(s) + "</span><b></b>");
+      t.querySelector("b").textContent = s.name || "Source";
+      t.addEventListener("click", () => watchGo(s));
+      g.appendChild(t);
+    });
+    box.appendChild(g);
+    p.appendChild(box);
+  }
+  function watchGo(s) {
+    const run = rsw().run;
+    wv.prevRun = run && run.id;
+    wv.t0 = Date.now();
+    wv.src = s;
+    wv.view = "start";
+    wv.last[wv.room] = s.id;
+    a.rsEvent("watch_start", { room: wv.room, src: s.id });
+    wp.render();
+    // nothing back from Home Assistant: say so instead of spinning forever
+    clearTimeout(wv.timer);
+    wv.timer = setTimeout(() => {
+      if (wv.view === "start" && !myRun()) wp.render();
+    }, 9000);
+  }
+  function myRun() {
+    const run = rsw().run;
+    return run && run.id !== wv.prevRun && run.room === wv.room && wv.src && run.src === wv.src.id ? run : null;
+  }
+  function watchStart(p) {
+    const s = wv.src;
+    const run = myRun();
+    const steps = run ? run.steps : (s.steps || []).map(stepText);
+    const state = run ? run.state : steps.map((x, i) => (i === 0 ? "go" : "wait"));
+    const box = el("div", "rs-wstart");
+    box.appendChild(el("div", "rs-wbig", logoHtml(s)));
+    const ul = el("div", "rs-wchk");
+    ul.appendChild(txt("h3", "", "Getting " + (s.name || "it") + " ready"));
+    steps.forEach((x, i) => {
+      const st = state[i] || "wait";
+      const li = el("div", "rs-wli " + st, "<i></i><span></span><small></small>");
+      li.querySelector("i").textContent = st === "done" || st === "skip" ? "✓" : st === "fail" ? "!" : "";
+      li.querySelector("span").textContent = x[0];
+      li.querySelector("small").textContent = st === "skip" ? "already" : st === "fail" ? "didn't answer" : x[1] || "";
+      ul.appendChild(li);
+    });
+    if (!steps.length) ul.appendChild(txt("div", "rs-wli done", "Nothing to switch on: add steps in the editor"));
+    if (!run && Date.now() - wv.t0 > 8500) {
+      ul.appendChild(txt("div", "rs-wwarn", "Home Assistant didn't answer. Check the panel is connected, then try again."));
+      const again = txt("span", "rs-chip big", "Try again");
+      again.addEventListener("click", () => watchGo(s));
+      ul.appendChild(again);
+    }
+    box.appendChild(ul);
+    p.appendChild(box);
+    if (run && run.done && !wv.doneT) {
+      if (run.fails) a.toast(run.fails === 1 ? "One step didn't answer" : run.fails + " steps didn't answer");
+      wv.doneT = setTimeout(() => {
+        wv.doneT = null;
+        if (wv.view === "start") {
+          wv.view = "remote";
+          if (a.current() === "watch") wp.render();
+        }
+      }, 500);
+    }
+  }
+  function holdBtn(b, fire) {
+    let t1 = null;
+    let t2 = null;
+    b.addEventListener("pointerdown", (ev) => {
+      ev.stopPropagation();
+      a.setDragging(true);
+      window.__arClaimGesture = true;
+      b.classList.add("down");
+      fire();
+      t1 = setTimeout(() => (t2 = setInterval(fire, 280)), 450);
+      const up = () => {
+        clearTimeout(t1);
+        clearInterval(t2);
+        b.classList.remove("down");
+        a.setDragging(false);
+        window.__arClaimGesture = false;
+        window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", up);
+      };
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", up);
+    });
+  }
+  const CHV = (d) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="' + d + '"/></svg>';
+  function watchRemote(p) {
+    const s = wv.src || watchActive();
+    if (!s) {
+      wv.view = "pick";
+      return watchPick(p, watchSources());
+    }
+    const room = wv.room;
+    const key = (k) => a.rsEvent("watch_key", { room: room, k: k });
+    const hasRemote = !!(s.remote && s.remote.e);
+    const hasPlayer = !!s.player;
+    const hasVol = !!(s.volume || s.player);
+    const box = el("div", "rs-wrem" + (hasRemote ? "" : " nopad") + (hasVol ? "" : " novol"));
+    // what's on + change / off
+    const now = el("div", "el-glass rs-wnow", '<span class="rs-wlogo">' + logoHtml(s) + "</span><b></b><span></span>");
+    now.querySelector("b").textContent = s.name || "";
+    now.querySelector("span:last-child").textContent = (curRoom().name || "") + (s.player ? " · " + a.nameOf(s.player) : "");
+    const chg = el("div", "rs-wchip", line("watch") + "<span>Change source</span>");
+    chg.addEventListener("click", () => {
+      wv.view = "pick";
+      wp.render();
+    });
+    const off = el("div", "rs-wchip", line("power") + "<span>TV off</span>");
+    off.addEventListener("click", () => {
+      a.rsEvent("watch_off", { room: room });
+      wv.view = null;
+      wv.src = null;
+      a.toast((s.name || "TV") + " off");
+      a.go("home");
+    });
+    now.appendChild(chg);
+    now.appendChild(off);
+    box.appendChild(now);
+    // the remote
+    if (hasRemote || hasPlayer) {
+      const pad = el("div", "el-glass rs-wpad");
+      if (hasRemote) {
+        const dp = el("div", "rs-dpad");
+        [["up", "u", "M6 15l6-6 6 6"], ["left", "l", "M15 6l-6 6 6 6"], ["right", "r", "M9 6l6 6-6 6"], ["down", "d", "M6 9l6 6 6-6"]].forEach((k) => {
+          const b = el("span", "rs-dk " + k[1], CHV(k[2]));
+          holdBtn(b, () => key(k[0]));
+          dp.appendChild(b);
+        });
+        const ok = txt("span", "rs-dok", "OK");
+        ok.addEventListener("click", () => key("ok"));
+        dp.appendChild(ok);
+        pad.appendChild(dp);
+      }
+      const row = el("div", "rs-wrow");
+      const keys = hasRemote ? [["back", CHV("M15 5l-7 7 7 7")], ["home", line("home")], ["menu", CHV("M4 7h16M4 12h16M4 17h16")], ["rew", line("prev")], ["play", filled(PLAY)], ["ff", line("next")]] : [["rew", line("prev")], ["play", filled(PLAY)], ["ff", line("next")]];
+      keys.forEach((k) => {
+        const b = el("span", "rs-wk" + (k[0] === "play" ? " big" : ""), k[1]);
+        b.addEventListener("click", () => key(k[0]));
+        row.appendChild(b);
+      });
+      pad.appendChild(row);
+      box.appendChild(pad);
+    }
+    // volume: tap = one step, hold = keeps going
+    if (hasVol) {
+      const vol = el("div", "el-glass rs-wvol", '<span class="rs-wvl">Volume</span>');
+      const up = el("span", "rs-wvb", line("plus"));
+      const dn = el("span", "rs-wvb", line("minus"));
+      const mu = el("span", "rs-wk", line("vol"));
+      holdBtn(up, () => a.rsEvent("watch_vol", { room: room, d: 1 }));
+      holdBtn(dn, () => a.rsEvent("watch_vol", { room: room, d: -1 }));
+      mu.addEventListener("click", () => (a.rsEvent("watch_mute", { room: room }), a.toast("Mute")));
+      vol.appendChild(up);
+      vol.appendChild(txt("span", "rs-wvn", a.nameOf(s.volume || s.player)));
+      vol.appendChild(dn);
+      vol.appendChild(mu);
+      box.appendChild(vol);
+    }
+    p.appendChild(box);
+  }
+
   // --- Watch page: the room's TVs / media players -------------------------------------
   const wp = a.mkPage("watch");
   wp.el.classList.add("rs-pg-watch");
   wp.render = function () {
     const p = wp.el;
+    const srcs = watchSources();
+    if (srcs.length) return renderWatch(p, srcs);
+    p.classList.remove("rs-inside");
     p.innerHTML = "";
     const list = a.ents().watch || [];
     if (!list.length) {
