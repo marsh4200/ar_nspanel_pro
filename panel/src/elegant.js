@@ -1705,7 +1705,7 @@ export function buildElegant(cfg, ctx, skin) {
   function spWake(x) {
     if (spWaking) return;
     spWaking = x;
-    send("spwake", { entity: x });
+    send("spwake", { entity: x, name: nameOf(x) });
     pages.music.render();
     let n = 0;
     const tick = () => {
@@ -1713,10 +1713,13 @@ export function buildElegant(cfg, ctx, skin) {
       const d = spDevFor(x);
       if (d) {
         spWaking = null;
-        sp.transfer(d.id).then(() => toast("Spotify now plays on " + d.name), (e) => spErr(e));
+        // back in Spotify Connect: play what was asked for there, else move what plays
+        const want = spWant.uri && Date.now() - spWant.t < SP_WANT_TTL ? spWant.uri : "";
+        const body = !want ? null : /^spotify:track:/.test(want) ? { uris: [want] } : { context_uri: want };
+        (body ? sp.play(body, d.id) : sp.transfer(d.id)).then(() => toast("Spotify now plays on " + d.name), (e) => spErr(e));
         return pages.music.render();
       }
-      if (++n > 5) return spDirect(x);
+      if (++n > 8) return spDirect(x); // ~18 s: SpotifyPlus can take a while to log a speaker back in
       sp.refresh().catch(() => {}).then(() => setTimeout(tick, 2000));
     };
     setTimeout(tick, 1500);
@@ -1741,7 +1744,7 @@ export function buildElegant(cfg, ctx, skin) {
     const fam = get(x).fam;
     if (fam !== "sonos" && fam !== "cast") {
       spWaking = null;
-      toast(nameOf(x) + " isn't in Spotify yet. Open the Spotify app on your phone, pick " + nameOf(x) + " once, then it shows here and plays");
+      toast(nameOf(x) + " is asleep in Spotify. Add SpotifyPlus in Home Assistant so the panel can wake it, or pick it once in the Spotify app");
       return pages.music.render();
     }
     const before = get(x).value + "|" + (get(x).title || "");
