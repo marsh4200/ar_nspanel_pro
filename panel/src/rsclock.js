@@ -16,6 +16,8 @@
 // The whole clock drifts a few pixels every 20 s so nothing burns in. The stage
 // is 1000 wide and as tall as the screen's shape (600 on 5:3, 1000 square), scaled.
 
+import { CLOUD_FAR, CLOUD_NEAR } from "./generated/clouds.js";
+
 const p2 = (n) => (n < 10 ? "0" : "") + n;
 
 function fmt(d, lang, o) {
@@ -75,24 +77,38 @@ function wxIcon(night, cond) {
   return '<svg viewBox="0 0 34 34"><g class="rsk-rays" stroke="#ffce78" stroke-width="2.2" stroke-linecap="round">' + r + '</g><circle cx="17" cy="17" r="7" fill="#ffd27a"/>' + (cloudy ? '<g class="rsk-cloud"><path d="M10 29h15a5 5 0 0 0 0-10 7 7 0 0 0-13 2 4 4 0 0 0-2 8z" fill="#dfe4ee"/></g>' : "") + "</svg>";
 }
 
-// --- clouds (made once, then only slid sideways) ---------------------------------
-function cloudSvg(fx, fy, seed, oct, cut, gain) {
-  return (
-    '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="600"><defs><filter id="c" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">' +
-    '<feTurbulence type="fractalNoise" baseFrequency="' + fx + " " + fy + '" numOctaves="' + oct + '" seed="' + seed + '" stitchTiles="stitch" result="n"/>' +
-    '<feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  ' + gain + " 0 0 0 " + -cut * gain + '" result="a0"/>' +
-    '<feGaussianBlur in="a0" stdDeviation="2" result="a"/><feFlood flood-color="#ffffff" result="w"/><feComposite in="w" in2="a" operator="in" result="white"/>' +
-    '<feOffset in="a" dy="-18" result="up"/><feComposite in="a" in2="up" operator="arithmetic" k2="1" k3="-0.85" result="belly"/><feGaussianBlur in="belly" stdDeviation="9" result="bb"/>' +
-    '<feFlood flood-color="#7f8fa8" flood-opacity=".75"/><feComposite in2="bb" operator="in" result="gs"/><feComposite in="gs" in2="a" operator="in" result="gsi"/>' +
-    '<feMerge><feMergeNode in="white"/><feMergeNode in="gsi"/></feMerge></filter>' +
-    '<linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".7" stop-color="#fff" stop-opacity=".8"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><mask id="m"><rect width="100%" height="100%" fill="url(#f)"/></mask></defs>' +
-    '<rect width="100%" height="100%" filter="url(#c)" mask="url(#m)"/></svg>'
-  );
+// --- clouds: two ready-made pictures (generated/clouds.js), slid sideways --------
+// The time-of-day colour is baked into a copy once per change (a canvas filter),
+// not run as a CSS filter on the moving layers every frame.
+const TINTED = {};
+function cloudsFor(cf, done) {
+  const key = cf || "none";
+  if (TINTED[key]) return done(TINTED[key]);
+  if (key === "none") return done((TINTED.none = [CLOUD_FAR, CLOUD_NEAR]));
+  const out = [];
+  [CLOUD_FAR, CLOUD_NEAR].forEach((src, i) => {
+    const img = new Image();
+    img.onload = () => {
+      let url = src;
+      try {
+        const c = document.createElement("canvas");
+        c.width = img.width;
+        c.height = img.height;
+        const g = c.getContext("2d");
+        if ("filter" in g) {
+          g.filter = cf;
+          g.drawImage(img, 0, 0);
+          url = c.toDataURL("image/png");
+        }
+      } catch (x) {
+        url = src;
+      }
+      out[i] = url;
+      if (out[0] && out[1]) done((TINTED[key] = out));
+    };
+    img.src = src;
+  });
 }
-let CLOUDS = null;
-const cloudUrls = () =>
-  CLOUDS ||
-  (CLOUDS = [cloudSvg(0.0025, 0.0065, 7, 5, 0.55, 3), cloudSvg(0.0017, 0.0048, 3, 6, 0.56, 3.4)].map((s) => 'url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s) + '")'));
 // the sky through the day: [hour, top, horizon, cloud filter, sun glare, stars]
 const SKY = [
   [0, "#04070f", "#0d1630", "brightness(.22) saturate(.6)", 0, 1],
@@ -200,6 +216,7 @@ export function rsClockView(dev, design, info, opts) {
   let last = "";
   let lastDay = "";
   let lastSky = 0;
+  let skyCf = null;
   let dr = 0;
   let lastDrift = Date.now();
 
@@ -290,9 +307,7 @@ export function rsClockView(dev, design, info, opts) {
       if (x.photo) ph.style.backgroundImage = 'url("' + String(x.photo).replace(/"/g, "%22") + '")';
     }
     if (design === "sky") {
-      const u = cloudUrls();
-      drift.querySelector(".rsk-cl.far").style.backgroundImage = u[0];
-      drift.querySelector(".rsk-cl.near").style.backgroundImage = u[1];
+      skyCf = null;
       paintSky(d);
     }
     tEl = drift.querySelector(".rsk-t");
@@ -310,7 +325,16 @@ export function rsClockView(dev, design, info, opts) {
     if (!g) return;
     g.style.background = "linear-gradient(180deg," + mixC(A[1], B[1], f) + "," + mixC(A[2], B[2], f) + ")";
     const cf = f < 0.5 ? A[3] : B[3];
-    Array.prototype.forEach.call(drift.querySelectorAll(".rsk-cl"), (c) => (c.style.webkitFilter = c.style.filter = cf));
+    if (cf !== skyCf) {
+      skyCf = cf;
+      const far = drift.querySelector(".rsk-cl.far");
+      const near = drift.querySelector(".rsk-cl.near");
+      cloudsFor(cf, (u) => {
+        if (skyCf !== cf || !far.parentNode) return;
+        far.style.backgroundImage = 'url("' + u[0] + '")';
+        near.style.backgroundImage = 'url("' + u[1] + '")';
+      });
+    }
     drift.querySelector(".rsk-glare").style.opacity = (A[4] + (B[4] - A[4]) * f).toFixed(2);
     drift.querySelector(".rsk-stars").style.opacity = (A[5] + (B[5] - A[5]) * f).toFixed(2);
   }

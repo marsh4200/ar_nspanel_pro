@@ -80,6 +80,15 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Themes and a smoother Blue sky clock (4.6.3)
+
+Settings > Look has a new **Themes** tab: 17 highlight colours (Warm, Cool, Vivid, Neutral) for lit
+buttons, badges, tabs, chips and switches, or "As set up" for the installer's choice. Lamps keep
+their own light colour (2700K, 6000K, …); on the Lights page the glow under each lamp now matches
+that light too. The old Glow row moved here. The **Blue sky** clock screen no longer freezes weak
+panels: the clouds are ready-made pictures that only slide, and the time-of-day tint is baked in
+once instead of filtered every frame.
+
 ## 4C style Lights and Utilities designs (4.6.2)
 
 Lights page layout **4C style**: Lights / Scenes at the top, a row per light (its lamp, name,

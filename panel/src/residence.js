@@ -73,7 +73,25 @@ const filled = (p) => '<svg viewBox="0 0 24 24" fill="currentColor">' + p + "</s
 export const RS_TITLES = { lights: "Lights", climate: "Comfort", music: "Listen", watch: "Watch", shades: "Shades", cameras: "Cameras", utilities: "Utilities", security: "Security", scenes: "Scenes", calendar: "Calendar" };
 const ORDER = ["lights", "climate", "music", "watch", "shades", "cameras", "utilities", "security", "scenes"];
 const PRESETS = {"villa": "villa.jpg", "cape": "cape.jpg", "sunset-sea": "sunset-sea.jpg", "mountains": "mountains.jpg", "forest-mist": "forest-mist.jpg", "dunes": "dunes.jpg", "stars": "stars.jpg", "aurora": "aurora.jpg", "city-night": "city-night.jpg", "lounge": "lounge.jpg", "marble-white": "marble-white.jpg", "marble-black": "marble-black.jpg", "slate": "slate.jpg", "concrete": "concrete.jpg", "steel": "steel.jpg", "walnut": "walnut.jpg", "oak": "oak.jpg", "leather": "leather.jpg", "linen": "linen.jpg", "colour-midnight": "colour-midnight.jpg", "colour-emerald": "colour-emerald.jpg", "colour-bordeaux": "colour-bordeaux.jpg", "colour-champagne": "colour-champagne.jpg", "colour-graphite": "colour-graphite.jpg", "colour-twilight": "colour-twilight.jpg", "colour-lagoon": "colour-lagoon.jpg", "colour-amber": "colour-amber.jpg", "sky-blue": "sky-blue.jpg", "sky-high": "sky-high.jpg", "sky-golden": "sky-golden.jpg", "sky-dawn": "sky-dawn.jpg", "sky-moon": "sky-moon.jpg"};
-const ACCENTS = { warm: "243,217,164", brass: "214,170,92", ice: "150,205,240" };
+// theme colours (Settings > Look > Themes): the accent on lit buttons, sliders,
+// tabs and chips. warm / brass / ice are the installer's original three.
+const ACCENTS = {
+  warm: "243,217,164", brass: "214,170,92", amber: "255,176,72", copper: "222,140,96", rose: "236,176,160", coral: "255,128,110",
+  ice: "150,205,240", ocean: "72,160,255", teal: "64,204,196", mint: "140,228,184", emerald: "72,200,120",
+  ruby: "236,84,104", orchid: "226,120,220", violet: "156,128,255", lime: "196,228,92",
+  platinum: "214,220,228", white: "250,250,250",
+};
+const THEME_GROUPS = [
+  ["Warm", [["warm", "Warm white"], ["brass", "Brass"], ["amber", "Amber"], ["copper", "Copper"], ["rose", "Rose gold"], ["coral", "Coral"]]],
+  ["Cool", [["ice", "Ice blue"], ["ocean", "Ocean"], ["teal", "Teal"], ["mint", "Mint"], ["emerald", "Emerald"]]],
+  ["Vivid", [["ruby", "Ruby"], ["orchid", "Orchid"], ["violet", "Violet"], ["lime", "Lime"]]],
+  ["Neutral", [["platinum", "Platinum"], ["white", "Pure white"]]],
+];
+// text on an accent-filled chip / tab: dark on light colours, white on deep ones
+function onAccent(rgb) {
+  const c = rgb.split(",").map(Number);
+  return (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255 > 0.5 ? "#16130d" : "#ffffff";
+}
 const LOOKS = ["lamp", "edison", "downlight", "bulb"];
 
 function el(tag, cls, html) {
@@ -160,8 +178,21 @@ export function mountResidence(a) {
     ["ring", "square", "bare"].forEach((s) => root.classList.toggle("rs-shape-" + s, s === shapeNow()));
     LOOKS.forEach((o) => root.classList.toggle("rs-look-" + o[0], o[0] === lookNow()));
     root.style.setProperty("--rs-acc", ACCENTS[accentNow()]);
+    root.style.setProperty("--on-acc", onAccent(ACCENTS[accentNow()]));
   }
   applyLook();
+  // repaint whatever page is open, so a new colour shows at once
+  function reTheme() {
+    applyLook();
+    const p = a.pages && a.pages[a.current()];
+    if (p && typeof p.render === "function") {
+      try {
+        p.render();
+      } catch (x) {
+        /* ignore */
+      }
+    }
+  }
 
   // --- images: presets ship with the integration, uploads live in /local ------
   function base() {
@@ -1471,9 +1502,28 @@ export function mountResidence(a) {
       }
     } else if (setTab === "look") {
       const sub = el("div", "rs-setsub");
-      sub.appendChild(chipRow([["bg", "Backgrounds"], ["designs", "Designs"]], lookSub, (v) => ((lookSub = v), again())));
+      sub.appendChild(chipRow([["bg", "Backgrounds"], ["themes", "Themes"], ["designs", "Designs"]], lookSub, (v) => ((lookSub = v), again())));
       body.appendChild(sub);
-      if (lookSub === "designs") {
+      if (lookSub === "themes") {
+        const tr = row("Colour", "top");
+        const grid = el("div", "rs-sws");
+        const sw = (key, name, rgb, on, pick) => {
+          const t = el("span", "rs-sw" + (on ? " on" : ""), "<i></i><small></small>");
+          t.querySelector("i").style.background = "rgb(" + rgb + ")";
+          t.querySelector("small").textContent = name;
+          t.addEventListener("click", pick);
+          return t;
+        };
+        const instAcc = ACCENTS[rc.accent] ? rc.accent : "warm";
+        grid.appendChild(sw("", "As set up", ACCENTS[instAcc], !ACCENTS[PREF.accent], () => (delete PREF.accent, savePref(), reTheme(), again())));
+        THEME_GROUPS.forEach((g) => {
+          grid.appendChild(txt("div", "rs-bggrp", g[0]));
+          g[1].forEach((o) => grid.appendChild(sw(o[0], o[1], ACCENTS[o[0]], PREF.accent === o[0], () => ((PREF.accent = o[0]), savePref(), reTheme(), again()))));
+        });
+        tr.appendChild(grid);
+        body.appendChild(tr);
+        body.appendChild(txt("div", "rs-sethint", "The theme colour is used for highlights: lit buttons, badges, tabs, chips and switches. Lamps always show each light's own colour (2700K, 6000K, …) as set up."));
+      } else if (lookSub === "designs") {
         const lp = row("Lights page", "top");
         lp.appendChild(chipRow(LIGHT_LAYOUTS, lightsPage(), (v) => (pickDesign("lights", "lightsBase", instLights, v), again())));
         body.appendChild(lp);
@@ -1535,9 +1585,6 @@ export function mountResidence(a) {
         });
         bgRow.appendChild(grid);
         body.appendChild(bgRow);
-        const g = row("Glow");
-        g.appendChild(chipRow([["warm", "Warm white"], ["brass", "Brass"], ["ice", "Ice blue"]], accentNow(), (v) => ((PREF.accent = v), savePref(), applyLook(), again())));
-        body.appendChild(g);
         const pickLook = (v) => ((PREF.look = v), delete PREF.shape, savePref(), applyLook(), again());
         const bt = row("Buttons", "top");
         bt.appendChild(chipRow(LOOKS.slice(0, 7), lookNow(), pickLook));
