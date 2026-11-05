@@ -1986,6 +1986,17 @@ def _elegant_payload(entity_id: str, state: Any, base_url: str | None) -> dict[s
             p["brightness"] = round(bri / 255, 3)
         modes = a.get("supported_color_modes") or []
         p["dim"] = any(m != "onoff" for m in modes) if modes else isinstance(bri, (int, float))
+        # the light's own colour, so the panel draws a cool white light cool white
+        # and a coloured one in its colour (brightness only changes how strong)
+        cm = a.get("color_mode")
+        kel = a.get("color_temp_kelvin")
+        rgb = a.get("rgb_color")
+        if cm == "color_temp" and isinstance(kel, (int, float)):
+            p["kelvin"] = int(kel)
+        elif cm in ("hs", "xy", "rgb", "rgbw", "rgbww") and isinstance(rgb, (list, tuple)) and len(rgb) == 3:
+            p["rgb"] = [int(c) for c in rgb]
+        elif isinstance(kel, (int, float)):
+            p["kelvin"] = int(kel)
     elif domain in ("switch", "input_boolean", "fan"):
         p["on"] = st == "on"
         p["since"] = round(state.last_changed.timestamp())  # utilities: "Running · 2 h"

@@ -80,6 +80,14 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Light colours (4.6.1)
+
+Residence draws each lamp in the light's own colour: a light that reports its colour temperature or
+RGB colour to Home Assistant is drawn in that colour, and dimming only makes it weaker, it doesn't
+turn it yellow. For plain dimmers pick the white in Device Setup > Residence look > More options >
+Light colour (Warm 2700K, Soft 3000K, Neutral 4000K, Cool 5000K, Daylight 6500K, or Dim to warm),
+for all lights or per light (also in Easy setup, next to each light).
+
 ## Residence designs, clock screens and easy setup (4.6.0)
 
 **Lights page layouts.** Seven, all but Classic drawing each lamp shining and dimming:

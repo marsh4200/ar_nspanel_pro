@@ -16,7 +16,7 @@ import { playHls } from "./livevideo.js";
 import * as native from "./native.js";
 import { mountIntercom, intercomIcon } from "./intercom.js";
 import { mountResidence } from "./residence.js";
-import { scene as lightScene, paintScene } from "./lightscene.js";
+import { scene as lightScene, paintScene, kelvinRgb } from "./lightscene.js";
 
 const W = 1000;
 const ICON = {
@@ -510,6 +510,19 @@ export function buildElegant(cfg, ctx, skin) {
   // lights on a square panel). Built once per layout / size / list; HA updates
   // and the knob only repaint it.
   const lvlOf = (e) => levelOf(e, "light");
+  // the colour a lamp is drawn in: the light's own colour from Home Assistant
+  // (colour temperature or RGB), else the white picked for it in Device Setup
+  // (Residence > Lights page > Light colour); null = dim to warm
+  const TONES = { warm: 2700, soft: 3000, neutral: 4000, cool: 5000, daylight: 6500 };
+  // (a little lifted towards white: light on a screen reads as glow, not paint)
+  const soft = (c, f) => c.map((v) => Math.round(v + (255 - v) * f));
+  const toneOf = (e) => {
+    const s = get(e);
+    if (Array.isArray(s.rgb) && s.rgb.length === 3) return soft(s.rgb, 0.12);
+    if (typeof s.kelvin === "number" && s.kelvin > 0) return soft(kelvinRgb(s.kelvin), 0.25);
+    const t = RX && RX.lightTone ? RX.lightTone(e) : "warm";
+    return t === "dim" ? null : soft(kelvinRgb(TONES[t] || TONES.warm), 0.25);
+  };
   const dimOk = (e) => e.split(".")[0] === "light" && get(e).dim !== false;
   const lightLabel = (e) => (whole && lightRoom[e] ? nameOf(e) + " · " + lightRoom[e] : nameOf(e));
   const FLAT = LITE || GSAFE;
@@ -832,7 +845,8 @@ export function buildElegant(cfg, ctx, skin) {
       w.style.marginLeft = -s / 2 + "px";
       w.innerHTML = lightScene(lightIconOf(e), s, Math.round(s * 0.98), FLAT);
     }
-    paintScene(w, on, v);
+    paintScene(w, on, v, toneOf(e));
+    box.style.setProperty("--lc", w.style.getPropertyValue("--lc"));
     box.querySelector(".rs-ltpc").textContent = on ? (dimOk(e) ? Math.round(v * 100) + "%" : "On") : "Off";
     box.querySelector(".rs-ltnm").textContent = lightLabel(e);
   }
@@ -842,7 +856,7 @@ export function buildElegant(cfg, ctx, skin) {
     const on = v > 0;
     c.classList.toggle("off", !on);
     c.classList.toggle("sel", c.__i === selLight && c.classList.contains("rs-ltdr"));
-    paintScene(c, on, v);
+    paintScene(c, on, v, toneOf(e));
     const pc = c.querySelector(".rs-ltpc");
     if (pc) pc.textContent = on ? (dimOk(e) ? Math.round(v * 100) + "%" : "On") : "Off";
     const h = (on ? v * 100 : 0) + "%";

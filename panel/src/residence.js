@@ -13,6 +13,8 @@
 //   iconShape: "ring" | "square" | "bare" (older; used when look is not set),   accent: "warm" | "brass" | "ice"
 //   icons: { lights: {src: "lib:bulb_on" | "/local/…png", fill: bool}, … }
 //   lightLook: "match" | "lamp" | "edison" | "downlight" | "bulb"
+//   lightTone / lightTones{entity}: "warm" | "soft" | "neutral" | "cool" | "daylight" | "dim"
+//     (used only when Home Assistant doesn't report the light's colour)
 //   lightsPage: "faders" (default: a lamp shining down a fader per light) | "cards" (the old cards)
 //   lightTypes: { "light.x": "lamp" | "edison" | "downlight" | "bulb" }
 //   shadeTypes: { "cover.x": "roller" | "sheer" | "block" | "curtain" }
@@ -260,6 +262,13 @@ export function mountResidence(a) {
     if (look !== "match") return look;
     const t = rc.lightTypes && rc.lightTypes[e];
     return LOOKS.indexOf(t) >= 0 ? t : guessLightType(a.nameOf(e) + " " + e);
+  }
+  // the white a light shines when Home Assistant doesn't say (a plain dimmer):
+  // per light, else for all lights; "dim" = dim to warm
+  function lightTone(e) {
+    const ok = ["warm", "soft", "neutral", "cool", "daylight", "dim"];
+    const t = rc.lightTones && rc.lightTones[e];
+    return ok.indexOf(t) >= 0 ? t : ok.indexOf(rc.lightTone) >= 0 ? rc.lightTone : "warm";
   }
   function shadeType(e) {
     const t = rc.shadeTypes && rc.shadeTypes[e];
@@ -1957,5 +1966,5 @@ export function mountResidence(a) {
     }
   }
 
-  return { cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightsPage, clockDesign, decorateCover, paintCover, startRoom: homeRoom, utilCards };
+  return { cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightTone, lightsPage, clockDesign, decorateCover, paintCover, startRoom: homeRoom, utilCards };
 }

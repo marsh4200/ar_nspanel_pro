@@ -38,7 +38,7 @@ export function scene(k, W, H, flat) {
       '<ellipse' + O(0.25, 1) + ' cx="' + cx + '" cy="' + r1(y0 + 6 * s) + '" rx="' + r1(44 * s) + '" ry="' + r1(16 * s) + '" fill="' + u("h") + '" filter="' + u("q") + '"/>' +
       '<ellipse cx="' + cx + '" cy="' + r1(y0) + '" rx="' + r1(34 * s) + '" ry="' + r1(9 * s) + '" fill="' + u("m") + '"/>' +
       '<ellipse cx="' + cx + '" cy="' + r1(y0 + 1 * s) + '" rx="' + r1(24 * s) + '" ry="' + r1(6 * s) + '" fill="#2f3237"/>' +
-      '<ellipse' + O(0.55, 1, 0.15) + ' cx="' + cx + '" cy="' + r1(y0 + 2 * s) + '" rx="' + r1(17 * s) + '" ry="' + r1(4.5 * s) + '" fill="#fff8e6"/>';
+      '<ellipse' + O(0.55, 1, 0.15) + ' cx="' + cx + '" cy="' + r1(y0 + 2 * s) + '" rx="' + r1(17 * s) + '" ry="' + r1(4.5 * s) + '" fill="#fff8e6" data-hot="fill:#fff8e6"/>';
   } else if (k === "pendant") {
     const z = 1.7 * s, rim = 49 * z, w1 = spread(rim, 0.44);
     g = beam(rim, 14 * z, w1, w1 * 0.42) + pool(w1 * 1.08) +
@@ -46,7 +46,7 @@ export function scene(k, W, H, flat) {
       '<g transform="translate(' + r1(cx - 23 * z) + ' 0) scale(' + r1(z * 100) / 100 + ')">' +
       '<line x1="23" y1="0" x2="23" y2="21" stroke="#e7e4dd" stroke-width="1.4"/><path d="M19 20h8l2 10H17z" fill="' + u("br") + '"/><rect x="19.5" y="30" width="7" height="3" rx="1" fill="#d6d8db"/>' +
       '<path d="M10 45c0-7 5-12 13-12s13 5 13 12l2 4H8z" fill="' + u("sh") + '"/>' +
-      '<ellipse' + O(0.45, 1, 0.25) + ' cx="23" cy="49" rx="15" ry="2.6" fill="#fff6dc"/></g>';
+      '<ellipse' + O(0.45, 1, 0.25) + ' cx="23" cy="49" rx="15" ry="2.6" fill="#fff6dc" data-hot="fill:#fff6dc"/></g>';
   } else if (k === "floor_lamp") {
     const z = 1.75 * s, by = 50 * z, w1 = spread(by, 0.5);
     g = '<circle' + O(0.25, 1) + ' cx="' + cx + '" cy="' + r1(by) + '" r="' + r1(Math.min(W * 0.7, 105 * s)) + '" fill="' + u("h") + '" filter="' + u("f") + '"/>' +
@@ -57,7 +57,7 @@ export function scene(k, W, H, flat) {
       '<path class="ls-glass" d="M18.5 27C18.5 33 10 37.5 10 50c0 9.5 6 17 13 17s13-7.5 13-17c0-12.5-8.5-17-8.5-23z" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.38)" stroke-width=".8"/>' +
       '<path d="M21.5 28.5l-2.5 15M24.5 28.5l2.5 15" stroke="#9a948a" stroke-width=".6"/>' +
       '<path class="ls-fil" d="M19 44q1 9 2 0q1 9 2 0q1 9 2 0q1 9 2 0" fill="none" stroke="#5a4636" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<path' + O(0.7, 1, 0) + ' d="M19 44q1 9 2 0q1 9 2 0q1 9 2 0q1 9 2 0" fill="none" stroke="#fff2cf" stroke-width="2.6" stroke-linecap="round" filter="url(#' + id + 'q)" opacity="0"/>' +
+      '<path' + O(0.7, 1, 0) + ' d="M19 44q1 9 2 0q1 9 2 0q1 9 2 0q1 9 2 0" fill="none" stroke="#fff2cf" data-hot="stroke:#fff2cf" stroke-width="2.6" stroke-linecap="round" filter="url(#' + id + 'q)" opacity="0"/>' +
       '<path d="M14 45c0-5 2.5-9 5-11" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1.2" stroke-linecap="round"/></g>';
   } else {  // cove LEDs: a lit slot washing the wall below
     const y0 = 22 * s;
@@ -68,29 +68,51 @@ export function scene(k, W, H, flat) {
       '<rect' + O(0.1, 1) + ' x="' + r1(-W * 0.1) + '" y="' + r1(y0 - 8 * s) + '" width="' + r1(W * 1.2) + '" height="' + r1(24 * s) + '" fill="' + u("k") + '" filter="' + u("f") + '"/>' +
       '<rect x="0" y="' + r1(y0 - 12 * s) + '" width="' + W + '" height="' + r1(10 * s) + '" fill="#26282c"/>' +
       '<rect x="0" y="' + r1(y0 - 12 * s) + '" width="' + W + '" height="' + r1(1.5 * s) + '" fill="rgba(255,255,255,.25)"/>' +
-      '<rect' + O(0.6, 1, 0.2) + ' x="' + r1(6 * s) + '" y="' + r1(y0 - 2 * s) + '" width="' + r1(W - 12 * s) + '" height="' + r1(3 * s) + '" rx="' + r1(1.5 * s) + '" fill="#fff4dc"/></g>' +
+      '<rect' + O(0.6, 1, 0.2) + ' x="' + r1(6 * s) + '" y="' + r1(y0 - 2 * s) + '" width="' + r1(W - 12 * s) + '" height="' + r1(3 * s) + '" rx="' + r1(1.5 * s) + '" fill="#fff4dc" data-hot="fill:#fff4dc"/></g>' +
       pool(W * 0.5);
   }
   const out = '<svg class="lsc" data-ls width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" aria-hidden="true">' + d + g + "</svg>";
   // weak panels: no blur (the gradients alone still read as light)
   return flat ? out.replace(/ filter="url\(#[^)]*\)"/g, "") : out;
 }
-// light colour from the level: amber when dim, warm white when bright (dim to warm)
-export function lightColour(f) {
+// the colour a lamp shines in. tone: [r,g,b] (the light's real colour from Home
+// Assistant, or the white picked for it in Device Setup) stays the same at any
+// level, only its strength changes; tone null = dim to warm (white when bright,
+// amber when low, like a dim-to-warm or filament lamp)
+export function lightColour(f, tone) {
+  if (tone) return "rgb(" + tone.join(",") + ")";
   const A = [255, 160, 70], B = [255, 206, 140], Cc = [255, 245, 226];
   const m = (p, q, t) => p.map((v, i) => Math.round(v + (q[i] - v) * t));
   const c = f < 0.5 ? m(A, B, f / 0.5) : m(B, Cc, (f - 0.5) / 0.5);
   return "rgb(" + c.join(",") + ")";
 }
-export function paintScene(root, on, v) {
+// colour temperature (kelvin) to rgb, for drawing (Tanner Helland's fit)
+export function kelvinRgb(k) {
+  const t = Math.max(1000, Math.min(12000, k)) / 100;
+  const c = (x) => Math.round(Math.max(0, Math.min(255, x)));
+  const r = t <= 66 ? 255 : 329.698727446 * Math.pow(t - 60, -0.1332047592);
+  const g = t <= 66 ? 99.4708025861 * Math.log(t) - 161.1195681661 : 288.1221695283 * Math.pow(t - 60, -0.0755148492);
+  const b = t >= 66 ? 255 : t <= 19 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307;
+  return [c(r), c(g), c(b)];
+}
+// a little lighter, for the glowing filament / LED line
+const lift = (tone, f) => (tone ? tone.map((v) => Math.round(v + (255 - v) * f)) : null);
+export function paintScene(root, on, v, tone) {
   const f = on ? Math.max(0.01, Math.min(1, v)) : 0;
-  const col = lightColour(f);
+  const col = lightColour(f, tone);
   const each = (sel, fn) => Array.prototype.forEach.call(root.querySelectorAll(sel), fn);
   each(".ls-o", (e) => {
     const o = (e.getAttribute("data-o") || "0,1,0").split(",").map(Number);
     e.style.opacity = String(on ? o[0] + (o[1] - o[0]) * f : o[2]);
   });
   each("stop.ls-c", (e) => e.setAttribute("stop-color", col));
-  each(".ls-fil", (e) => e.setAttribute("stroke", on ? lightColour(Math.min(1, f + 0.2)) : "#5a4636"));
-  each(".ls-glass", (e) => e.setAttribute("fill", on ? "rgba(255,226,170," + (0.1 + 0.3 * f).toFixed(2) + ")" : "rgba(255,255,255,.07)"));
+  each(".ls-fil", (e) => e.setAttribute("stroke", on ? (tone ? lightColour(1, lift(tone, 0.4)) : lightColour(Math.min(1, f + 0.2))) : "#5a4636"));
+  const g = tone || [255, 226, 170];
+  each(".ls-glass", (e) => e.setAttribute("fill", on ? "rgba(" + g.join(",") + "," + (0.1 + 0.3 * f).toFixed(2) + ")" : "rgba(255,255,255,.07)"));
+  // the lens, shade rim, LED line and filament glow: the light's own colour, lighter
+  each("[data-hot]", (e) => {
+    const d = e.getAttribute("data-hot").split(":");
+    e.setAttribute(d[0], tone ? lightColour(1, lift(tone, 0.6)) : d[1]);
+  });
+  root.style.setProperty("--lc", (tone || [255, 196, 120]).join(","));
 }
