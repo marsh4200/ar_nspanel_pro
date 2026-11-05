@@ -80,6 +80,15 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## 4C style Lights and Utilities designs (4.6.2)
+
+Lights page layout **4C style**: Lights / Scenes at the top, a row per light (its lamp, name,
+level, a long slider, a power button), and This room / All rooms / Only on / All off at the
+bottom. **Utilities page** designs: Classic (the picture tiles), Living list (slim rows, the
+devices move while running), Flow (water and power lines with each device on them, flowing while
+something runs) and Switch plate (a wall plate of brass rocker switches). Both are picked in Device
+Setup > Residence look > More options, or on the panel in Settings > Look > Designs.
+
 ## Light colours (4.6.1)
 
 Residence draws each lamp in the light's own colour: a light that reports its colour temperature or

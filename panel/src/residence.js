@@ -134,7 +134,7 @@ export function mountResidence(a) {
   // Designs (Settings > Look > Designs, or Device Setup): the Lights page layout
   // and the clock screen. The latest choice wins: the customer's pick on the
   // panel stays until the installer pushes a different one from Home Assistant.
-  const LIGHT_LAYOUTS = [["classic", "Classic"], ["faders", "Faders"], ["tiles", "Bubble tiles"], ["bubbles", "Bubbles"], ["keypad", "Keypad list"], ["dial", "Dial"], ["gallery", "Gallery"]];
+  const LIGHT_LAYOUTS = [["classic", "Classic"], ["faders", "Faders"], ["tiles", "Bubble tiles"], ["bubbles", "Bubbles"], ["keypad", "Keypad list"], ["dial", "Dial"], ["gallery", "Gallery"], ["fourc", "4C style"]];
   const CLOCKS = [["classic", "Classic"], ["glow", "Signature glow"], ["sun", "Sun path"], ["halo", "Halo"], ["moon", "Moonlight"], ["edit", "Editorial"], ["photo", "Living photo"], ["flip", "Flip clock"], ["sky", "Blue sky"]];
   const isOpt = (L, v) => L.some((o) => o[0] === v);
   const instLights = () => (rc.lightsPage === "cards" ? "classic" : isOpt(LIGHT_LAYOUTS, rc.lightsPage) ? rc.lightsPage : "faders");
@@ -540,6 +540,98 @@ export function mountResidence(a) {
       g.appendChild(c);
     });
     return g;
+  }
+  // Utilities page in the design picked (Settings > Look > Designs, or Device
+  // Setup): classic = the realistic tiles above; list = slim rows with devices
+  // that move; flow = the property's services as one living diagram; plate = a
+  // wall plate of brass rocker switches. The drawings show the device working
+  // (impeller turning, water spraying, flame flickering, gate sliding, fence flashing).
+  const UG = {
+    pump: '<path d="M32 12a20 20 0 1 1 0 40 20 20 0 0 1 0-40z"/><g class="rs-imp"><path d="M32 32c0-9 6-12 9-10M32 32c8 4 9 11 6 13M32 32c-8 5-14 1-14-3M32 32c-2-8-8-10-11-8"/></g><circle cx="32" cy="32" r="3" fill="currentColor"/><path d="M52 32h8M4 32h8"/>',
+    bore: '<path d="M22 58V22h20v36M18 22h28M26 22V12h12v10M32 12V6M28 58h8"/><circle class="rs-drop" cx="30" cy="40" r="2" fill="currentColor"/><circle class="rs-drop" cx="34" cy="44" r="2" fill="currentColor"/><circle class="rs-drop" cx="32" cy="48" r="2" fill="currentColor"/><circle class="rs-drop" cx="30" cy="52" r="2" fill="currentColor"/>',
+    sprink: '<path d="M32 58V36M24 58h16M26 36h12l-2-6h-8z"/><circle class="rs-drop l" cx="22" cy="26" r="2" fill="currentColor"/><circle class="rs-drop" cx="32" cy="22" r="2" fill="currentColor"/><circle class="rs-drop r" cx="42" cy="26" r="2" fill="currentColor"/><circle class="rs-drop l" cx="27" cy="18" r="2" fill="currentColor"/>',
+    pool: '<path d="M8 40c4 0 4-3 8-3s4 3 8 3 4-3 8-3 4 3 8 3 4-3 8-3 4 3 8 3"/><path class="rs-wav" d="M8 50c4 0 4-3 8-3s4 3 8 3 4-3 8-3 4 3 8 3 4-3 8-3 4 3 8 3"/><path d="M20 34V14a5 5 0 0 1 10 0M38 34V14a5 5 0 0 1 10 0M20 22h28"/>',
+    flame: '<rect x="18" y="6" width="28" height="44" rx="12"/><path d="M26 58h12M32 50v8"/><path class="rs-flame" d="M32 40c-5 0-7-4-6-8 1-3 4-5 4-9 3 2 8 7 8 11 0 4-2 6-6 6z" fill="currentColor" fill-opacity=".35"/>',
+    gate: '<path d="M6 56V14M58 56V14M4 56h56"/><g class="rs-leaf"><path d="M10 20h26v34H10zM16 20v34M22 20v34M28 20v34M10 37h26"/></g>',
+    fence: '<path d="M10 58V12M54 58V12M10 22h44M10 34h44M10 46h44"/><path class="rs-zap" d="M34 14l-8 14h8l-6 14 14-18h-8l6-10z" fill="currentColor"/>',
+    bulb: '<path d="M24 50h16M26 56h12M32 6a16 16 0 0 0-10 28c2 2 3 4 3 7v3h14v-3c0-3 1-5 3-7A16 16 0 0 0 32 6z"/><circle class="rs-zap" cx="32" cy="22" r="7" fill="currentColor" fill-opacity=".5" stroke="none"/>',
+    fan: '<circle cx="32" cy="32" r="24"/><g class="rs-imp"><path d="M32 32c-2-10 4-16 8-14s2 10-8 14zM32 32c10-2 16 4 14 8s-10 2-14-8zM32 32c2 10-4 16-8 14s-2-10 8-14zM32 32c-10 2-16-4-14-8s10-2 14 8z"/></g>',
+    plug: '<path d="M24 6v12M40 6v12M18 18h28v10a14 14 0 0 1-28 0zM32 42v16"/><path class="rs-zap" d="M34 22l-6 10h6l-4 8 10-12h-6l4-6z" fill="currentColor"/>',
+  };
+  const UG_OF = { pump: "pump", sprinkler: "sprink", pool: "pool", geyser: "flame", heater: "flame", fence: "fence", gate: "gate", garage: "gate", front_door: "gate", water_tank: "bore", bulb_on: "bulb", bulb_off: "bulb", fan: "fan", aircon: "fan" };
+  const WATER = { pump: 1, bore: 1, sprink: 1, pool: 1 };
+  const UTIL_LAYOUTS = [["classic", "Classic"], ["list", "Living list"], ["flow", "Flow"], ["plate", "Switch plate"]];
+  const instUtil = () => (UTIL_LAYOUTS.some((o) => o[0] === rc.utilPage) ? rc.utilPage : "classic");
+  const utilPage = () => mine("util", "utilBase", UTIL_LAYOUTS, instUtil);
+  function uInfo(e) {
+    const s = a.get(e) || {};
+    const k = utilKey(e);
+    const nm = (a.nameOf(e) + " " + e).toLowerCase().replace(/_/g, " ");
+    // the name decides first (a "Pool Pump" is a pump, a borehole has its own drawing)
+    const g = rc.utilIcons && rc.utilIcons[e] ? UG_OF[k] || "plug" : /borehole|\bwell\b/.test(nm) ? "bore" : /pump/.test(nm) ? "pump" : UG_OF[k] || "plug";
+    const door = g === "gate";
+    const na = s.value === "unavailable";
+    return { s, g, na, on: !!s.on && !na, st: na ? "Offline" : s.on ? (door ? "Open" : "Running") : door ? "Closed" : "Off", tm: s.on && !na ? runFor(s.since).replace(/^ · /, "") : "" };
+  }
+  const uSvg = (g, cls) => '<svg class="rs-ug' + (cls ? " " + cls : "") + '" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + UG[g] + "</svg>";
+  function utilView(list, tap) {
+    const lay = utilPage();
+    if (lay === "classic") return utilCards(list, tap);
+    const wrap = el("div", "rs-uv rs-uv-" + lay + (list.length > 6 ? " many" : ""));
+    const item = (e, cls, html) => {
+      const u = uInfo(e);
+      const c = el("div", cls + (u.on ? " on" : "") + (u.na ? " na" : ""), html);
+      Array.prototype.forEach.call(c.querySelectorAll(".rs-unm"), (x) => (x.textContent = a.nameOf(e)));
+      Array.prototype.forEach.call(c.querySelectorAll(".rs-ust"), (x) => (x.textContent = u.st));
+      Array.prototype.forEach.call(c.querySelectorAll(".rs-utm"), (x) => (x.textContent = u.tm));
+      if (!u.na) c.addEventListener("click", () => tap(e));
+      return c;
+    };
+    if (lay === "list") {
+      list.forEach((e) => wrap.appendChild(item(e, "el-glass rs-urow", uSvg(uInfo(e).g) + '<div class="rs-unx"><b class="rs-unm"></b><small class="rs-utm"></small></div><span class="rs-ust"></span><span class="rs-utg"></span>')));
+      return wrap;
+    }
+    if (lay === "plate") {
+      const pl = el("div", "rs-plate", '<div class="rs-engr">Services</div>');
+      list.forEach((e) => pl.appendChild(item(e, "rs-rk", '<div class="rs-rock"><i></i><em></em></div>' + uSvg(uInfo(e).g) + '<b class="rs-unm"></b><small class="rs-ust"></small>')));
+      wrap.appendChild(pl);
+      return wrap;
+    }
+    // flow: water devices on one line, everything else on the power line
+    const water = list.filter((e) => WATER[uInfo(e).g]);
+    const power = list.filter((e) => !WATER[uInfo(e).g]);
+    const lines = [water, power].filter((l) => l.length);
+    const Wd = 948;
+    const rowH = 170;
+    const svgH = lines.length * rowH;
+    let pipes = "";
+    lines.forEach((l, r) => {
+      const n = l.length;
+      const y = r * rowH + 56;
+      const xs = l.map((_, i) => Math.round(((i + 0.5) * Wd) / n));
+      const kind = l === water ? "" : " pow";
+      pipes += '<path class="rs-pipe" d="M24 ' + y + " H" + (Wd - 24) + '"/>';
+      for (let i = 0; i <= n; i++) {
+        const x0 = i === 0 ? 24 : xs[i - 1] + 48;
+        const x1 = i === n ? Wd - 24 : xs[i] - 48;
+        if (x1 <= x0) continue;
+        const live = (i > 0 && uInfo(l[i - 1]).on) || (i < n && uInfo(l[i]).on);
+        pipes += '<path class="rs-flow' + kind + (live ? " live" : "") + '" d="M' + x0 + " " + y + " H" + x1 + '"/>';
+      }
+    });
+    const fl = el("div", "rs-flw", '<svg class="rs-pipes" width="' + Wd + '" height="' + svgH + '" viewBox="0 0 ' + Wd + " " + svgH + '">' + pipes + "</svg>");
+    fl.style.height = svgH + "px";
+    lines.forEach((l, r) => {
+      if (lines.length > 1) fl.appendChild(txt("div", "rs-flbl", l === water ? "Water" : "Power")).style.top = r * rowH + 2 + "px";
+      l.forEach((e, i) => {
+        const nd = item(e, "rs-node", '<div class="rs-disc">' + uSvg(uInfo(e).g) + '</div><b class="rs-unm"></b><small class="rs-ust"></small>');
+        nd.style.left = Math.round(((i + 0.5) * Wd) / l.length) - 70 + "px";
+        nd.style.top = r * rowH + 10 + "px";
+        fl.appendChild(nd);
+      });
+    });
+    wrap.appendChild(fl);
+    return wrap;
   }
   function iconHtml(k) {
     const ic = rc.icons && rc.icons[k];
@@ -1385,6 +1477,9 @@ export function mountResidence(a) {
         const lp = row("Lights page", "top");
         lp.appendChild(chipRow(LIGHT_LAYOUTS, lightsPage(), (v) => (pickDesign("lights", "lightsBase", instLights, v), again())));
         body.appendChild(lp);
+        const ut = row("Utilities page", "top");
+        ut.appendChild(chipRow(UTIL_LAYOUTS, utilPage(), (v) => (pickDesign("util", "utilBase", instUtil, v), again())));
+        body.appendChild(ut);
         const ck = row("Clock screen", "top");
         ck.appendChild(chipRow(CLOCKS, clockDesign(), (v) => (pickDesign("clock", "clockBase", instClock, v), again())));
         body.appendChild(ck);
@@ -1509,7 +1604,7 @@ export function mountResidence(a) {
         });
         ft.appendChild(inst);
       }
-      const changed = PREF.bg || PREF.accent || PREF.shape || PREF.look || PREF.lights || PREF.clock || PREF.sound || typeof PREF.room === "number" || (a.ctx.brightness && a.ctx.brightness.get() != null) || Object.keys(LD()).length;
+      const changed = PREF.bg || PREF.accent || PREF.shape || PREF.look || PREF.lights || PREF.clock || PREF.util || PREF.sound || typeof PREF.room === "number" || (a.ctx.brightness && a.ctx.brightness.get() != null) || Object.keys(LD()).length;
       if (changed) {
         const rs = txt("span", "rs-chip big", "Back to how it was set up");
         rs.addEventListener("click", () => {
@@ -1966,5 +2061,5 @@ export function mountResidence(a) {
     }
   }
 
-  return { cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightTone, lightsPage, clockDesign, decorateCover, paintCover, startRoom: homeRoom, utilCards };
+  return { cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightTone, lightsPage, clockDesign, decorateCover, paintCover, startRoom: homeRoom, utilCards, utilView };
 }

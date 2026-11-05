@@ -533,12 +533,18 @@ export function buildElegant(cfg, ctx, skin) {
     const W = Math.max(300, (p.clientWidth || 1000) - 52 - (tall ? 0 : 204));
     const H = Math.max(260, (p.clientHeight || 436) - 6 - (tall ? 76 : 0));
     const sc = clientScenes();
-    const key = lay + "|" + list.join(",") + "|" + W + "x" + H + "|" + sc.map((s) => s.entity).join(",") + "|" + whole;
+    const key = lay + "|" + list.join(",") + "|" + W + "x" + H + "|" + sc.map((s) => s.entity).join(",") + "|" + whole + (lay === "fourc" ? "|" + fcTab + fcFilter : "");
     if (p.__rsLt !== key) {
       p.__rsLt = key;
       p.innerHTML = "";
       const wrap = el("div", "rs-lt rs-lt-" + lay);
       const main = el("div", "rs-ltmain");
+      if (lay === "fourc") {
+        rs4c(main, p, list);
+        wrap.appendChild(main);
+        p.appendChild(wrap);
+        return rsLightsPaint(p);
+      }
       if (lay === "dial") rsDial(main, list, W, H);
       else {
         const box = el("div", "rs-ltbox" + (lay === "faders" ? " x" : " y") + (lay === "faders" && list.length > 4 ? " many" : ""));
@@ -551,6 +557,97 @@ export function buildElegant(cfg, ctx, skin) {
       p.appendChild(wrap);
     }
     rsLightsPaint(p);
+  }
+  // 4C style: Lights / Scenes at the top; a row per light (its lamp, name, level,
+  // a long slider, a power button); This room / All rooms / Only on / All off at
+  // the bottom. Scenes: the customer's lighting scenes as big buttons.
+  let fcTab = "lights";
+  let fcFilter = "room";
+  function rs4c(main, p, list) {
+    const box = el("div", "rs-4c");
+    const again = () => {
+      p.__rsLt = null;
+      rsLights(p);
+    };
+    const seg = el("div", "rs-4cseg");
+    [["lights", "Lights"], ["scenes", "Scenes"]].forEach((o) => {
+      const b = txt("span", fcTab === o[0] ? "on" : "", o[1]);
+      b.addEventListener("click", () => {
+        fcTab = o[0];
+        again();
+      });
+      seg.appendChild(b);
+    });
+    box.appendChild(seg);
+    const all = uniq(union.lights || []);
+    const shown = (fcFilter === "all" ? all : list).filter((e) => fcFilter !== "on" || lvlOf(e) > 0);
+    if (fcTab === "lights") {
+      const g = el("div", "rs-4clist");
+      shown.forEach((e) => {
+        const i = list.indexOf(e);
+        const c = rsItem("rs-4crow", e, i, '<div class="rs-4cic rs-lthit">' + lightScene(lightIconOf(e), 60, 72, FLAT) + '</div><div class="rs-4ctx"><div class="rs-ltnm"></div><div class="rs-ltpc"></div>' + (dimOk(e) ? '<div class="rs-ltks"><i></i><b></b></div>' : "") + '</div><span class="rs-4cpw rs-noop">' + svg("u_power") + "</span>");
+        if (fcFilter === "all" && lightRoom[e]) c.querySelector(".rs-ltnm").textContent = nameOf(e) + " · " + lightRoom[e];
+        c.querySelector(".rs-4cpw").addEventListener("click", () => rsToggle(c, e, i));
+        const ks = c.querySelector(".rs-ltks");
+        if (ks) rsDim(c, e, i, { axis: "x", tapSets: true, zone: ks, area: () => ks });
+        else rsDim(c, e, i, {});
+        g.appendChild(c);
+      });
+      if (!shown.length) g.appendChild(txt("div", "rs-4cnone", fcFilter === "on" ? "All the lights are off." : "No lights here."));
+      box.appendChild(g);
+    } else {
+      const g = el("div", "rs-4cscn");
+      const add = (nm, sub, dot, fn) => {
+        const b = el("div", "rs-4csc", '<i style="background:' + dot + '"></i><b></b><small></small>');
+        b.querySelector("b").textContent = nm;
+        b.querySelector("small").textContent = sub;
+        b.addEventListener("click", () => fn(b));
+        g.appendChild(b);
+      };
+      clientScenes().forEach((s) => add(s.name || nameOf(s.entity), "Scene", "radial-gradient(circle at 40% 35%,#fff,#ffcf8a)", (b) => runScene(b, s.entity, s.name || nameOf(s.entity))));
+      add("All on", "Every light full", "radial-gradient(circle at 40% 35%,#fff,#fff4d6)", () => {
+        list.forEach((e) => {
+          patch(e, { on: true, brightness: 1 });
+          send("dim", { entity: e, v: 1 });
+        });
+        toast("All lights on");
+      });
+      add("All off", "Every light in the room", "radial-gradient(circle at 40% 35%,#8a8d94,#3a3d44)", () => {
+        list.forEach((e) => {
+          if (get(e).on) {
+            patch(e, { on: false });
+            send("dim", { entity: e, v: 0 });
+          }
+        });
+        toast("All lights off");
+      });
+      box.appendChild(g);
+    }
+    const ft = el("div", "rs-4cft");
+    [["room", whole ? "This page" : "This room"], ["all", "All rooms"], ["on", "Only on"]].forEach((o) => {
+      const b = txt("span", fcFilter === o[0] && fcTab === "lights" ? "on" : "", o[1]);
+      b.addEventListener("click", () => {
+        fcFilter = o[0];
+        fcTab = "lights";
+        again();
+      });
+      ft.appendChild(b);
+    });
+    ft.appendChild(el("i", "rs-4csp"));
+    const off = txt("span", "", "All off");
+    off.addEventListener("click", () => {
+      shown.forEach((e) => {
+        if (get(e).on) {
+          patch(e, { on: false });
+          send("dim", { entity: e, v: 0 });
+        }
+      });
+      rsLightsPaint(p);
+      toast("Lights off");
+    });
+    ft.appendChild(off);
+    box.appendChild(ft);
+    main.appendChild(box);
   }
   function rsMoods(p, list) {
     const moods = el("div", "rs-ltmoods");
@@ -669,6 +766,7 @@ export function buildElegant(cfg, ctx, skin) {
     if (nm) nm.textContent = lightLabel(e);
     c.__e = e;
     c.__i = i;
+    c.__4c = cls === "rs-4crow";
     const hit = c.querySelector(".rs-lthit");
     if (hit) hit.addEventListener("click", () => rsToggle(c, e, i));
     return c;
@@ -858,7 +956,7 @@ export function buildElegant(cfg, ctx, skin) {
     c.classList.toggle("sel", c.__i === selLight && c.classList.contains("rs-ltdr"));
     paintScene(c, on, v, toneOf(e));
     const pc = c.querySelector(".rs-ltpc");
-    if (pc) pc.textContent = on ? (dimOk(e) ? Math.round(v * 100) + "%" : "On") : "Off";
+    if (pc) pc.textContent = on ? (dimOk(e) ? (c.__4c ? "On · " : "") + Math.round(v * 100) + "%" : "On") : "Off";
     const h = (on ? v * 100 : 0) + "%";
     const rail = c.querySelector(".rs-ltrail");
     if (rail) {
@@ -879,7 +977,7 @@ export function buildElegant(cfg, ctx, skin) {
     c.style.setProperty("--lv", on ? String(Math.max(0.15, v)) : "0");
   }
   function rsLightsPaint(p) {
-    Array.prototype.forEach.call(p.querySelectorAll(".rs-ltcol,.rs-lttile,.rs-ltbub,.rs-ltkey,.rs-ltgc,.rs-ltdr"), rsPaintOne);
+    Array.prototype.forEach.call(p.querySelectorAll(".rs-ltcol,.rs-lttile,.rs-ltbub,.rs-ltkey,.rs-ltgc,.rs-ltdr,.rs-4crow"), rsPaintOne);
     const dm = p.querySelector(".rs-ltdm");
     if (dm) rsPaintDial(dm, ents.lights || []);
   }
@@ -1065,7 +1163,7 @@ export function buildElegant(cfg, ctx, skin) {
       }
       if (RX && RX.utilCards) {
         // Residence: realistic tiles (residence.js); the switching is the same
-        const tile = RX.utilCards(ents.utilities, (e) => {
+        const tile = (RX.utilView || RX.utilCards)(ents.utilities, (e) => {
           const turnOn = !get(e).on;
           patch(e, { on: turnOn, since: Date.now() / 1000 });
           send("toggle", { entity: e });
