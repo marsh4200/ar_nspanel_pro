@@ -208,7 +208,13 @@ const ctx = {
       userBrightness = typeof v === "number" ? Math.max(0.05, Math.min(1, v)) : null;
       native.cacheSet("userBrightness", userBrightness);
       applyBrightness();
+      publishPrefsSoon();
     },
+  },
+  // Residence: the customer's design choices in effect (residence.js), for sys/prefs
+  reportPrefs(r) {
+    rsPrefs = r && typeof r === "object" ? r : {};
+    publishPrefsSoon();
   },
   prefs: {
     get: (k) => native.cacheGet("pref." + k),
@@ -222,6 +228,7 @@ const ctx = {
       native.cacheSet("pref.device", localDev);
       device = withLocal(deviceRaw);
       applyBrightness();
+      publishPrefsSoon();
     },
   },
   panelInfo: () => Object.assign({}, info(), { deviceId: deviceId, broker: settings.brokerUrl || "", connected: !!connected }),
@@ -796,6 +803,20 @@ function fitInfo() {
   return window.__arFit || { w: 0, h: 0, stageH: 0, scale: 1, dpr: 1 };
 }
 
+// What the customer changed on this panel (Residence settings), retained on
+// sys/prefs: Device Setup > Residence look > Read from panel shows it, so the
+// installer can copy it into the setup before pushing. Nothing here is secret.
+let rsPrefs = null;
+let prefsT = null;
+function publishPrefs() {
+  if (!connected) return;
+  publish("sys/prefs", { v: 1, at: Date.now(), style: device.dashboardStyle || "", residence: rsPrefs || {}, device: localDev || {}, brightness: userBrightness }, true);
+}
+function publishPrefsSoon() {
+  clearTimeout(prefsT);
+  prefsT = setTimeout(publishPrefs, 800);
+}
+
 function publishInfo() {
   publish("sys/info", info(), true);
   // Belt and braces for the stale-will case: re-assert online every info tick.
@@ -1303,6 +1324,7 @@ function connect() {
       publishAlarmClock();
       publishMedia();
       publishUpdateState();
+      publishPrefsSoon();
       if (licence && licence.reason) publish("sys/license", licence, true);
       notifyState({});
       updateWaiting();

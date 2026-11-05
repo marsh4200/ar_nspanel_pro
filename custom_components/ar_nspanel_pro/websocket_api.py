@@ -83,6 +83,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_delete_panel)
     websocket_api.async_register_command(hass, ws_set_license)
     websocket_api.async_register_command(hass, ws_request_license)
+    websocket_api.async_register_command(hass, ws_panel_prefs)
     _LOGGER.debug("Registered %s websocket commands", DOMAIN)
 
 
@@ -349,6 +350,33 @@ async def ws_request_license(
         connection.send_error(msg["id"], "request_failed", str(err))
         return
     connection.send_result(msg["id"], result)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "ar_nspanel_pro/panel_prefs",
+        vol.Required("device_id"): str,
+    }
+)
+@callback
+def ws_panel_prefs(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """What the customer changed on the panel (Device Setup > Read from panel).
+
+    ``prefs`` is empty when the panel hasn't reported yet (app older than 4.6.4,
+    or never connected since).
+    """
+    bridge = _bridge_for(hass, msg["device_id"])
+    if bridge is None:
+        connection.send_error(msg["id"], "unknown_device", f"No loaded panel for '{msg['device_id']}'")
+        return
+    connection.send_result(
+        msg["id"],
+        {"prefs": dict(bridge.panel_prefs), "online": bool(bridge.available)},
+    )
 
 
 @websocket_api.websocket_command({vol.Required("type"): "ar_nspanel_pro/get_icons"})

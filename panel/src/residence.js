@@ -138,7 +138,17 @@ export function mountResidence(a) {
     PREF = {};
   }
   if (!PREF || typeof PREF !== "object") PREF = {};
-  const savePref = () => prefsApi && prefsApi.set("residence", PREF);
+  // the customer's choices also go to Home Assistant (sys/prefs), so the
+  // installer can read them in Device Setup before pushing a new setup
+  let reportT = null;
+  const reportSoon = () => {
+    clearTimeout(reportT);
+    reportT = setTimeout(reportPrefs, 400);
+  };
+  const savePref = () => {
+    if (prefsApi) prefsApi.set("residence", PREF);
+    reportSoon();
+  };
   // button look: 7 button styles + 6 icons-only styles. Older configs only had iconShape (ring/square/bare)
   const LOOKS = [["s-flat", "Circle"], ["s-square", "Square"], ["s-dome", "Dome"], ["s-metal", "Metal"], ["s-key", "Keypad"], ["s-tile", "Glass tile"], ["s-porc", "Porcelain"],
     ["i-flat", "Plain"], ["i-shadow", "Standing shadow"], ["i-reflect", "Glass floor"], ["i-glow", "Backlit"], ["i-emboss", "Raised edge"], ["i-plinth", "Stand"]];
@@ -2108,5 +2118,24 @@ export function mountResidence(a) {
     }
   }
 
+  // what the customer changed and is in effect on this panel right now
+  function reportPrefs() {
+    if (!a.ctx || !a.ctx.reportPrefs) return;
+    const r = {};
+    if (PREF.bg && PRESETS[String(PREF.bg).slice(7)]) r.bg = PREF.bg;
+    if (ACCENTS[PREF.accent]) r.accent = PREF.accent;
+    if (isLook(PREF.look) || SHAPE_LOOK[PREF.shape]) r.look = lookNow();
+    if (PREF.lights && lightsPage() !== instLights()) r.lights = lightsPage();
+    if (PREF.util && utilPage() !== instUtil()) r.util = utilPage();
+    if (PREF.clock && clockDesign() !== instClock()) r.clock = clockDesign();
+    if (typeof PREF.room === "number") {
+      const R = a.rooms();
+      r.room = PREF.room === -2 ? -2 : PREF.room;
+      r.roomName = PREF.room === -2 ? "Whole Home" : (R[PREF.room] && R[PREF.room].name) || "Room " + (PREF.room + 1);
+    }
+    if (PREF.sound) r.sound = true;
+    a.ctx.reportPrefs(r);
+  }
+  reportSoon();
   return { cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightTone, lightsPage, clockDesign, decorateCover, paintCover, startRoom: homeRoom, utilCards, utilView };
 }

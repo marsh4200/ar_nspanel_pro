@@ -80,6 +80,16 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Read from panel (4.6.4)
+
+The panel now reports what the customer changed with the gear button (background, theme colour,
+button look, Lights / Utilities / Clock designs, screensaver, 12/24 hour, date language, plus
+night mode, brightness, home room and tap sounds). In Device Setup > Residence look, **Read from
+panel** lists each one next to your setup; tick what to keep, **Copy ticked into this setup**, then
+Save & Push. Copied settings survive a reset or a new panel. Night mode, brightness, home room and
+tap sounds have no installer setting: they stay on the panel and a push never changes them. The
+installer's Glow when on now offers the same 17 colours as the panel's Themes tab.
+
 ## Themes and a smoother Blue sky clock (4.6.3)
 
 Settings > Look has a new **Themes** tab: 17 highlight colours (Warm, Cool, Vivid, Neutral) for lit

@@ -196,6 +196,10 @@ class PanelBridge:
         #: Last `sys/license` payload — what the panel's own verifier concluded.
         #: Advisory: shown in the GUI and a diagnostic sensor, never enforced on.
         self.license: dict[str, Any] = {}
+        #: Last `sys/prefs` payload (retained): what the customer changed on the
+        #: panel itself (Residence settings). Device Setup reads it so the
+        #: installer can copy it into the setup before pushing.
+        self.panel_prefs: dict[str, Any] = {}
 
         self._unsubs: list[Callable[[], None]] = []
         self._state_unsub: Callable[[], None] | None = None
@@ -234,6 +238,7 @@ class PanelBridge:
             (topic_sys(self.device_id, "screenshot"), self._on_screenshot),
             (topic_sys(self.device_id, "license"), self._on_license),
             (topic_sys(self.device_id, "license_request"), self._on_license_request),
+            (topic_sys(self.device_id, "prefs"), self._on_prefs),
         ]
         for topic, cb in subs:
             self._unsubs.append(await mqtt.async_subscribe(self.hass, topic, cb))
@@ -715,6 +720,12 @@ class PanelBridge:
         if data.get("valid"):
             self._stop_license_retry()  # nothing left to wait for
         async_dispatcher_send(self.hass, signal_license(self.device_id), data)
+
+    @callback
+    def _on_prefs(self, msg: mqtt.ReceiveMessage) -> None:
+        """The customer's own choices on the panel (Settings gear), display only."""
+        data = _parse(msg.payload)
+        self.panel_prefs = data if isinstance(data, dict) else {}
 
     @callback
     def _on_license_request(self, msg: mqtt.ReceiveMessage) -> None:
