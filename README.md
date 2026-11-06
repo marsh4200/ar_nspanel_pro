@@ -80,6 +80,14 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Watch sources fit the screen, ADB remote (4.6.5)
+
+The Watch page lays its sources out in even rows that always fit (4 in a row, 3 + 2, 3 + 3, 6 + 6 …),
+shrinking as more are added; they no longer vanish on older panels once a fourth wraps to a new row.
+The remote's arrows and OK now also work with an **ADB** Android box (the Android Debug Bridge
+integration's media player, keys sent as Android key codes), and a remote from Android TV Remote,
+Apple TV or Roku always gets its own key names, even if the type in the editor was left on Apple TV.
+
 ## Read from panel (4.6.4)
 
 The panel now reports what the customer changed with the gear button (background, theme colour,

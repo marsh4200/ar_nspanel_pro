@@ -9914,8 +9914,21 @@ function RsWatchSource({ hass: h, src: s, onChange: set, onRemove: del, onMove: 
       /* @__PURE__ */ a.jsx("div", { style: { fontSize: 12, fontWeight: 700, opacity: 0.7, letterSpacing: ".04em", textTransform: "uppercase", margin: "14px 0 4px" }, children: "The remote on the panel" }),
       /* @__PURE__ */ a.jsxs("div", { style: row, children: [
         /* @__PURE__ */ a.jsx("span", { style: { width: 120, fontSize: 13 }, children: "Arrows and OK" }),
-        entSel(s.remote && s.remote.e, ["remote"], (v) => set({ ...s, remote: v ? { ...(s.remote || {}), e: v } : void 0 }), "No arrows (no remote)"),
-        s.remote && s.remote.e && /* @__PURE__ */ a.jsx("select", { className: "inp", style: { flex: "0 1 200px", minWidth: 0 }, value: s.remote.kind || "appletv", onChange: (m) => set({ ...s, remote: { ...s.remote, kind: m.target.value } }), children: RS_REMOTE_KINDS.map((k) => /* @__PURE__ */ a.jsx("option", { value: k[0], children: k[1] }, k[0])) })
+        /* @__PURE__ */ a.jsxs("select", { className: "inp", style: { flex: "1 1 180px", minWidth: 0 }, value: (s.remote && s.remote.e) || "", onChange: (m) => {
+          const v = m.target.value || void 0;
+          if (!v) return set({ ...s, remote: void 0 });
+          // the remote's own integration tells its type: Android TV Remote, Apple TV, Roku; ADB = an Android box over adb
+          const pf = h && h.entities && h.entities[v] && h.entities[v].platform;
+          const kind = /^media_player\./.test(v) ? "adb" : pf === "androidtv_remote" ? "androidtv" : pf === "apple_tv" ? "appletv" : pf === "roku" ? "roku" : pf === "broadlink" ? "ir" : (s.remote && s.remote.kind !== "adb" && s.remote.kind) || void 0;
+          set({ ...s, remote: { ...(s.remote || {}), e: v, kind } });
+        }, children: [
+          /* @__PURE__ */ a.jsx("option", { value: "", children: "No arrows (no remote)" }),
+          s.remote && s.remote.e && !states[s.remote.e] && /* @__PURE__ */ a.jsx("option", { value: s.remote.e, children: s.remote.e }),
+          ids(["remote"]).map((id) => /* @__PURE__ */ a.jsx("option", { value: id, children: fn(id) }, id)),
+          ids(["media_player"]).filter((id) => h && h.entities && h.entities[id] && h.entities[id].platform === "androidtv").map((id) => /* @__PURE__ */ a.jsx("option", { value: id, children: fn(id) + "  · ADB (Android box)" }, id))
+        ] }),
+        s.remote && s.remote.e && /^media_player\./.test(s.remote.e) && /* @__PURE__ */ a.jsx("span", { style: { fontSize: 12.5, opacity: 0.75 }, children: "Keys sent over ADB" }),
+        s.remote && s.remote.e && !/^media_player\./.test(s.remote.e) && /* @__PURE__ */ a.jsx("select", { className: "inp", style: { flex: "0 1 200px", minWidth: 0 }, value: s.remote.kind || "appletv", onChange: (m) => set({ ...s, remote: { ...s.remote, kind: m.target.value } }), children: RS_REMOTE_KINDS.map((k) => /* @__PURE__ */ a.jsx("option", { value: k[0], children: k[1] }, k[0])) })
       ] }),
       /* @__PURE__ */ a.jsxs("div", { style: { ...row, marginTop: 6 }, children: [
         /* @__PURE__ */ a.jsx("span", { style: { width: 120, fontSize: 13 }, children: "Play / pause" }),

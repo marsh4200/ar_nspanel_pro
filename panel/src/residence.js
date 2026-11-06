@@ -989,6 +989,53 @@ export function mountResidence(a) {
     });
     box.appendChild(g);
     p.appendChild(box);
+    fitSources(box, g);
+    requestAnimationFrame(() => fitSources(box, g));
+  }
+  // Lay the sources out in even rows that fit the page: as more are added they
+  // get smaller instead of wrapping off the screen (no flex-wrap: older panel
+  // WebViews lost every tile once the grid wrapped to a second row).
+  function fitSources(box, g) {
+    const tiles = Array.prototype.slice.call(g.querySelectorAll(".rs-wsrc"));
+    const n = tiles.length;
+    const ask = box.querySelector(".rs-wask");
+    const W = box.clientWidth - 8;
+    const H = box.clientHeight - (ask ? ask.offsetHeight + 16 : 0) - 8;
+    if (!n || W < 50 || H < 50) return;
+    const CW = 212; // 196 + 2 x 8 margin
+    const CH = 196; // 180 + 2 x 8
+    // biggest tiles win; on a tie, fewest rows, then the most even split (2 x 2 over 3 + 1)
+    let best = { s: 0, c: n, rows: 1 };
+    for (let c = 1; c <= n; c++) {
+      const rows = Math.ceil(n / c);
+      const sc = Math.min(1, W / (c * CW), H / (rows * CH));
+      if (sc > best.s + 0.001 || (Math.abs(sc - best.s) <= 0.001 && rows < best.rows)) best = { s: sc, c: c, rows: rows };
+    }
+    best.c = Math.ceil(n / best.rows);
+    const sc = Math.max(0.42, best.s);
+    const c = best.c;
+    g.classList.add("rows");
+    g.style.height = H + "px";
+    g.innerHTML = "";
+    for (let i = 0; i < n; i += c) {
+      const row = el("div", "rs-wsrow");
+      tiles.slice(i, i + c).forEach((t) => {
+        t.style.width = Math.round(196 * sc) + "px";
+        t.style.height = Math.round(180 * sc) + "px";
+        t.style.margin = Math.round(8 * sc) + "px";
+        const lg = t.querySelector(".rs-wlogo");
+        lg.style.width = Math.round(130 * sc) + "px";
+        lg.style.height = Math.round(110 * sc) + "px";
+        const b = t.querySelector("b");
+        b.style.fontSize = Math.max(12, Math.round(18 * sc)) + "px";
+        b.style.marginTop = Math.round(10 * sc) + "px";
+        b.style.maxWidth = Math.round(186 * sc) + "px";
+        row.appendChild(t);
+      });
+      g.appendChild(row);
+    }
+    // vertically centred when it all fits, scrolls (smallest size) when it can't
+    g.style.justifyContent = best.s >= 0.42 ? "center" : "flex-start";
   }
   function watchGo(s) {
     const run = rsw().run;

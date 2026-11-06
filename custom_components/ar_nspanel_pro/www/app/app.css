@@ -1471,6 +1471,9 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.skin-residence .rs-wpick{position:absolute;top:0;bottom:0;left:0;right:0;display:flex;flex-direction:column;align-items:center}
 .el-root.skin-residence .rs-wask{font-size:28px;font-weight:300;letter-spacing:.02em;margin:2px 0 14px;text-shadow:0 1px 8px rgba(0,0,0,.8)}
 .el-root.skin-residence .rs-wsrcs{flex:1;min-height:0;width:870px;max-width:100%;display:flex;flex-wrap:wrap;align-content:flex-start;justify-content:center;overflow-y:auto;touch-action:pan-y}
+/* rows built by fitSources() (residence.js): the grid is a column of centred rows */
+.el-root.skin-residence .rs-wsrcs.rows{display:flex;flex-direction:column;flex-wrap:nowrap;width:100%;flex:none}
+.el-root.skin-residence .rs-wsrow{display:flex;justify-content:center;flex-shrink:0}
 /* a source is just its logo (no tile behind it): the logo the installer uploaded, its name under it */
 .el-root.skin-residence .rs-wsrc{position:relative;width:196px;height:180px;margin:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;-webkit-transition:-webkit-transform .15s;transition:transform .15s}
 .el-root.skin-residence .rs-wsrc:active{-webkit-transform:scale(.96);transform:scale(.96)}

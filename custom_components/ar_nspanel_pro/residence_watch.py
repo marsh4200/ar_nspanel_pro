@@ -65,6 +65,25 @@ KEYS: dict[str, dict[str, str]] = {
     "ir": {"up": "up", "down": "down", "left": "left", "right": "right", "ok": "ok", "back": "back", "home": "home", "menu": "menu", "rew": "rewind", "ff": "fast_forward", "play": "play_pause"},
 }
 
+#: the remote's own integration decides its key names (a remote picked with the
+#: type left on the Apple TV default must still get Android keys, etc.)
+REMOTE_PLATFORM_KIND: dict[str, str] = {"androidtv_remote": "androidtv", "apple_tv": "appletv", "roku": "roku"}
+
+#: ADB (the Android Debug Bridge integration, media_player.* of platform
+#: androidtv) has no remote entity: keys go through androidtv.adb_command as
+#: plain Android key codes, which every Android box understands
+ADB_KEYS: dict[str, int] = {"up": 19, "down": 20, "left": 21, "right": 22, "ok": 23, "back": 4, "home": 3, "menu": 82, "rew": 89, "ff": 90, "play": 85}
+
+
+def _platform(hass: Any, e: str) -> str:
+    try:
+        from homeassistant.helpers import entity_registry as er
+
+        ent = er.async_get(hass).async_get(e)
+        return ent.platform if ent else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
 
 def is_residence(bridge: Any) -> bool:
     return isinstance(bridge.device_cfg, dict) and bridge.device_cfg.get("dashboardStyle") == "residence"
@@ -359,11 +378,18 @@ async def async_panel_event(bridge: Any, action: str, value: Any) -> bool:
             k = v.get("k")
             rem = src.get("remote") if isinstance(src.get("remote"), dict) else {}
             re_ = _ent(rem.get("e"))
-            cmd = KEYS.get(str(rem.get("kind") or "appletv"), KEYS["appletv"]).get(k) if isinstance(k, str) else None
+            kind = REMOTE_PLATFORM_KIND.get(_platform(hass, re_), "") if re_ else ""
+            kind = kind or str(rem.get("kind") or "appletv")
+            cmd = KEYS.get(kind, KEYS["appletv"]).get(k) if isinstance(k, str) else None
             custom = rem.get("keys") if isinstance(rem.get("keys"), dict) else {}
             cmd = custom.get(k) or cmd
             player = _ent(src.get("player"))
-            if k == "play" and player and not re_:
+            if re_ and _dom(re_) == "media_player":
+                # ADB box: Android key codes over adb (a custom key may be any adb shell command)
+                code = custom.get(k) or (("input keyevent %d" % ADB_KEYS[k]) if k in ADB_KEYS else None)
+                if code:
+                    await _call(hass, "androidtv", "adb_command", {"entity_id": re_, "command": code})
+            elif k == "play" and player and not re_:
                 await _call(hass, "media_player", "media_play_pause", {"entity_id": player})
             elif re_ and cmd:
                 await _call(hass, "remote", "send_command", {"entity_id": re_, "command": cmd})
