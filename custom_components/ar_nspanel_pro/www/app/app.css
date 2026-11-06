@@ -1871,3 +1871,42 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.skin-residence .rs-rk b{display:block;font-weight:400;font-size:15px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .el-root.skin-residence .rs-rk small{display:block;font-size:12px;opacity:.6;letter-spacing:.1em;text-transform:uppercase}
 .el-root.skin-residence .rs-rk.on small{color:var(--acc);opacity:1}
+/* ===== Settings > Rooms: order, rename, hide; light nicknames ===== */
+.el-root.skin-residence .rs-rmrow{display:flex;align-items:center;min-height:64px;border-top:1px solid rgba(255,255,255,.08);padding:6px 0}
+.el-root.skin-residence .rs-rmrow.hid .rs-rmnm{opacity:.45}
+.el-root.skin-residence .rs-rmmv{display:flex;flex-shrink:0;margin-right:8px}
+.el-root.skin-residence .rs-rmmv .rs-sb{width:42px;height:42px;border-radius:21px;background:rgba(255,255,255,.06);margin-right:6px}
+.el-root.skin-residence .rs-rmmv .rs-sb.off{opacity:.2;pointer-events:none}
+.el-root.skin-residence .rs-rmnm{flex:1;min-width:0;cursor:pointer;padding:4px 8px}
+.el-root.skin-residence .rs-rmnm b{display:block;font-size:18px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-rmnm small{display:block;font-size:12.5px;opacity:.6;margin-top:2px}
+.el-root.skin-residence .rs-rmrow.open .rs-rmnm b{color:var(--acc)}
+.el-root.skin-residence .rs-rmact{display:flex;flex-shrink:0}
+.el-root.skin-residence .rs-rmact .rs-chip,.el-root.skin-residence .rs-rmlt .rs-chip{margin:0 0 0 8px}
+.el-root.skin-residence .rs-chip svg{width:18px;height:18px;margin-right:6px}
+.el-root.skin-residence .rs-rmlights{margin:0 0 8px 104px;border-left:2px solid rgba(var(--acc-rgb),.35);padding-left:12px}
+.el-root.skin-residence .rs-rmlt{display:flex;align-items:center;min-height:52px}
+.el-root.skin-residence .rs-rmlt>span:first-child{flex:1;min-width:0}
+.el-root.skin-residence .rs-rmlt b{display:block;font-weight:400;font-size:16px}
+.el-root.skin-residence .rs-rmlt small{display:block;font-size:12px;opacity:.55}
+/* the on-screen keyboard */
+.el-root.skin-residence .rs-kb{display:flex;flex-direction:column;align-items:center;padding:6px 0}
+.el-root.skin-residence .rs-kbt{font-weight:400;font-size:20px;margin-bottom:10px}
+.el-root.skin-residence .rs-kbv{min-width:60%;height:54px;border-radius:14px;background:rgba(0,0,0,.4);border:1px solid rgba(var(--acc-rgb),.6);display:flex;align-items:center;justify-content:center;font-size:24px;padding:0 18px}
+.el-root.skin-residence .rs-kbv i{width:2px;height:28px;margin-left:2px;background:var(--acc);-webkit-animation:rskbc 1s steps(2) infinite;animation:rskbc 1s steps(2) infinite}
+@-webkit-keyframes rskbc{to{opacity:0}}
+@keyframes rskbc{to{opacity:0}}
+.el-root.skin-residence .rs-kbo{font-size:12.5px;opacity:.55;margin:6px 0 10px;min-height:16px}
+.el-root.skin-residence .rs-kbk{display:flex;flex-direction:column;align-items:center}
+.el-root.skin-residence .rs-kbr{display:flex;justify-content:center;margin-bottom:8px}
+.el-root.skin-residence .rs-kk{min-width:52px;height:52px;margin:0 3px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:21px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);cursor:pointer}
+.el-root.skin-residence .rs-kk.wide{min-width:80px;font-size:17px}
+.el-root.skin-residence .rs-kk.space{min-width:330px;font-size:15px;opacity:.8}
+.el-root.skin-residence .rs-kk.on{background:rgba(var(--acc-rgb),.85);color:var(--on-acc)}
+.el-root.skin-residence .rs-kk:active{background:rgba(var(--acc-rgb),.5)}
+.el-root.skin-residence .rs-kbf{display:flex;justify-content:center;margin-top:6px}
+.el-root.skin-residence .rs-kbf .rs-chip{margin:0 6px}
+/* Tap to select: the light the knob controls (rsMarkSel in elegant.js) */
+.el-root.skin-residence .rs-ltcol.sel,.el-root.skin-residence .rs-lttile.sel,.el-root.skin-residence .rs-ltgc.sel,.el-root.skin-residence .rs-ltkey.sel,.el-root.skin-residence .rs-4crow.sel{box-shadow:0 0 0 2px rgba(var(--acc-rgb),.85),0 0 22px -4px rgba(var(--acc-rgb),.85)}
+.el-root.skin-residence .rs-ltbub.sel .rs-ltball{box-shadow:0 0 0 3px rgba(var(--acc-rgb),.9),0 0 26px -2px rgba(var(--acc-rgb),.85)}
+.el-root.skin-residence .rs-ltbub.sel .rs-ltnm{color:var(--acc)}

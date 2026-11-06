@@ -231,6 +231,8 @@ const ctx = {
       publishPrefsSoon();
     },
   },
+  soundVolume: () => soundVol(),
+  chime: () => sound.playOnce("chime", soundVol()),
   panelInfo: () => Object.assign({}, info(), { deviceId: deviceId, broker: settings.brokerUrl || "", connected: !!connected }),
   log,
   // intercom (Elegant dashboard): calls between panels (Device Setup > Dashboard)
@@ -247,6 +249,22 @@ const ctx = {
     };
   },
 };
+
+// --- boot logo (index.html): shown for about 8 s from the start, tap to skip ----------
+(function bootLogo() {
+  const b = document.getElementById("boot");
+  if (!b) return;
+  let gone = false;
+  const end = () => {
+    if (gone) return;
+    gone = true;
+    b.classList.add("out");
+    setTimeout(() => b.parentNode && b.parentNode.removeChild(b), 750);
+  };
+  const t0 = typeof window.__bootAt === "number" ? window.__bootAt : Date.now();
+  setTimeout(end, Math.max(0, 8000 - (Date.now() - t0)));
+  b.addEventListener("click", end);
+})();
 
 // --- intercom ------------------------------------------------------------------
 let ic = null;
@@ -274,7 +292,11 @@ function intercomFor(id) {
     },
     enabled: intercomOn,
     autoAnswer: () => !!(device.elegant && device.elegant.autoAnswer),
-    sound,
+    // an incoming call rings at the sounds volume, silently in Do not disturb
+    sound: {
+      loop: (n) => (n === "ring" && quietNow() ? { stop() {} } : sound.loop(n, CHIMES.indexOf(n) >= 0 ? soundVol() : 1)),
+      playOnce: (n) => sound.playOnce(n, CHIMES.indexOf(n) >= 0 ? soundVol() : 1),
+    },
     log,
   });
   ic.myId = id;
@@ -572,6 +594,29 @@ function nightNow() {
   return inside ? n : null;
 }
 
+// Do not disturb (Residence settings > Clock & room): {on, from, to}. Chimes
+// (notification sounds, intercom ringing, doorbell dings) stay silent; the
+// message / call still shows. Alarm clock, sirens and security never go quiet.
+function quietNow() {
+  const q = device.dashboardStyle === "residence" && localDev && localDev.dnd;
+  if (!q || !q.on) return false;
+  const hm = (s, dflt) => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || ""));
+    return m ? Number(m[1]) * 60 + Number(m[2]) : dflt;
+  };
+  const t = new Date();
+  const now = t.getHours() * 60 + t.getMinutes();
+  const f = hm(q.from, 22 * 60);
+  const to = hm(q.to, 7 * 60);
+  return f <= to ? now >= f && now < to : now >= f || now < to;
+}
+// Sounds volume (Residence settings): 0.25 … 1 for chimes, rings and tap sounds
+function soundVol() {
+  const v = device.dashboardStyle === "residence" && localDev && localDev.vol;
+  return typeof v === "number" && v > 0 && v <= 1 ? v : 1;
+}
+const CHIMES = ["chime", "ding", "ring", "ringback"];
+
 let lastBrightness = -1;
 function applyBrightness() {
   let b = screenOff ? 0 : awake ? awakeBrightness() : sleepBrightness();
@@ -863,17 +908,18 @@ function closeNotification(status, actionId) {
 }
 
 function playSound(ref) {
-  if (!ref) return;
+  if (!ref || quietNow()) return;
   if (/^(https?:|data:|\/)/.test(ref)) {
     try {
       if (notifyAudio) notifyAudio.pause();
       notifyAudio = new Audio(ref);
+      notifyAudio.volume = soundVol();
       notifyAudio.play().catch((e) => log("sound", e && e.message));
     } catch (e) {
       log("sound failed", e);
     }
   } else {
-    sound.playOnce(ref);
+    sound.playOnce(ref, soundVol());
   }
 }
 
@@ -1141,7 +1187,8 @@ function handleCmd(name, p) {
       if (p.url) mediaCmd({ action: "play", url: p.url });
       else if (p.asset) {
         media.asset = p.asset;
-        sound.playOnce(p.asset);
+        // a doorbell / chime from HA: silent in Do not disturb, at the panel's sounds volume
+        if (!(CHIMES.indexOf(p.asset) >= 0 && quietNow())) sound.playOnce(p.asset, CHIMES.indexOf(p.asset) >= 0 ? soundVol() : 1);
       }
       break;
     case "stop_media":

@@ -49,7 +49,11 @@ export function playHls(video, url, onFail) {
     .then((Hls) => {
       if (stopped) return;
       if (Hls.isSupported()) {
-        hls = new Hls({ lowLatencyMode: true, backBufferLength: 8, liveDurationInfinity: true, maxLiveSyncPlaybackRate: 1.5 });
+        // not low-latency: LL-HLS starts mid-segment, before a keyframe, and the
+        // panels' hardware decoders (Rockchip) show green until the next one -
+        // seconds on cameras with a long keyframe interval. Whole segments
+        // always start on a keyframe (a second or two more delay).
+        hls = new Hls({ lowLatencyMode: false, backBufferLength: 8, liveDurationInfinity: true, maxLiveSyncPlaybackRate: 1.5 });
         let recovers = 0;
         hls.on(Hls.Events.ERROR, (_e, d) => {
           if (!d || !d.fatal) return;

@@ -80,6 +80,26 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Customer settings, boot logo, camera and highlight fixes (4.7.0)
+
+New on the panel's gear (Residence):
+- **Rooms** tab: put rooms in the customer's order, hide rooms they don't use, rename rooms and
+  lights (an on-screen keyboard, as kiosk panels may have none). Display only: Home Assistant and
+  every room action keep the set-up rooms and names.
+- **Display**: Text size (Normal / Large / Extra large), Clean screen (touch off for 30 s; it was
+  behind the installer PIN before) and Tap to select (Highlight / Dimmable lights only / Off).
+- **Look > Backgrounds**: a picture for every room, or for one room only.
+- **Clock & room**: Sounds volume (doorbell, intercom and message chimes) and Do not disturb hours
+  (those chimes stay quiet; alarms and sirens always sound).
+- **Boot logo**: the A&R Smart Home Automation logo for about 8 s when the app starts (tap to skip).
+- **Tap to select** now shows its highlight ring on every Residence Lights layout (Faders, Bubble
+  tiles, Bubbles, Keypad list, Gallery, 4C style), not only the Dial list.
+- **Cameras**: no more green frames when a camera opens or you step to the next one. Live HLS starts
+  on a whole segment (always a keyframe) and only fades in once real pictures decode, the snapshot
+  staying until then; native RTSP video stays hidden until its first frame and isn't re-laid out on
+  every update (the RTSP part needs the new APK).
+- Read from panel lists all of these; Tap to select can be copied into the setup.
+
 ## Watch sources fit the screen, ADB remote (4.6.5)
 
 The Watch page lays its sources out in even rows that always fit (4 in a row, 3 + 2, 3 + 3, 6 + 6 …),

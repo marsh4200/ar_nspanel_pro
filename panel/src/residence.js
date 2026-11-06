@@ -27,6 +27,10 @@
 import LIB from "./generated/residence-icons.json";
 
 const LINE = {
+  rooms: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff: '<path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 4.4-1"/>',
+  pencil: '<path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/>',
   lights: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/>',
   climate: '<path d="M10 4a2 2 0 0 1 4 0v9.3a4 4 0 1 1-4 0z"/><path d="M12 9v6.5"/><path d="M17.5 6h2.5M17.5 9.5h2.5"/>',
   music: '<path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>',
@@ -228,9 +232,15 @@ export function mountResidence(a) {
     if (lb) lb.textContent = a.whole() ? "All Off" : "Room Off";
     paintCalBtn();
   }
-  function bgUrl() {
+  // background: the customer's pick for this room, else for every room, else as set up
+  const okBg = (v) => (v && PRESETS[String(v).slice(7)] ? v : "");
+  const roomBgOf = (i) => okBg(PREF.roomBg && PREF.roomBg[i]);
+  function bgSrc() {
     const r = raw[a.roomIdx()] || {};
-    return url((PREF.bg && PRESETS[String(PREF.bg).slice(7)] ? PREF.bg : "") || (!a.whole() && r.rsImage) || rc.houseImage || "preset:villa");
+    return (!a.whole() && roomBgOf(a.roomIdx())) || okBg(PREF.bg) || (!a.whole() && r.rsImage) || rc.houseImage || "preset:villa";
+  }
+  function bgUrl() {
+    return url(bgSrc());
   }
   // what the Residence clock screens show (rsclock.js, built by app.js when the panel sleeps)
   if (a.ctx) {
@@ -263,9 +273,7 @@ export function mountResidence(a) {
     };
   }
   function background() {
-    const r = raw[a.roomIdx()] || {};
-    const src = (PREF.bg && PRESETS[String(PREF.bg).slice(7)] ? PREF.bg : "") || (!a.whole() && r.rsImage) || rc.houseImage || "preset:villa";
-    const u = url(src);
+    const u = url(bgSrc());
     a.roomEl.style.backgroundImage = u ? 'url("' + u.replace(/"/g, "%22") + '")' : "";
   }
 
@@ -302,7 +310,7 @@ export function mountResidence(a) {
     const look = LOOKS.indexOf(rc.lightLook) >= 0 ? rc.lightLook : "match";
     if (look !== "match") return look;
     const t = rc.lightTypes && rc.lightTypes[e];
-    return LOOKS.indexOf(t) >= 0 ? t : guessLightType(a.nameOf(e) + " " + e);
+    return LOOKS.indexOf(t) >= 0 ? t : guessLightType((a.rawNameOf || a.nameOf)(e) + " " + e);
   }
   // the white a light shines when Home Assistant doesn't say (a plain dimmer):
   // per light, else for all lights; "dim" = dim to warm
@@ -313,8 +321,89 @@ export function mountResidence(a) {
   }
   function shadeType(e) {
     const t = rc.shadeTypes && rc.shadeTypes[e];
-    return ["roller", "sheer", "block", "curtain"].indexOf(t) >= 0 ? t : guessShadeType(a.nameOf(e) + " " + e);
+    return ["roller", "sheer", "block", "curtain"].indexOf(t) >= 0 ? t : guessShadeType((a.rawNameOf || a.nameOf)(e) + " " + e);
   }
+
+  // --- the customer's rooms (Settings > Rooms): names, order, hidden; light nicknames
+  // Display only: room indexes sent to Home Assistant never change.
+  const roomPref = () => (PREF.rooms && typeof PREF.rooms === "object" ? PREF.rooms : {});
+  function roomName(i) {
+    const n = roomPref().names;
+    return (n && typeof n[i] === "string" && n[i]) || "";
+  }
+  const roomLabel = (i) => roomName(i) || ((a.rooms()[i] || {}).name || "Room " + (i + 1));
+  // every room, in the customer's order (hidden ones included)
+  function roomOrderAll() {
+    const N = a.rooms().length;
+    const o = (Array.isArray(roomPref().order) ? roomPref().order : []).filter((i, k, arr) => typeof i === "number" && i >= 0 && i < N && arr.indexOf(i) === k);
+    for (let i = 0; i < N; i++) if (o.indexOf(i) < 0) o.push(i);
+    return o;
+  }
+  const isHidden = (i) => (Array.isArray(roomPref().hide) ? roomPref().hide : []).indexOf(i) >= 0;
+  function roomOrder() {
+    const o = roomOrderAll().filter((i) => !isHidden(i));
+    return o.length ? o : roomOrderAll();
+  }
+  // Tap to select, picked on the panel (else Device Setup's choice)
+  const selectMode = () => (PREF.select === "full" || PREF.select === "dimmable" || PREF.select === "off" ? PREF.select : "");
+  const nick = (e) => (PREF.nick && typeof PREF.nick[e] === "string" && PREF.nick[e]) || "";
+  function setRooms(patch) {
+    PREF.rooms = Object.assign({}, roomPref(), patch);
+    savePref();
+    chromeAll();
+  }
+
+  // --- text size (Settings > Display): every font in the dashboard, made bigger ---
+  // Built from the loaded style sheets, so it covers every page without a second
+  // copy of the CSS; the clock screen keeps its own sizes.
+  const TEXT_SIZES = [[1, "Normal"], [1.15, "Large"], [1.3, "Extra large"]];
+  const textNow = () => (PREF.text === 1.15 || PREF.text === 1.3 ? PREF.text : 1);
+  let textBuilt = 0;
+  function applyText() {
+    const f = textNow();
+    document.documentElement.classList.toggle("rs-txt", f > 1);
+    let st = document.getElementById("rs-txt-css");
+    if (!st) {
+      st = document.createElement("style");
+      st.id = "rs-txt-css";
+      document.head.appendChild(st);
+    }
+    if (f === textBuilt) return;
+    textBuilt = f;
+    if (f === 1) {
+      st.textContent = "";
+      return;
+    }
+    const out = [];
+    const walk = (rules, into) => {
+      for (let i = 0; i < rules.length; i++) {
+        const r = rules[i];
+        if (r.cssRules && r.media) {
+          const inner = [];
+          walk(r.cssRules, inner);
+          if (inner.length) into.push("@media " + r.media.mediaText + "{" + inner.join("") + "}");
+          continue;
+        }
+        if (!r.selectorText || !r.style) continue;
+        const fs = r.style.fontSize;
+        if (!/px$/.test(fs || "")) continue;
+        const v = parseFloat(fs);
+        if (!(v >= 9 && v <= 30)) continue;
+        const parts = r.selectorText.split(",").filter((x) => x.indexOf("el-root") >= 0 && x.indexOf("#screensaver") < 0 && x.indexOf("rs-clean") < 0);
+        if (!parts.length) continue;
+        into.push(parts.map((x) => "html.rs-txt " + x.trim()).join(",") + "{font-size:" + (Math.round(v * f * 10) / 10) + "px}");
+      }
+    };
+    for (let k = 0; k < document.styleSheets.length; k++) {
+      try {
+        walk(document.styleSheets[k].cssRules || [], out);
+      } catch (x) {
+        /* a sheet we may not read */
+      }
+    }
+    st.textContent = out.join("\n");
+  }
+  applyText();
 
   // --- room helpers ------------------------------------------------------------
   function curRoom() {
@@ -468,7 +557,7 @@ export function mountResidence(a) {
     wv.view = null;
     wv.src = null;
     if (mu) done.push("music and TV");
-    a.toast((r.name || "Room") + " off" + (done.length ? ": " + done.join(", ") : ""));
+    a.toast((a.whole() ? r.name || "Room" : roomLabel(a.roomIdx())) + " off" + (done.length ? ": " + done.join(", ") : ""));
     setTimeout(chrome, 50);
     // from any page of the room, Room Off goes back to the room's home screen
     if (a.current() !== "home") a.go("home");
@@ -1348,6 +1437,8 @@ export function mountResidence(a) {
   let setEl = null;
   let setTab = "display";
   let lookSub = "bg";
+  let bgFor = "all"; // Look > Backgrounds: every room, or one room's index
+  let roomOpen = -1; // Rooms tab: the room whose lights are listed
   let cleanT = null;
   function closeSettings() {
     if (setEl && setEl.parentNode) setEl.parentNode.removeChild(setEl);
@@ -1436,6 +1527,99 @@ export function mountResidence(a) {
     r.appendChild(txt("span", "rs-setl", label));
     return r;
   };
+  // "22:00 to 06:00" with - / + in half hours; obj = the schedule, put = save it
+  function timeRange(obj, dFrom, dTo, put) {
+    const wr = row("From – to", "sub");
+    ["from", "to"].forEach((k, i) => {
+      const s = el("div", "rs-step rs-time", '<span class="rs-sb">' + line("minus") + "</span><b></b><span class=\"rs-sb\">" + line("plus") + "</span>");
+      const cur = obj[k] || (k === "from" ? dFrom : dTo);
+      s.querySelector("b").textContent = cur;
+      const step = (d) => {
+        const m = /^(\d{1,2}):(\d{2})$/.exec(cur);
+        const mins = ((m ? Number(m[1]) * 60 + Number(m[2]) : 0) + d + 1440) % 1440;
+        const v = Object.assign({}, obj);
+        v[k] = pad2(Math.floor(mins / 60)) + ":" + pad2(mins % 60);
+        put(v);
+      };
+      s.children[0].addEventListener("click", () => step(-30));
+      s.children[2].addEventListener("click", () => step(30));
+      wr.appendChild(s);
+      if (!i) wr.appendChild(txt("span", "rs-to", "to"));
+    });
+    return wr;
+  }
+  // an on-screen keyboard in the settings box (kiosk panels may have none)
+  function nameKeyboard(box, title, start, original, done) {
+    box.innerHTML = "";
+    let val = start || "";
+    let shift = !val;
+    let nums = false;
+    const w = el("div", "rs-kb", '<b class="rs-kbt"></b><div class="rs-kbv"><span></span><i></i></div><small class="rs-kbo"></small><div class="rs-kbk"></div><div class="rs-kbf"></div>');
+    w.querySelector(".rs-kbt").textContent = title;
+    w.querySelector(".rs-kbo").textContent = original ? "Set up as: " + original : "";
+    const show = () => (w.querySelector(".rs-kbv span").textContent = val);
+    const keys = w.querySelector(".rs-kbk");
+    const paintKeys = () => {
+      keys.innerHTML = "";
+      const rows = nums ? ["1234567890", "-/:;()&@'", ".,?!#+"] : ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
+      rows.forEach((rw, ri) => {
+        const r = el("div", "rs-kbr");
+        if (ri === 2) {
+          const sh = txt("span", "rs-kk wide" + (shift && !nums ? " on" : ""), nums ? "" : "⇧");
+          if (!nums) sh.addEventListener("click", () => ((shift = !shift), paintKeys()));
+          else sh.style.visibility = "hidden";
+          r.appendChild(sh);
+        }
+        rw.split("").forEach((ch) => {
+          const c = shift && !nums ? ch.toUpperCase() : ch;
+          const k = txt("span", "rs-kk", c);
+          k.addEventListener("click", () => {
+            if (val.length < 24) val += c;
+            if (shift && !nums) shift = false;
+            show();
+            paintKeys();
+          });
+          r.appendChild(k);
+        });
+        if (ri === 2) {
+          const bk = txt("span", "rs-kk wide", "⌫");
+          bk.addEventListener("click", () => {
+            val = val.slice(0, -1);
+            show();
+            if (!val && !shift) ((shift = true), paintKeys()); // a fresh name starts with a capital
+          });
+          r.appendChild(bk);
+        }
+        keys.appendChild(r);
+      });
+      const r4 = el("div", "rs-kbr");
+      const nb = txt("span", "rs-kk wide", nums ? "ABC" : "123");
+      nb.addEventListener("click", () => ((nums = !nums), paintKeys()));
+      r4.appendChild(nb);
+      const sp = txt("span", "rs-kk space", "space");
+      sp.addEventListener("click", () => {
+        if (val && val.length < 24 && val.slice(-1) !== " ") val += " ";
+        show();
+      });
+      r4.appendChild(sp);
+      keys.appendChild(r4);
+    };
+    paintKeys();
+    show();
+    const f = w.querySelector(".rs-kbf");
+    const cancel = txt("span", "rs-chip big", "Cancel");
+    cancel.addEventListener("click", () => done(undefined));
+    f.appendChild(cancel);
+    if (original) {
+      const og = txt("span", "rs-chip big", "Use the set-up name");
+      og.addEventListener("click", () => done(null));
+      f.appendChild(og);
+    }
+    const ok = txt("span", "rs-chip big on", "Save");
+    ok.addEventListener("click", () => done(val.trim() || null));
+    f.appendChild(ok);
+    box.appendChild(w);
+  }
   function paintSettings(box) {
     box.innerHTML = "";
     const hd = el("div", "rs-seth", '<b>Settings</b><span class="rs-setx">' + line("x") + "</span>");
@@ -1443,7 +1627,7 @@ export function mountResidence(a) {
     box.appendChild(hd);
     const wrap = el("div", "rs-setwrap");
     const tabs = el("div", "rs-settabs");
-    [["display", "Display", "sun"], ["look", "Look", "sparkle"], ["clock", "Clock & room", "home"], ["panel", "Panel", "phone"]].forEach((tb) => {
+    [["display", "Display", "sun"], ["look", "Look", "sparkle"], ["rooms", "Rooms", "rooms"], ["clock", "Clock & room", "home"], ["panel", "Panel", "phone"]].forEach((tb) => {
       const t = el("span", "rs-settab" + (setTab === tb[0] ? " on" : ""), line(tb[2]) + "<span></span>");
       t.lastChild.textContent = tb[1];
       t.addEventListener("click", () => {
@@ -1529,25 +1713,7 @@ export function mountResidence(a) {
       nr.appendChild(chipRow([[false, "Off"], [true, "On"]], !!n.on, (v) => (setLD({ night: Object.assign({ from: "22:00", to: "06:00", mode: "dim", level: 0.25 }, n, { on: v }) }), again())));
       body.appendChild(nr);
       if (n.on) {
-        const step = (k, d) => {
-          const m = /^(\d{1,2}):(\d{2})$/.exec(n[k] || (k === "from" ? "22:00" : "06:00"));
-          let mins = (m ? Number(m[1]) * 60 + Number(m[2]) : 0) + d;
-          mins = (mins + 1440) % 1440;
-          const v = Object.assign({}, n);
-          v[k] = pad2(Math.floor(mins / 60)) + ":" + pad2(mins % 60);
-          setLD({ night: v });
-          again();
-        };
-        const wr = row("From – to", "sub");
-        ["from", "to"].forEach((k, i) => {
-          const s = el("div", "rs-step rs-time", '<span class="rs-sb">' + line("minus") + "</span><b></b><span class=\"rs-sb\">" + line("plus") + "</span>");
-          s.querySelector("b").textContent = n[k] || (k === "from" ? "22:00" : "06:00");
-          s.children[0].addEventListener("click", () => step(k, -30));
-          s.children[2].addEventListener("click", () => step(k, 30));
-          wr.appendChild(s);
-          if (!i) wr.appendChild(txt("span", "rs-to", "to"));
-        });
-        body.appendChild(wr);
+        body.appendChild(timeRange(n, "22:00", "06:00", (v) => (setLD({ night: v }), again())));
         const mr = row("At night", "sub");
         mr.appendChild(chipRow([["dim", "Dim the screen"], ["off", "Screen off when idle"]], n.mode === "off" ? "off" : "dim", (v) => (setLD({ night: Object.assign({}, n, { mode: v }) }), again())));
         body.appendChild(mr);
@@ -1557,6 +1723,24 @@ export function mountResidence(a) {
           body.appendChild(lr);
         }
       }
+      const sm = row("Tap to select");
+      const SEL = [["full", "Highlight"], ["dimmable", "Dimmable lights only"], ["off", "Off: tap switches"]];
+      const instSel = a.cfg.selectMode === "off" || a.cfg.selectMode === "dimmable" ? a.cfg.selectMode : "full";
+      sm.appendChild(chipRow(SEL, selectMode() || instSel, (v) => ((PREF.select = v === instSel ? undefined : v), savePref(), again())));
+      body.appendChild(sm);
+      body.appendChild(txt("div", "rs-sethint", "Highlight: the first tap picks a light (the knob then dims it) and shows a ring around it; a second tap switches it. Off: every tap switches straight away."));
+      const tx = row("Text size");
+      tx.appendChild(chipRow(TEXT_SIZES, textNow(), (v) => ((PREF.text = v === 1 ? undefined : v), savePref(), applyText(), again())));
+      body.appendChild(tx);
+      const cl = row("Cleaning");
+      const cb = el("span", "rs-chip big", line("sparkle") + "<span>Clean screen</span>");
+      cb.addEventListener("click", () => {
+        closeSettings();
+        cleanScreen();
+      });
+      cl.appendChild(cb);
+      body.appendChild(cl);
+      body.appendChild(txt("div", "rs-sethint", "Clean screen turns touch off for 30 seconds so the glass can be wiped."));
     } else if (setTab === "look") {
       const sub = el("div", "rs-setsub");
       sub.appendChild(chipRow([["bg", "Backgrounds"], ["themes", "Themes"], ["designs", "Designs"]], lookSub, (v) => ((lookSub = v), again())));
@@ -1607,17 +1791,34 @@ export function mountResidence(a) {
         lk.appendChild(ub);
         body.appendChild(lk);
       } else {
-        const bgRow = row("Background", "top");
-        const grid = el("div", "rs-bgs");
-        const mine = el("span", "rs-bg mine" + (!PREF.bg ? " on" : ""), "<i></i><small>As set up</small>");
-        const inst = url((raw[a.roomIdx()] || {}).rsImage || rc.houseImage || "preset:villa");
-        if (inst) mine.querySelector("i").style.backgroundImage = 'url("' + inst + '")';
-        mine.addEventListener("click", () => {
-          delete PREF.bg;
+        // which room the picture is for: every room, or one room (its own photo)
+        const R = a.rooms();
+        const one = typeof bgFor === "number" && bgFor < R.length;
+        if (R.length > 1) {
+          const fr = row("For", "top");
+          fr.appendChild(chipRow([["all", "Every room"]].concat(roomOrder().map((i) => [i, roomLabel(i)])), one ? bgFor : "all", (v) => ((bgFor = v), again())));
+          body.appendChild(fr);
+        }
+        const curBg = one ? roomBgOf(bgFor) : okBg(PREF.bg);
+        const putBg = (v) => {
+          if (one) {
+            const m = Object.assign({}, PREF.roomBg || {});
+            if (v) m[bgFor] = v;
+            else delete m[bgFor];
+            PREF.roomBg = Object.keys(m).length ? m : undefined;
+          } else if (v) PREF.bg = v;
+          else delete PREF.bg;
           savePref();
           background();
           again();
-        });
+        };
+        const bgRow = row(one ? roomLabel(bgFor) : "Background", "top");
+        const grid = el("div", "rs-bgs");
+        const mine = el("span", "rs-bg mine" + (!curBg ? " on" : ""), "<i></i><small></small>");
+        mine.querySelector("small").textContent = one ? "Same as every room" : "As set up";
+        const inst = url(one ? okBg(PREF.bg) || (raw[bgFor] || {}).rsImage || rc.houseImage || "preset:villa" : (raw[a.roomIdx()] || {}).rsImage || rc.houseImage || "preset:villa");
+        if (inst) mine.querySelector("i").style.backgroundImage = 'url("' + inst + '")';
+        mine.addEventListener("click", () => putBg(null));
         grid.appendChild(mine);
         const grpOf = (k) => (k.indexOf("sky-") === 0 ? "Skies" : k.indexOf("colour-") === 0 ? "Colours" : /^(marble|slate|concrete|steel|walnut|oak|leather|linen)/.test(k) ? "Stone & textures" : "Scenes");
         const order = ["Scenes", "Skies", "Colours", "Stone & textures"];
@@ -1629,15 +1830,10 @@ export function mountResidence(a) {
             lastGrp = grpOf(k);
             grid.appendChild(txt("div", "rs-bggrp", lastGrp));
           }
-          const t = el("span", "rs-bg" + (PREF.bg === v ? " on" : ""), "<i></i><small></small>");
+          const t = el("span", "rs-bg" + (curBg === v ? " on" : ""), "<i></i><small></small>");
           t.querySelector("i").style.backgroundImage = 'url("' + url(v) + '")';
           t.querySelector("small").textContent = BG_NAMES[k] || k;
-          t.addEventListener("click", () => {
-            PREF.bg = v;
-            savePref();
-            background();
-            again();
-          });
+          t.addEventListener("click", () => putBg(v));
           grid.appendChild(t);
         });
         bgRow.appendChild(grid);
@@ -1650,6 +1846,88 @@ export function mountResidence(a) {
         bi.appendChild(chipRow(LOOKS.slice(7), lookNow(), pickLook));
         body.appendChild(bi);
       }
+    } else if (setTab === "rooms") {
+      const R = a.rooms();
+      body.appendChild(txt("div", "rs-sethint", "Rename rooms and lights, change the order, or hide rooms you don't use. Only this panel changes: Home Assistant keeps its names."));
+      const all = roomOrderAll();
+      const shown = all.filter((i) => !isHidden(i)).length;
+      all.forEach((i, k) => {
+        const hid = isHidden(i);
+        const r = el("div", "rs-rmrow" + (hid ? " hid" : "") + (roomOpen === i ? " open" : ""), '<span class="rs-rmmv"></span><span class="rs-rmnm"><b></b><small></small></span><span class="rs-rmact"></span>');
+        const mv = r.querySelector(".rs-rmmv");
+        const up = el("span", "rs-sb" + (k ? "" : " off"), line("up"));
+        const dn = el("span", "rs-sb" + (k < all.length - 1 ? "" : " off"), line("down"));
+        const move = (d) => {
+          const o = all.slice();
+          const j = k + d;
+          if (j < 0 || j >= o.length) return;
+          o[k] = o[j];
+          o[j] = i;
+          setRooms({ order: o });
+          again();
+        };
+        up.addEventListener("click", () => move(-1));
+        dn.addEventListener("click", () => move(1));
+        mv.appendChild(up);
+        mv.appendChild(dn);
+        r.querySelector("b").textContent = roomLabel(i);
+        r.querySelector("small").textContent = (roomName(i) ? "Set up as " + (R[i].name || "Room " + (i + 1)) + " · " : "") + R[i].lights.length + (R[i].lights.length === 1 ? " light" : " lights") + (hid ? " · hidden" : "");
+        const nm = r.querySelector(".rs-rmnm");
+        nm.addEventListener("click", () => {
+          roomOpen = roomOpen === i ? -1 : i;
+          again();
+        });
+        const act = r.querySelector(".rs-rmact");
+        const ren = el("span", "rs-chip", line("pencil") + "<span>Rename</span>");
+        ren.addEventListener("click", () =>
+          nameKeyboard(box, "Room name", roomName(i) || R[i].name || "", R[i].name || "Room " + (i + 1), (v) => {
+            if (v !== undefined) {
+              const n = Object.assign({}, roomPref().names || {});
+              if (v && v !== R[i].name) n[i] = v;
+              else delete n[i];
+              setRooms({ names: Object.keys(n).length ? n : undefined });
+            }
+            paintSettings(box);
+          })
+        );
+        act.appendChild(ren);
+        const hd = el("span", "rs-chip" + (hid ? " on" : ""), line(hid ? "eyeoff" : "eye") + "<span>" + (hid ? "Hidden" : "Shown") + "</span>");
+        hd.addEventListener("click", () => {
+          if (!hid && shown <= 1) return a.toast("One room has to stay");
+          const h = (Array.isArray(roomPref().hide) ? roomPref().hide : []).filter((x) => x !== i);
+          if (!hid) h.push(i);
+          setRooms({ hide: h.length ? h : undefined });
+          again();
+        });
+        act.appendChild(hd);
+        body.appendChild(r);
+        if (roomOpen === i) {
+          const ll = el("div", "rs-rmlights");
+          if (!R[i].lights.length) ll.appendChild(txt("div", "rs-sethint", "No lights in this room."));
+          R[i].lights.forEach((e) => {
+            const lr = el("div", "rs-rmlt", "<span><b></b><small></small></span>");
+            lr.querySelector("b").textContent = a.nameOf(e);
+            lr.querySelector("small").textContent = nick(e) ? "Set up as " + a.rawNameOf(e) : "";
+            const rn = el("span", "rs-chip", line("pencil") + "<span>Rename</span>");
+            rn.addEventListener("click", () =>
+              nameKeyboard(box, "Light name", nick(e) || a.rawNameOf(e), a.rawNameOf(e), (v) => {
+                if (v !== undefined) {
+                  const n = Object.assign({}, PREF.nick || {});
+                  if (v && v !== a.rawNameOf(e)) n[e] = v;
+                  else delete n[e];
+                  PREF.nick = Object.keys(n).length ? n : undefined;
+                  savePref();
+                  chromeAll();
+                }
+                paintSettings(box);
+              })
+            );
+            lr.appendChild(rn);
+            ll.appendChild(lr);
+          });
+          body.appendChild(ll);
+        }
+      });
     } else if (setTab === "clock") {
       const dev = (a.ctx.device && a.ctx.device()) || {};
       const c = row("Clock");
@@ -1660,7 +1938,7 @@ export function mountResidence(a) {
       body.appendChild(lg);
       const R = a.rooms();
       if (R.length > 1) {
-        const opts = [[-1, "As set up"]].concat(R.map((r, i) => [i, r.name || "Room " + (i + 1)]));
+        const opts = [[-1, "As set up"]].concat(roomOrder().map((i) => [i, roomLabel(i)]));
         if (a.wholeOn) opts.push([-2, "Whole Home"]);
         const cur = typeof PREF.room === "number" ? PREF.room : -1;
         const rr = row("Home room", "top");
@@ -1671,6 +1949,16 @@ export function mountResidence(a) {
       const sd = row("Tap sounds");
       sd.appendChild(chipRow([[false, "Off"], [true, "On"]], !!PREF.sound, (v) => ((PREF.sound = v || undefined), savePref(), v && tapSound(), again())));
       body.appendChild(sd);
+      const vr = row("Sounds volume");
+      const vol = typeof ld.vol === "number" ? ld.vol : 1;
+      vr.appendChild(chipRow([[0.25, "25 %"], [0.5, "50 %"], [0.75, "75 %"], [1, "100 %"]], vol, (v) => (setLD({ vol: v === 1 ? undefined : v }), a.ctx.chime && setTimeout(a.ctx.chime, 50), again())));
+      body.appendChild(vr);
+      const q = ld.dnd || {};
+      const qr = row("Do not disturb");
+      qr.appendChild(chipRow([[false, "Off"], [true, "On"]], !!q.on, (v) => (setLD({ dnd: Object.assign({ from: "22:00", to: "07:00" }, q, { on: v }) }), again())));
+      body.appendChild(qr);
+      if (q.on) body.appendChild(timeRange(q, "22:00", "07:00", (v) => (setLD({ dnd: v }), again())));
+      body.appendChild(txt("div", "rs-sethint", "Sounds volume is for the doorbell, intercom and message chimes. In Do not disturb hours they stay quiet; the message or call still shows. Alarms and sirens always sound at full volume."));
     } else {
       const inf = (a.ctx.panelInfo && a.ctx.panelInfo()) || {};
       const lines = [
@@ -1708,7 +1996,7 @@ export function mountResidence(a) {
         });
         ft.appendChild(inst);
       }
-      const changed = PREF.bg || PREF.accent || PREF.shape || PREF.look || PREF.lights || PREF.clock || PREF.util || PREF.sound || typeof PREF.room === "number" || (a.ctx.brightness && a.ctx.brightness.get() != null) || Object.keys(LD()).length;
+      const changed = PREF.select || PREF.rooms || PREF.nick || PREF.text || PREF.roomBg || PREF.bg || PREF.accent || PREF.shape || PREF.look || PREF.lights || PREF.clock || PREF.util || PREF.sound || typeof PREF.room === "number" || (a.ctx.brightness && a.ctx.brightness.get() != null) || Object.keys(LD()).length;
       if (changed) {
         const rs = txt("span", "rs-chip big", "Back to how it was set up");
         rs.addEventListener("click", () => {
@@ -1717,6 +2005,7 @@ export function mountResidence(a) {
           if (a.ctx.brightness) a.ctx.brightness.set(null);
           if (a.ctx.localDevice) a.ctx.localDevice.set(null);
           applyLook();
+          applyText();
           background();
           chromeAll();
           again();
@@ -1772,7 +2061,7 @@ export function mountResidence(a) {
       o.frequency.setValueAtTime(1500, t);
       o.frequency.exponentialRampToValueAtTime(900, t + 0.04);
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.18, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.18 * ((a.ctx && a.ctx.soundVolume && a.ctx.soundVolume()) || 1), t + 0.005);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
       o.connect(g);
       g.connect(actx.destination);
@@ -2178,11 +2467,21 @@ export function mountResidence(a) {
     if (typeof PREF.room === "number") {
       const R = a.rooms();
       r.room = PREF.room === -2 ? -2 : PREF.room;
-      r.roomName = PREF.room === -2 ? "Whole Home" : (R[PREF.room] && R[PREF.room].name) || "Room " + (PREF.room + 1);
+      r.roomName = PREF.room === -2 ? "Whole Home" : roomLabel(PREF.room) || (R[PREF.room] && R[PREF.room].name) || "Room " + (PREF.room + 1);
     }
     if (PREF.sound) r.sound = true;
+    if (textNow() > 1) r.text = textNow();
+    if (selectMode()) r.select = selectMode();
+    const hidden = roomOrderAll().filter(isHidden).map(roomLabel);
+    if (hidden.length) r.hidden = hidden;
+    const rn = Object.keys(roomPref().names || {}).length;
+    const ln = Object.keys(PREF.nick || {}).length;
+    if (rn || ln) r.renamed = { rooms: rn, lights: ln };
+    if (Array.isArray(roomPref().order) && roomPref().order.some((x, k) => x !== k)) r.reordered = true;
+    const rb = Object.keys(PREF.roomBg || {}).filter((i) => roomBgOf(Number(i))).map((i) => roomLabel(Number(i)) + ": " + (BG_NAMES[String(PREF.roomBg[i]).slice(7)] || ""));
+    if (rb.length) r.roomBg = rb;
     a.ctx.reportPrefs(r);
   }
   reportSoon();
-  return { cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightTone, lightsPage, clockDesign, decorateCover, paintCover, startRoom: homeRoom, utilCards, utilView };
+  return { roomName, roomOrder, nick, selectMode, cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightTone, lightsPage, clockDesign, decorateCover, paintCover, startRoom: homeRoom, utilCards, utilView };
 }

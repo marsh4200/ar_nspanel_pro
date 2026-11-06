@@ -10063,8 +10063,22 @@ function RsReadPanel({ hass: h, device: t, onChange: r }) {
   // kept on the panel only: there is no installer setting for these, a push never changes them
   if (pd.night && pd.night.on) rows.push(["night", "Night mode", pd.night.from + "–" + pd.night.to + " · " + (pd.night.mode === "off" ? "screen off" : "dim " + Math.round((pd.night.level || 0.25) * 100) + " %"), "", null]);
   if (typeof P.brightness === "number") rows.push(["bri", "Brightness", Math.round(P.brightness * 100) + " %", "", null]);
+  if (pr.select) {
+    const SELN = { full: "Highlight", dimmable: "Dimmable lights only", off: "Off: tap switches" };
+    const el0 = t.elegant && typeof t.elegant === "object" ? t.elegant : {};
+    const instSel = el0.selectMode === "off" || el0.selectMode === "dimmable" ? el0.selectMode : "full";
+    rows.push(["sel", "Tap to select", SELN[pr.select] || pr.select, SELN[instSel], { elegant: { ...el0, selectMode: pr.select === "full" ? void 0 : pr.select } }]);
+  }
   if (pr.roomName) rows.push(["room", "Home room", pr.roomName, "", null]);
   if (pr.sound) rows.push(["snd", "Tap sounds", "On", "", null]);
+  // 4.7.0: the customer's own rooms, text and sounds (panel only)
+  if (pr.text) rows.push(["txt", "Text size", pr.text >= 1.3 ? "Extra large" : "Large", "", null]);
+  if (pr.hidden && pr.hidden.length) rows.push(["hid", "Hidden rooms", pr.hidden.join(", "), "", null]);
+  if (pr.reordered) rows.push(["ord", "Room order", "Changed", "", null]);
+  if (pr.renamed) rows.push(["ren", "Renamed", [pr.renamed.rooms ? pr.renamed.rooms + (pr.renamed.rooms === 1 ? " room" : " rooms") : "", pr.renamed.lights ? pr.renamed.lights + (pr.renamed.lights === 1 ? " light" : " lights") : ""].filter(Boolean).join(", "), "", null]);
+  if (pr.roomBg && pr.roomBg.length) rows.push(["rbg", "Room backgrounds", pr.roomBg.join(", "), "", null]);
+  if (typeof pd.vol === "number") rows.push(["vol", "Sounds volume", Math.round(pd.vol * 100) + " %", "", null]);
+  if (pd.dnd && pd.dnd.on) rows.push(["dnd", "Do not disturb", pd.dnd.from + "–" + pd.dnd.to, "", null]);
   const same = (x) => x[4] && x[2] === x[3];
   const can = rows.filter((x) => x[4] && !same(x));
   const on = (k) => tick[k] !== !1;

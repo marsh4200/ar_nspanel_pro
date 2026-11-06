@@ -89,16 +89,19 @@ export function knownSound(name) {
   return !!PATTERNS[name];
 }
 
-/** Play a named sound once. */
-export function playOnce(name) {
+/** Play a named sound once. `vol` (0..1, default 1): the panel's sounds volume for chimes. */
+export function playOnce(name, vol) {
   const c = ac();
   const p = PATTERNS[name] || PATTERNS.chime;
   if (!c) return;
-  p(c, c.currentTime + 0.02, c.destination);
+  const g = c.createGain();
+  g.gain.value = typeof vol === "number" ? vol : 1;
+  g.connect(c.destination);
+  p(c, c.currentTime + 0.02, g);
 }
 
 /** Loop a named sound until the returned stop() is called. */
-export function loop(name) {
+export function loop(name, vol) {
   const c = ac();
   const p = PATTERNS[name] || PATTERNS.siren;
   if (!c) return { stop() {} };
@@ -106,7 +109,7 @@ export function loop(name) {
   let next = c.currentTime + 0.02;
   // everything goes through one gain node, so stop() silences scheduled notes too
   const bus = c.createGain();
-  bus.gain.value = 1;
+  bus.gain.value = typeof vol === "number" ? vol : 1;
   bus.connect(c.destination);
   let timer = null;
   function schedule() {

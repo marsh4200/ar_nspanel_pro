@@ -118,11 +118,16 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
             c = null
         }
         if (c == null) c = create(id, url, name)
-        val lp = FrameLayout.LayoutParams(w, h)
-        lp.leftMargin = x
-        lp.topMargin = y
-        lp.gravity = Gravity.TOP or Gravity.START
-        c.box.layoutParams = lp
+        // only re-lay the video when the tile really moved: the page sends the same
+        // place on every update, and a needless relayout made the picture flicker
+        val old = c.box.layoutParams as? FrameLayout.LayoutParams
+        if (old == null || old.width != w || old.height != h || old.leftMargin != x || old.topMargin != y) {
+            val lp = FrameLayout.LayoutParams(w, h)
+            lp.leftMargin = x
+            lp.topMargin = y
+            lp.gravity = Gravity.TOP or Gravity.START
+            c.box.layoutParams = lp
+        }
         c.box.visibility = View.VISIBLE
         if (c.player == null) start(id, c)
     }
@@ -153,6 +158,9 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
             cornerRadius = 10 * d
         }
         val video = TextureView(activity)
+        // hidden until the first real frame: the hardware decoder's empty / not yet
+        // keyframed surface is green on Rockchip panels
+        video.alpha = 0f
         box.addView(video, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         val status = TextView(activity).apply {
             text = "Connecting…"
@@ -185,8 +193,17 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
             .build()
         val p = ExoPlayer.Builder(activity).setLoadControl(load).build()
         p.volume = 0f
+        c.video.animate().cancel()
+        c.video.alpha = 0f
         p.setVideoTextureView(c.video)
         p.addListener(object : Player.Listener {
+            override fun onRenderedFirstFrame() {
+                // a moment after the first frame, so a green start never shows
+                main.postDelayed({
+                    if (cams[id] === c && c.player === p) c.video.animate().alpha(1f).setDuration(200).start()
+                }, 350)
+            }
+
             override fun onPlaybackStateChanged(state: Int) {
                 if (state == Player.STATE_READY) {
                     c.status.visibility = View.GONE

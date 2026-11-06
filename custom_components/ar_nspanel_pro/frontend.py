@@ -36,7 +36,7 @@ PANEL_ELEMENT = "ar-nspanel-pro-config"
 #: 92: Residence customer settings (gear) toggle.
 #: 93-96: Residence look editor, icons, Spotify Connect wake.
 #: 97: added the TDX panel type (Rockchip RK3566, 1920x1080) to Setup.
-PANEL_VERSION = "109"
+PANEL_VERSION = "110"
 
 _WWW_DIR = Path(__file__).parent / "www"
 _BUNDLE = "ar-nspanel-pro-config.js"

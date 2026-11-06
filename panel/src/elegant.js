@@ -172,7 +172,12 @@ export function buildElegant(cfg, ctx, skin) {
   let roomIdx = clamp(typeof cfg.start === "number" ? cfg.start : 0, 0, ROOMS.length - 1);
   let whole = false;
   const lightRoom = {};
-  ROOMS.forEach((r) => r.lights.forEach((e) => (lightRoom[e] = r.name)));
+  ROOMS.forEach((r, i) => r.lights.forEach((e) => (lightRoom[e] = i)));
+  // Residence settings > Rooms: the customer's own room names, order and hidden
+  // rooms. Display only - ROOMS (and every room index sent to HA) stay as set up.
+  const rmName = (i) => (RX && RX.roomName && RX.roomName(i)) || (ROOMS[i] && ROOMS[i].name) || "Room " + (i + 1);
+  const lrName = (e) => (lightRoom[e] != null ? rmName(lightRoom[e]) : "");
+  const roomOrder = () => (RX && RX.roomOrder ? RX.roomOrder() : ROOMS.map((r, i) => i));
   const keys = ["weather"];
   Object.keys(ents).forEach((k) => ents[k].forEach((e) => keys.push(slugify(e))));
   union.scenes.forEach((e) => keys.push(slugify(e)));
@@ -219,7 +224,9 @@ export function buildElegant(cfg, ctx, skin) {
   root.appendChild(room);
 
   const get = (e) => ctx.get(slugify(e)) || {};
-  const nameOf = (e) => (isRtsp(e) ? rtspCam(e).name || "Camera" : get(e).name || e.split(".")[1].replace(/_/g, " "));
+  const rawNameOf = (e) => (isRtsp(e) ? rtspCam(e).name || "Camera" : get(e).name || e.split(".")[1].replace(/_/g, " "));
+  // a nickname the customer gave it on the panel (Residence settings > Rooms) wins
+  const nameOf = (e) => (RX && RX.nick && RX.nick(e)) || rawNameOf(e);
   const send = (action, value) => ctx.event("el", action, { value: value });
   function patch(e, p) {
     ctx.optimistic(slugify(e), p);
@@ -524,7 +531,7 @@ export function buildElegant(cfg, ctx, skin) {
     return t === "dim" ? null : soft(kelvinRgb(TONES[t] || TONES.warm), 0.25);
   };
   const dimOk = (e) => e.split(".")[0] === "light" && get(e).dim !== false;
-  const lightLabel = (e) => (whole && lightRoom[e] ? nameOf(e) + " · " + lightRoom[e] : nameOf(e));
+  const lightLabel = (e) => (whole && lrName(e) ? nameOf(e) + " · " + lrName(e) : nameOf(e));
   const FLAT = LITE || GSAFE;
   function rsLights(p) {
     const list = ents.lights || [];
@@ -586,7 +593,7 @@ export function buildElegant(cfg, ctx, skin) {
       shown.forEach((e) => {
         const i = list.indexOf(e);
         const c = rsItem("rs-4crow", e, i, '<div class="rs-4cic rs-lthit">' + lightScene(lightIconOf(e), 60, 72, FLAT) + '</div><div class="rs-4ctx"><div class="rs-ltnm"></div><div class="rs-ltpc"></div>' + (dimOk(e) ? '<div class="rs-ltks"><i></i><b></b></div>' : "") + '</div><span class="rs-4cpw rs-noop">' + svg("u_power") + "</span>");
-        if (fcFilter === "all" && lightRoom[e]) c.querySelector(".rs-ltnm").textContent = nameOf(e) + " · " + lightRoom[e];
+        if (fcFilter === "all" && lrName(e)) c.querySelector(".rs-ltnm").textContent = nameOf(e) + " · " + lrName(e);
         c.querySelector(".rs-4cpw").addEventListener("click", () => rsToggle(c, e, i));
         const ks = c.querySelector(".rs-ltks");
         if (ks) rsDim(c, e, i, { axis: "x", tapSets: true, zone: ks, area: () => ks });
@@ -760,8 +767,29 @@ export function buildElegant(cfg, ctx, skin) {
     zone.addEventListener("pointerup", end);
     zone.addEventListener("pointercancel", end);
   }
+  // Tap to select (Device Setup > Dashboard, or the panel's own Settings > Display):
+  // the light the knob controls gets a highlight ring in every Residence layout
+  function selModeNow() {
+    const m = RX && RX.selectMode ? RX.selectMode() : "";
+    if (m) return m;
+    return cfg.selectMode === "off" || cfg.selectMode === "dimmable" ? cfg.selectMode : "full";
+  }
+  function selShows(c) {
+    if (c.classList.contains("rs-ltdr")) return true; // the Dial's list is a picker
+    const m = selModeNow();
+    return m === "full" || (m === "dimmable" && dimOk(c.__e));
+  }
+  function rsMarkSel() {
+    const pg = pages.lights && pages.lights.el;
+    if (!pg) return;
+    Array.prototype.forEach.call(pg.querySelectorAll(".rs-li"), (x) => x.classList.toggle("sel", x.__i === selLight && selShows(x)));
+  }
   function rsItem(cls, e, i, html) {
-    const c = el("div", cls + (dimOk(e) ? "" : " sw"), html);
+    const c = el("div", cls + " rs-li" + (dimOk(e) ? "" : " sw"), html);
+    c.addEventListener("pointerdown", () => {
+      selLight = i;
+      rsMarkSel();
+    });
     const nm = c.querySelector(".rs-ltnm");
     if (nm) nm.textContent = lightLabel(e);
     c.__e = e;
@@ -953,7 +981,7 @@ export function buildElegant(cfg, ctx, skin) {
     const v = lvlOf(e);
     const on = v > 0;
     c.classList.toggle("off", !on);
-    c.classList.toggle("sel", c.__i === selLight && c.classList.contains("rs-ltdr"));
+    c.classList.toggle("sel", c.__i === selLight && selShows(c));
     paintScene(c, on, v, toneOf(e));
     const pc = c.querySelector(".rs-ltpc");
     if (pc) pc.textContent = on ? (dimOk(e) ? (c.__4c ? "On · " : "") + Math.round(v * 100) + "%" : "On") : "Off";
@@ -1255,7 +1283,7 @@ export function buildElegant(cfg, ctx, skin) {
     // Device Setup > Dashboard > Tap to select: "full" (first tap selects, the
     // knob then controls it), "dimmable" (only dimmable cards select; on/off
     // ones switch at once) or "off" (no highlight: every tap switches at once)
-    const selMode = cfg.selectMode === "off" || cfg.selectMode === "dimmable" ? cfg.selectMode : "full";
+    const selMode = selModeNow();
     const instant = selMode === "off" || (selMode === "dimmable" && !dimmable);
     const sel = !instant && (kind === "cover" ? selShade === i : selLight === i);
     const LI = kind === "cover" ? LIGHT_ICON : lightIconOf(e);
@@ -1264,7 +1292,7 @@ export function buildElegant(cfg, ctx, skin) {
     // shade rim glow with the brightness), or the round bulb. Shades keep their icon.
     const icon = kind === "cover" ? svg("shades") : LI === "bulb" ? '<i class="el-bglow"></i>' + svg("lights") : lightArt(LI);
     c.innerHTML = '<div class="el-row"><span class="el-bulb">' + icon + '</span><div class="el-meta"><div class="el-nm"></div><div class="el-pc"></div></div></div>' + (dimmable ? '<div class="el-slider"><div class="el-fill"></div><div class="el-line"></div></div>' : cvSwitch ? '<div class="el-cvsw"><span class="el-usw"><i></i></span></div>' : "");
-    c.querySelector(".el-nm").textContent = whole && kind !== "cover" && lightRoom[e] ? nameOf(e) + " · " + lightRoom[e] : nameOf(e);
+    c.querySelector(".el-nm").textContent = whole && kind !== "cover" && lrName(e) ? nameOf(e) + " · " + lrName(e) : nameOf(e);
     if (RX && kind === "cover") RX.decorateCover(c, e);
     paintCard(c, e, kind);
     const toggle = () => {
@@ -2976,7 +3004,12 @@ export function buildElegant(cfg, ctx, skin) {
           const v = el("video");
           c.appendChild(v);
           camPlaying[e] = s.hls;
-          v.addEventListener("playing", () => {
+          // only show the video once it really decodes pictures (a few frames in):
+          // until then the snapshot stays, so there's never a green / empty gap
+          let shownV = false;
+          const reveal = () => {
+            if (shownV || !v.parentNode) return;
+            shownV = true;
             v.classList.add("playing");
             live.textContent = "LIVE";
             live.classList.remove("snap");
@@ -2988,6 +3021,16 @@ export function buildElegant(cfg, ctx, skin) {
             }
             const off = c.querySelector(".el-camoff");
             if (off) off.remove();
+          };
+          v.addEventListener("playing", () => {
+            const t0 = Date.now();
+            const check = () => {
+              if (shownV || !v.parentNode) return;
+              const frames = typeof v.webkitDecodedFrameCount === "number" ? v.webkitDecodedFrameCount : 99;
+              if ((frames >= 6 && v.currentTime >= 0.4) || Date.now() - t0 > 5000) return reveal();
+              setTimeout(check, 120);
+            };
+            check();
           });
           camStops.push(
             playHls(v, s.hls, () => {
@@ -3270,7 +3313,7 @@ export function buildElegant(cfg, ctx, skin) {
     selShade = 0;
     climIdx = 0;
     mIdx = 0;
-    const name = whole ? WHOLE : r.name;
+    const name = whole ? WHOLE : RX ? rmName(roomIdx) : r.name;
     const many = ROOMS.length > 1 || wholeOn;
     sub.textContent = (name || "Home") + (many ? " ▾" : "");
     sub.style.display = name || many ? "" : "none";
@@ -3297,10 +3340,11 @@ export function buildElegant(cfg, ctx, skin) {
     const pn = el("div", "el-sheetpanel");
     pn.appendChild(txt("div", "el-lbl", "Rooms"));
     const g = el("div", "el-roomgrid");
-    ROOMS.forEach((r, i) => {
+    roomOrder().forEach((i) => {
+      const r = ROOMS[i];
       const lit = r.lights.some((e) => get(e).on);
       const c = el("div", "el-rc" + (lit ? " lit" : "") + (!whole && i === roomIdx ? " cur" : ""), '<span class="el-ri">' + svg(r.icon) + "</span><div><b></b><small></small></div>");
-      c.querySelector("b").textContent = r.name || "Room " + (i + 1);
+      c.querySelector("b").textContent = rmName(i);
       c.querySelector("small").textContent = roomLine(r);
       c.addEventListener("click", () => pickRoom(i, false));
       g.appendChild(c);
@@ -3325,7 +3369,7 @@ export function buildElegant(cfg, ctx, skin) {
     applyRoom(i, wh);
     closeRooms();
     go(current);
-    toast(whole ? WHOLE : ROOMS[roomIdx].name || "Room " + (roomIdx + 1));
+    toast(whole ? WHOLE : rmName(roomIdx));
   }
 
   // --- knob session: local value wins while turning ----------------------------
@@ -3386,6 +3430,7 @@ export function buildElegant(cfg, ctx, skin) {
       send: send,
       patch: patch,
       nameOf: nameOf,
+      rawNameOf: rawNameOf,
       toast: toast,
       go: go,
       current: () => current,
