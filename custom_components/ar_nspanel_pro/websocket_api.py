@@ -31,6 +31,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import asyncio
 import base64
 import logging
+import time
 from typing import Any
 
 import voluptuous as vol
@@ -84,6 +85,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_set_license)
     websocket_api.async_register_command(hass, ws_request_license)
     websocket_api.async_register_command(hass, ws_panel_prefs)
+    websocket_api.async_register_command(hass, ws_panel_prefs_backup)
     _LOGGER.debug("Registered %s websocket commands", DOMAIN)
 
 
@@ -376,6 +378,74 @@ def ws_panel_prefs(
     connection.send_result(
         msg["id"],
         {"prefs": dict(bridge.panel_prefs), "online": bool(bridge.available)},
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "ar_nspanel_pro/panel_prefs_backup",
+        vol.Required("device_id"): str,
+        vol.Required("action"): vol.In(["get", "save", "restore", "clear"]),
+    }
+)
+@websocket_api.async_response
+async def ws_panel_prefs_backup(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Customer settings backup (Device page > Customer settings).
+
+    ``save`` keeps what the panel last reported (the customer's gear choices,
+    raw) in Home Assistant; ``restore`` sends it back to the panel, which
+    reloads with it — after an update, a reset or on a replacement panel.
+    """
+    device_id = msg["device_id"]
+    bridge = _bridge_for(hass, device_id)
+    if bridge is None:
+        connection.send_error(msg["id"], "unknown_device", f"No loaded panel for '{device_id}'")
+        return
+    action = msg["action"]
+    live = dict(bridge.panel_prefs)
+    try:
+        if action == "save":
+            raw = live.get("raw")
+            if not isinstance(raw, dict):
+                connection.send_error(
+                    msg["id"],
+                    "no_report",
+                    "The panel hasn't sent its settings yet. It needs panel app 4.8.0 or newer, connected once.",
+                )
+                return
+            backup = {
+                "saved": int(time.time() * 1000),
+                "reported": live.get("at"),
+                "style": live.get("style") or "",
+                "raw": raw,
+                "report": {k: live.get(k) for k in ("residence", "device", "brightness")},
+            }
+            await panel_config.async_write_prefs_backup(hass, device_id, backup)
+        elif action == "clear":
+            await panel_config.async_write_prefs_backup(hass, device_id, None)
+        elif action == "restore":
+            backup = await panel_config.async_read_prefs_backup(hass, device_id)
+            if not backup or not isinstance(backup.get("raw"), dict):
+                connection.send_error(msg["id"], "no_backup", "There is no saved backup for this panel yet.")
+                return
+            if not bridge.available:
+                connection.send_error(msg["id"], "offline", "The panel is offline. Restore once it is back online.")
+                return
+            await bridge.async_cmd("restore_prefs", backup["raw"])
+    except OSError as err:
+        connection.send_error(msg["id"], "storage_failed", str(err))
+        return
+    connection.send_result(
+        msg["id"],
+        {
+            "backup": await panel_config.async_read_prefs_backup(hass, device_id),
+            "prefs": live,
+            "online": bool(bridge.available),
+        },
     )
 
 

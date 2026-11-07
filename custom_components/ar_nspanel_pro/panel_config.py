@@ -51,6 +51,42 @@ def device_path(hass: HomeAssistant, device_id: str) -> Path:
     return _storage_dir(hass) / f"{device_id}.device.json"
 
 
+def prefs_backup_path(hass: HomeAssistant, device_id: str) -> Path:
+    return _storage_dir(hass) / f"{device_id}.prefs-backup.json"
+
+
+async def async_read_prefs_backup(hass: HomeAssistant, device_id: str) -> dict[str, Any] | None:
+    """The customer settings backup saved for this panel, or None."""
+    path = prefs_backup_path(hass, device_id)
+
+    def _read() -> dict[str, Any] | None:
+        if not path.exists():
+            return None
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        return data if isinstance(data, dict) else None
+
+    return await hass.async_add_executor_job(_read)
+
+
+async def async_write_prefs_backup(hass: HomeAssistant, device_id: str, data: dict[str, Any] | None) -> None:
+    """Save (or with None, delete) the customer settings backup for this panel."""
+    path = prefs_backup_path(hass, device_id)
+
+    def _write() -> None:
+        if data is None:
+            path.unlink(missing_ok=True)
+            return
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        tmp.replace(path)
+
+    await hass.async_add_executor_job(_write)
+
+
 @lru_cache(maxsize=1)
 def _validator() -> Draft202012Validator:
     with _SCHEMA_PATH.open(encoding="utf-8") as fh:

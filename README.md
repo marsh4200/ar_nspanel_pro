@@ -80,6 +80,17 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Customer settings backup + home auto-fit (4.8.0)
+
+- **Customer settings** tab on each panel's device page in Home Assistant: shows what the customer
+  changed with the panel's gear button, **Save backup** keeps it in Home Assistant, and **Restore to
+  panel** sends it back (the panel reloads with it). Use it before an update or push, after a reset,
+  or on a replacement panel. Restored design picks (Lights page, Utilities page, clock) win over the
+  setup pushed since. Needs panel app 4.8.0+ (the panel now reports its full settings on `sys/prefs`).
+- Residence home screen stays a still screen: when the category buttons don't fit (many categories,
+  or shorter screens like the Source 10 / Source 7), the grid picks the best column count and shrinks
+  just enough to fit, instead of pushing a row off the bottom.
+
 ## All-round performance pass (4.7.9)
 
 Measured on the whole panel app with a busy house (a light dimming and a sensor changing 4 times a

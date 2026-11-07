@@ -11216,17 +11216,113 @@ function kA(e) {
           }) })
         ] })
       ] });
-    })()
+    })(),
+    /* @__PURE__ */ a.jsx(ArPrefsBackupCard, { hass: e.hass, device: t, onChange: r })
+  ] });
+}
+// ---- Customer settings backup (4.8.0) ---------------------------------------------
+// The customer's own choices from the panel's gear button live on the panel. Save a
+// backup in Home Assistant, update / push / reset, then Restore to panel: it comes
+// back exactly as the customer had it (their design picks win over the new setup).
+function arPrefsRows(rep) {
+  const pr = (rep && rep.residence) || {}, pd = (rep && rep.device) || {}, out = [];
+  const SS = { 0: "Never", 30: "30 s", 60: "1 min", 120: "2 min", 300: "5 min", 600: "10 min" };
+  if (pr.bg) out.push(["Background", rsBgLabel(pr.bg)]);
+  if (pr.accent) out.push(["Theme colour", rsNameIn(RS_GLOWS, pr.accent)]);
+  if (pr.look) out.push(["Button look", rsLookName(pr.look)]);
+  if (pr.lights) out.push(["Lights page", rsNameIn(RS_LIGHT_LAYOUTS, pr.lights)]);
+  if (pr.util) out.push(["Utilities page", rsNameIn(RS_UTIL_LAYOUTS, pr.util)]);
+  if (pr.clock) out.push(["Clock screen", rsNameIn(RS_CLOCKS, pr.clock)]);
+  if (pr.roomName) out.push(["Home room", pr.roomName]);
+  if (pr.text) out.push(["Text size", pr.text >= 1.3 ? "Extra large" : "Large"]);
+  if (pr.select) out.push(["Tap to select", { full: "Highlight", dimmable: "Dimmable lights only", off: "Off: tap switches" }[pr.select] || pr.select]);
+  if (pr.sound) out.push(["Tap sounds", "On"]);
+  if (pr.hidden && pr.hidden.length) out.push(["Hidden rooms", pr.hidden.join(", ")]);
+  if (pr.reordered) out.push(["Room order", "Changed"]);
+  if (pr.renamed) out.push(["Renamed", [pr.renamed.rooms ? pr.renamed.rooms + (pr.renamed.rooms === 1 ? " room" : " rooms") : "", pr.renamed.lights ? pr.renamed.lights + (pr.renamed.lights === 1 ? " light" : " lights") : ""].filter(Boolean).join(", ")]);
+  if (pr.roomBg && pr.roomBg.length) out.push(["Room backgrounds", pr.roomBg.join(", ")]);
+  if (typeof pd.screensaverAfter === "number") out.push(["Screensaver after", SS[pd.screensaverAfter] || pd.screensaverAfter + " s"]);
+  if (typeof pd.clock24 === "boolean") out.push(["Clock", pd.clock24 ? "24 hour" : "12 hour"]);
+  if (pd.lang) out.push(["Date language", pd.lang]);
+  if (pd.night && pd.night.on) out.push(["Night mode", pd.night.from + "–" + pd.night.to]);
+  if (pd.dnd && pd.dnd.on) out.push(["Do not disturb", pd.dnd.from + "–" + pd.dnd.to]);
+  if (typeof pd.vol === "number") out.push(["Sounds volume", Math.round(pd.vol * 100) + " %"]);
+  if (rep && typeof rep.brightness === "number") out.push(["Brightness", Math.round(rep.brightness * 100) + " %"]);
+  return out;
+}
+function ArPrefsBackupCard({ hass: h, device: t, onChange: r }) {
+  const [st, setSt] = M.useState(null), [busy, setBusy] = M.useState(""), [err, setErr] = M.useState(""), [done, setDone] = M.useState(""), [sure, setSure] = M.useState(!1);
+  const devId = (window.__arnSave || {}).deviceId;
+  const call = async (action, okMsg) => {
+    if (!devId) return;
+    setBusy(action);
+    setErr("");
+    setDone("");
+    try {
+      const res = await h.callWS({ type: "ar_nspanel_pro/panel_prefs_backup", device_id: devId, action: action });
+      setSt(res);
+      if (okMsg) setDone(okMsg);
+    } catch (e) {
+      setErr(e && e.message ? e.message : String(e));
+    }
+    setBusy("");
+    setSure(!1);
+  };
+  M.useEffect(() => {
+    call("get");
+  }, [devId]);
+  const P = (st && st.prefs) || {}, B = st && st.backup;
+  const live = arPrefsRows(P), saved = B ? arPrefsRows(B.report) : [];
+  const fmt = (ms) => (ms ? new Date(ms).toLocaleString() : "");
+  const table = (rows, empty) => rows.length ? /* @__PURE__ */ a.jsx("table", { style: { width: "100%", borderCollapse: "collapse", marginTop: 6 }, children: /* @__PURE__ */ a.jsx("tbody", { children: rows.map((x) => /* @__PURE__ */ a.jsxs("tr", { children: [
+    /* @__PURE__ */ a.jsx("td", { style: { padding: "5px 8px 5px 0", opacity: 0.7, fontSize: 13.5, width: "42%" }, children: x[0] }),
+    /* @__PURE__ */ a.jsx("td", { style: { padding: "5px 0", fontSize: 13.5, fontWeight: 600 }, children: x[1] })
+  ] }, x[0])) }) }) : /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 6 }, children: empty });
+  const box = { border: "1px solid var(--divider,rgba(127,127,127,.25))", borderRadius: 12, padding: "12px 14px", marginTop: 12 };
+  const V = { color: "var(--accent)" };
+  const hasRaw = !!(P && P.raw);
+  return /* @__PURE__ */ a.jsxs("div", { className: "card dev-card", children: [
+    /* @__PURE__ */ a.jsxs("h3", { children: [/* @__PURE__ */ a.jsx(j, { d: N.save, size: 20, style: V }), "Customer settings"] }),
+    /* @__PURE__ */ a.jsx("div", { className: "sub", children: "What the customer changed on the panel with the gear button (designs, background, text size, rooms, night mode…). Save a backup before you update or push, then Restore to panel afterwards and it comes back exactly as they had it." }),
+    /* @__PURE__ */ a.jsxs("div", { style: box, children: [
+      /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "baseline" }, children: [
+        /* @__PURE__ */ a.jsx("b", { children: "On the panel now" }),
+        /* @__PURE__ */ a.jsx("span", { className: "hint", children: st ? (st.online ? "Panel online" : "Panel offline · last report") + (P.at ? " · " + fmt(P.at) : "") : "Reading…" })
+      ] }),
+      st && !P.v ? /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 6 }, children: "This panel hasn't reported its settings yet. It needs to be connected once." }) : table(live, "Nothing changed on the panel: it uses your setup as it is."),
+      st && P.v && !hasRaw && /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 6, color: "var(--warning,#e0a02a)" }, children: "Update the panel app to 4.8.0 or newer to back these up." }),
+      /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }, children: [
+        /* @__PURE__ */ a.jsx("button", { type: "button", className: "btn ghost", disabled: !!busy || !devId, onClick: () => call("get"), children: busy === "get" ? "Reading…" : "Read panel" }),
+        /* @__PURE__ */ a.jsx("button", { type: "button", className: "btn primary", disabled: !!busy || !devId || !hasRaw, onClick: () => call("save", "Backup saved in Home Assistant."), children: busy === "save" ? "Saving…" : B ? "Save backup (replace)" : "Save backup" })
+      ] })
+    ] }),
+    /* @__PURE__ */ a.jsxs("div", { style: box, children: [
+      /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "baseline" }, children: [
+        /* @__PURE__ */ a.jsx("b", { children: "Saved backup" }),
+        /* @__PURE__ */ a.jsx("span", { className: "hint", children: B ? "Saved " + fmt(B.saved) : "None yet" })
+      ] }),
+      B ? table(saved, "The backup has no changes: restoring it puts the panel back to your setup.") : /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 6 }, children: "Save a backup above before you update or push." }),
+      B && /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }, children: [
+        /* @__PURE__ */ a.jsx("button", { type: "button", className: "btn primary", disabled: !!busy || !(st && st.online), onClick: () => (sure ? call("restore", "Sent. The panel reloads with the customer's settings.") : setSure(!0)), children: busy === "restore" ? "Sending…" : sure ? "Tap again to restore" : "Restore to panel" }),
+        /* @__PURE__ */ a.jsx("button", { type: "button", className: "btn danger", disabled: !!busy, onClick: () => call("clear", "Backup deleted."), children: "Delete backup" })
+      ] }),
+      B && !(st && st.online) && /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 6 }, children: "Restore works once the panel is online." })
+    ] }),
+    err && /* @__PURE__ */ a.jsx("div", { className: "hint", style: { color: "#ff8f80", marginTop: 8 }, children: err }),
+    done && /* @__PURE__ */ a.jsx("div", { className: "hint", style: { color: "#7fd18b", marginTop: 8 }, children: done }),
+    /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 10 }, children: "To make a change permanent in your own setup instead, use Read from panel under Dashboard → Residence look and copy it in." })
   ] });
 }
 // Device page sections. The cards above come in this order:
 // 0 Screensaver, 1 Presence, 2 Licence, 3 Diagnostics, 4 Clock face,
-// 5 Auto-brightness, 6 Dashboard (Elegant), 7 Music Assistant, 8 Spotify
+// 5 Auto-brightness, 6 Dashboard (Elegant), 7 Music Assistant, 8 Spotify,
+// 9 Customer settings (backup / restore of the gear choices)
 const AR_DEV_TABS = [
   { key: "dash", title: "Dashboard", cards: [6] },
   { key: "screen", title: "Screen", cards: [4, 0, 5] },
   { key: "music", title: "Music", cards: [7, 8] },
   { key: "sensors", title: "Sensors", cards: [1] },
+  { key: "custom", title: "Customer settings", cards: [9] },
   { key: "about", title: "Licence & info", cards: [2, 3] }
 ];
 function ArDevTabs({ children: c }) {

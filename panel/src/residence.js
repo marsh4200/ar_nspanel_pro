@@ -697,6 +697,15 @@ export function mountResidence(a) {
   const UTIL_LAYOUTS = [["classic", "Classic"], ["list", "Living list"], ["flow", "Flow"], ["plate", "Switch plate"]];
   const instUtil = () => (UTIL_LAYOUTS.some((o) => o[0] === rc.utilPage) ? rc.utilPage : "classic");
   const utilPage = () => mine("util", "utilBase", UTIL_LAYOUTS, instUtil);
+  // restored from a Home Assistant backup: the customer's design picks count as made
+  // against the setup that is on the panel now, so they win over it again
+  if (PREF._rebase) {
+    delete PREF._rebase;
+    [["lights", "lightsBase", instLights], ["clock", "clockBase", instClock], ["util", "utilBase", instUtil]].forEach((x) => {
+      if (PREF[x[0]]) PREF[x[1]] = x[2]();
+    });
+    savePref();
+  }
   function uInfo(e) {
     const s = a.get(e) || {};
     const k = utilKey(e);
@@ -969,7 +978,34 @@ export function mountResidence(a) {
     grid.style.width = cols * 210 + "px";
     cs.forEach((c) => grid.appendChild(mk(c)));
     p.appendChild(grid);
+    fitGrid(grid, p, n, cols);
     chrome();
+  }
+  // Home stays a still screen: when the buttons don't fit (many categories, or a
+  // shorter screen like the Source 10 / Source 7), pick the column count that lets
+  // them be biggest and shrink the whole grid just enough to fit. Never grows them.
+  function fitGrid(grid, p, n, cols0) {
+    if (!n) return;
+    const f = window.__arFit || {};
+    const W = p.clientWidth || 1000;
+    const H = p.clientHeight || Math.round(((f.stageH || 288) * 1000) / 480) - 164;
+    const b = grid.firstChild;
+    const bw = (b && b.offsetWidth) || 210;
+    const bh = (b && b.offsetHeight) || 196;
+    const sOf = (c) => Math.min(1, W / (c * bw), H / (Math.ceil(n / c) * bh));
+    let best = cols0;
+    let bs = sOf(cols0);
+    if (bs < 1) {
+      for (let c = 1; c <= n; c++) {
+        const s = sOf(c);
+        if (s > bs + 0.001) {
+          best = c;
+          bs = s;
+        }
+      }
+    }
+    grid.style.width = best * bw + "px";
+    grid.style.zoom = bs < 1 ? String(Math.floor(bs * 1000) / 1000) : "";
   }
 
   // --- Scenes page ----------------------------------------------------------------

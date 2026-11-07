@@ -860,7 +860,26 @@ let rsPrefs = null;
 let prefsT = null;
 function publishPrefs() {
   if (!connected) return;
-  publish("sys/prefs", { v: 1, at: Date.now(), style: device.dashboardStyle || "", residence: rsPrefs || {}, device: localDev || {}, brightness: userBrightness }, true);
+  // raw: exactly what is kept on this panel, so Home Assistant can back it up
+  // (Customer settings > Save backup) and send it back later (restore_prefs)
+  const raw = { residence: native.cacheGet("pref.residence") || null, device: localDev || null, brightness: userBrightness };
+  publish("sys/prefs", { v: 2, at: Date.now(), style: device.dashboardStyle || "", residence: rsPrefs || {}, device: localDev || {}, brightness: userBrightness, raw: raw }, true);
+}
+// Home Assistant > Customer settings > Restore to panel: put a backup back and redraw.
+// The customer's design picks win over the setup pushed since the backup (_rebase).
+function restorePrefs(p) {
+  if (!p || typeof p !== "object") return;
+  const rs = p.residence && typeof p.residence === "object" ? Object.assign({}, p.residence, { _rebase: true }) : null;
+  native.cacheSet("pref.residence", rs);
+  localDev = p.device && typeof p.device === "object" && Object.keys(p.device).length ? p.device : null;
+  native.cacheSet("pref.device", localDev);
+  userBrightness = typeof p.brightness === "number" ? Math.max(0.05, Math.min(1, p.brightness)) : null;
+  native.cacheSet("userBrightness", userBrightness);
+  log("customer settings restored from Home Assistant");
+  device = withLocal(deviceRaw);
+  applyBrightness();
+  render();
+  publishPrefsSoon();
 }
 function publishPrefsSoon() {
   clearTimeout(prefsT);
@@ -1226,6 +1245,9 @@ function handleCmd(name, p) {
       if (!native.updateApp(p.url, p.sha256, p.force)) {
         publish("sys/update", { state: "error", mode: "none", message: "This app build can't update itself: install the new version once over USB", ts: Date.now() }, true);
       }
+      break;
+    case "restore_prefs":
+      restorePrefs(p);
       break;
     case "ma_auth":
       ma.configure({ url: p.url || (device.musicAssistant || {}).url, username: p.username, password: p.password });
