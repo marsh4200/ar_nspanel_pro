@@ -87,7 +87,8 @@ dependencies {
     // The RTSP module is vendored in src/main/java/androidx/media3/exoplayer/rtsp (1.5.1 +
     // the H.265 sequence-number rollover fix, see README-AR.md there), not this artifact:
     // implementation("androidx.media3:media3-exoplayer-rtsp:1.5.1")
-    // what that module's own build compiles against (annotations only, nothing ships)
+    // what that module's own build compiles against
+    implementation("androidx.annotation:annotation:1.6.0")
     compileOnly("org.checkerframework:checker-qual:3.13.0")
     compileOnly("com.google.errorprone:error_prone_annotations:2.18.0")
 
