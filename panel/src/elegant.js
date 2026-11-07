@@ -3169,7 +3169,12 @@ export function buildElegant(cfg, ctx, skin) {
   }
   function camsChanged() {
     if (!CAM_LIVE_GRID && !camBig && (ents.cameras || []).length > 1) return false; // the snapshot grid has no live streams
-    return (ents.cameras || []).slice(0, CAM_MAX).some((e) => {
+    // only the camera(s) on screen: with one camera open full size the others
+    // aren't playing, and counting them re-built the page (and restarted the
+    // stream: green flashes) on every Home Assistant update
+    const all = (ents.cameras || []).slice(0, CAM_MAX);
+    const shown = camBig && all.indexOf(camBig) >= 0 ? [camBig] : all;
+    return shown.some((e) => {
       if (isRtsp(e)) return false;
       const h = get(e).hls;
       return (h && !camFailed[h] ? h : null) !== (camPlaying[e] || null);

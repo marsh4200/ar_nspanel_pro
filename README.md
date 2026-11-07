@@ -80,6 +80,13 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Cameras stop restarting (4.7.2)
+
+With one camera opened full size from the camera grid, every Home Assistant update (several a
+second in a busy house) rebuilt the cameras page and restarted the stream: the picture kept
+flashing green and the camera's clock jumped back and forth between the live snapshot and a
+freshly started stream. The page now only checks the camera that is on screen.
+
 ## RTSP cameras without the green start (4.7.1)
 
 RTSP cameras played by the panel app no longer flash green when they open or when you step to the
