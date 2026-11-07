@@ -5877,6 +5877,10 @@ class Ha {
   adbHomeVendor(t, r) {
     return this.hass.callWS({ type: "ar_nspanel_pro/adb", action: "home_vendor", host: t, port: r });
   }
+  /** Read-only: is the app still there after a reboot, who is Home, this boot's log. */
+  adbBootCheck(t, r) {
+    return this.hass.callWS({ type: "ar_nspanel_pro/adb", action: "boot_check", host: t, port: r });
+  }
   /** Any panel: switch off what a wall panel never uses (undo = put it all back). */
   adbOptimise(t, r, undo) {
     return this.hass.callWS({ type: "ar_nspanel_pro/adb", action: undo ? "unoptimise" : "optimise", host: t, port: r });
@@ -12043,6 +12047,13 @@ function IA({
   async function homeVendor() {
     await runLogged("homevendor", () => l.adbHomeVendor(S, d), "HDL is the Home screen again. The AR app stays installed.");
   }
+  async function bootCheck() {
+    const Z = await J("bootcheck", () => l.adbBootCheck(S, d));
+    if (!Z) return;
+    (Z.output || "").split("\n").filter(Boolean).forEach((ln) => T(ln, ln.startsWith("== ") ? "ok" : "info"));
+    const K = "Boot check done: copy the log and send it.";
+    p({ kind: "ok", text: K }), T(K, "ok");
+  }
   async function optimisePanel() {
     if (!window.confirm("Optimise this panel? Apps a wall panel never uses are switched off (browser, gallery, camera, music, calendar, contacts, clock, wallpapers, printing, SMS, screensavers, factory test), Akubela apps that keep running although they are off are removed for the panel's user, Rockchip's AI-chip server is stopped and animations are turned off. Nothing is deleted: \"Undo optimise\" puts it all back.")) return;
     await runLogged("optimise", () => l.adbOptimise(S, d, !1), "Panel optimised — restart it to check everything still works.");
@@ -12217,6 +12228,10 @@ function IA({
         (isS10 || adbType === "source7") && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: homeVendor, title: "Makes HDL's screen the Home screen again. Nothing is switched on or off; the AR app stays installed.", children: [
           /* @__PURE__ */ a.jsx(j, { d: N.reload, size: 18 }),
           u === "homevendor" ? "Setting…" : "HDL as Home screen"
+        ] }),
+        (isS10 || adbType === "source7") && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: bootCheck, title: "Right after a reboot: is the AR app still installed, who is Home, and what HDL did during this boot. Reads only, changes nothing.", children: [
+          /* @__PURE__ */ a.jsx(j, { d: N.check, size: 18 }),
+          u === "bootcheck" ? "Checking…" : "Boot check"
         ] }),
         /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: optimisePanel, title: "Switches off what a wall panel never uses, so only Android and the AR app run. Nothing is deleted.", children: [
           /* @__PURE__ */ a.jsx(j, { d: N.check, size: 18 }),

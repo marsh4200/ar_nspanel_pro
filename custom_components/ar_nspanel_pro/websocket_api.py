@@ -679,6 +679,7 @@ async def ws_notify(
                 "hdl_restore",
                 "home_ar",
                 "home_vendor",
+                "boot_check",
                 "optimise",
                 "unoptimise",
                 "camera_check",
@@ -754,6 +755,8 @@ async def ws_adb(
             res = await adb.async_home_ar(host, port)
         elif action == "home_vendor":
             res = await adb.async_home_vendor(host, port)
+        elif action == "boot_check":
+            res = await adb.async_boot_check(host, port)
         elif action in ("optimise", "unoptimise"):
             res = await adb.async_optimise(host, port, undo=action == "unoptimise")
         elif action == "camera_check":

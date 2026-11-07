@@ -324,6 +324,18 @@ def _run_panel_script(device: Any, name: str) -> str:
     return (device.shell(run, read_timeout_s=90) or "").strip()
 
 
+def _home_now(device: Any) -> str:
+    """The component Android opens for Home right now ('' if none)."""
+    res = (
+        device.shell(
+            "cmd package resolve-activity --brief -a android.intent.action.MAIN "
+            "-c android.intent.category.HOME"
+        )
+        or ""
+    ).strip().splitlines()
+    return res[-1].strip() if res and "/" in res[-1] else ""
+
+
 def _installed(device: Any, pkg: str) -> bool:
     out = device.shell(f"pm list packages {pkg}") or ""
     return any(line.strip() == f"package:{pkg}" for line in out.splitlines())
@@ -583,7 +595,61 @@ class PanelAdb:
             log = [_set_home(d, f"{APP_PACKAGE}/{APP_ACTIVITY}", APP_PACKAGE)]
             d.shell(f"am start -n {APP_PACKAGE}/{APP_ACTIVITY}")
             log.append("HDL is left on.")
+            # does HDL take Home back by itself? look again a few seconds later
+            time.sleep(5)
+            home = _home_now(d)
+            log.append(f"Home 5 s later: {home or 'none'}")
+            if APP_PACKAGE not in home:
+                log.append(
+                    "HDL took the Home screen back by itself: with HDL on, HDL keeps Home. "
+                    "Run “Boot check” and send me the log."
+                )
             return {"output": "\n".join(log)}
+
+        return await self._hass.async_add_executor_job(self._run, host, port, signer, fn)
+
+    async def async_boot_check(self, host: str, port: int) -> dict[str, Any]:
+        """Why is the app gone / the panel stuck on the boot logo after a
+        reboot? Reads only: is the app still there, who is Home, which of the
+        maker's apps run and may remove apps, and this boot's log about it.
+        Run it right after a reboot (the log only covers the current boot)."""
+        signer = await self._get_signer()
+
+        def fn(d: Any) -> dict[str, Any]:
+            out: list[str] = []
+
+            def sh(title: str, cmd: str, limit: int = 40) -> None:
+                try:
+                    res = (d.shell(cmd) or "").strip()
+                except Exception as err:  # noqa: BLE001 - keep going, report it
+                    res = f"({type(err).__name__})"
+                lines = [ln.rstrip() for ln in res.splitlines() if ln.strip()]
+                out.append(f"== {title}")
+                out.extend(lines[-limit:] or ["(nothing)"])
+
+            sh("panel", "getprop ro.product.model; getprop ro.build.display.id; getprop ro.build.version.release; "
+               "echo boot_completed=$(getprop sys.boot_completed); echo uptime=$(cut -d' ' -f1 /proc/uptime)s")
+            sh("AR app installed?", f"pm list packages {APP_PACKAGE}; echo '-- incl. removed but kept:'; "
+               f"pm list packages -u {APP_PACKAGE}")
+            sh("AR app details", f"dumpsys package {APP_PACKAGE} | grep -E "
+               "'versionName|codePath|installerPackageName|firstInstallTime|lastUpdateTime|installed=|enabled=' | head -12")
+            sh("Home now", "cmd package resolve-activity --brief -a android.intent.action.MAIN "
+               "-c android.intent.category.HOME | tail -1; cmd role get-role-holders android.app.role.HOME")
+            sh("disabled apps", "pm list packages -d")
+            sh("HDL apps", "pm list packages com.hdl; ps -A -o NAME 2>/dev/null | grep -i hdl || ps | grep -i hdl")
+            sh("HDL apps allowed to remove/install apps",
+               "for p in $(pm list packages com.hdl | cut -d: -f2); do "
+               "g=$(dumpsys package $p | grep -oE 'android.permission.(DELETE_PACKAGES|INSTALL_PACKAGES|CLEAR_APP_USER_DATA)[^,]*granted=true' | sort -u | tr '\\n' ' '); "
+               "f=$(dumpsys package $p | grep -m1 -oE 'pkgFlags=\\[[^]]*\\]'); echo \"$p: $f $g\"; done")
+            sh("scripts on the panel that remove apps",
+               "su 0 sh -c \"grep -rlsE 'pm (uninstall|disable|hide)|whitelist|white_list|allowlist' "
+               "/system/bin /system/xbin /system/etc /vendor/bin /vendor/etc /oem /odm 2>/dev/null | head -20\"")
+            sh("this boot's log about the AR app / HDL / Home",
+               "logcat -d -b main,system,events 2>/dev/null | grep -iE "
+               f"'{APP_PACKAGE.replace('.', '[.]')}|PackageManager.*(remov|delet|uninstall|disabl)|"
+               "pm_package|package_removed|PACKAGE_REMOVED|deletePackage|uninstall|FallbackHome|"
+               "boot_progress_enable_screen|BootAnimation|com[.]hdl' | tail -120", limit=120)
+            return {"output": "\n".join(out)}
 
         return await self._hass.async_add_executor_job(self._run, host, port, signer, fn)
 

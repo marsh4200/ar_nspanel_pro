@@ -98,6 +98,9 @@ Setup: two new buttons for HDL panels (Source 10 / Source 7):
   HDL on, unlike "Use AR app (HDL off)".
 - **HDL as Home screen** makes HDL's screen the Home screen again; nothing is switched on or off and
   the AR app stays installed. (If HDL was switched off with "Use AR app", use "Back to HDL screen".)
+- **Boot check** (reads only): right after a reboot, shows whether the AR app is still installed,
+  who is Home, which HDL apps run and may remove apps, and this boot's log about it — to find what
+  removes the app on reboot. "AR app as Home screen" also reports when HDL takes Home back.
 No APK needed.
 
 ## No lag after leaving the cameras page (4.7.8)
