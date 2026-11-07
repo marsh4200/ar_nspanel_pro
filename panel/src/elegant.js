@@ -2951,11 +2951,7 @@ export function buildElegant(cfg, ctx, skin) {
       const n = shown.length;
       const g = el("div", "el-cams c" + (n === 1 ? 1 : n === 2 ? 2 : 4) + (camBig && !CAM_LIVE_GRID && all.length > 1 ? " big" : ""));
       // one camera open from the snapshot grid: ‹ › go to the camera before / after
-      const step = (d) => {
-        const i = all.indexOf(camBig);
-        camBig = all[(i + d + all.length) % all.length];
-        cmp.render();
-      };
+      const step = (d) => stepCam(d);
       if (camBig && !CAM_LIVE_GRID && all.length > 1) {
         const pv = el("div", "el-camnav", svg("chev"));
         pv.addEventListener("click", () => step(-1));
@@ -2963,12 +2959,38 @@ export function buildElegant(cfg, ctx, skin) {
       }
       shown.forEach((e) => {
         const c = el("div", "el-cam");
-        // tap a camera for full size, tap again for all of them
+        // tap a camera for full size; there, a double tap goes back to all of
+        // them and a swipe goes to the next / previous camera
         c.addEventListener("click", () => {
           if (all.length < 2) return;
-          camBig = camBig ? null : e;
-          cmp.render();
+          if (!camBig) {
+            camBig = e;
+            return cmp.render();
+          }
+          const now = Date.now();
+          if (now - (c.__tap || 0) < 450) {
+            camBig = null;
+            return cmp.render();
+          }
+          c.__tap = now;
         });
+        if (camBig && all.length > 1) {
+          let sx = null;
+          let sy = 0;
+          c.addEventListener("touchstart", (ev) => {
+            const t = ev.touches && ev.touches[0];
+            sx = t ? t.clientX : null;
+            sy = t ? t.clientY : 0;
+          });
+          c.addEventListener("touchend", (ev) => {
+            const t = ev.changedTouches && ev.changedTouches[0];
+            if (sx == null || !t) return;
+            const dx = t.clientX - sx;
+            const dy = t.clientY - sy;
+            sx = null;
+            if (Math.abs(dx) > 60 && Math.abs(dx) > 1.5 * Math.abs(dy)) stepCam(dx < 0 ? 1 : -1);
+          });
+        }
         if (isRtsp(e)) {
           // the Android app lays the live video over this tile (placeRtsp)
           c.setAttribute("data-rtsp", e);
@@ -3139,11 +3161,22 @@ export function buildElegant(cfg, ctx, skin) {
       native.rtspRetain(ids);
     });
   }
+  // one camera open full size: the one before / after it
+  function stepCam(d) {
+    const all = (ents.cameras || []).slice(0, CAM_MAX);
+    const i = all.indexOf(camBig);
+    if (i < 0 || all.length < 2) return;
+    camBig = all[(i + d + all.length) % all.length];
+    pages.cameras.render();
+  }
   // something covers the cameras page (screensaver, settings, room picker):
   // native video sits on top of the page, so take it down until it's back
   let covered = false;
   function cover(on) {
     if (!root.isConnected) return;
+    // the Residence settings window stays on top until it is closed (a wake-up or
+    // a message arriving meanwhile must not bring the video back over it)
+    if (!on && RX && RX.settingsOpen && RX.settingsOpen()) return;
     covered = !!on;
     if (covered) native.rtspHideAll();
     else if (current === "cameras" && pages.cameras) pages.cameras.render();
@@ -3151,11 +3184,32 @@ export function buildElegant(cfg, ctx, skin) {
   window.__arCover = (on) => {
     if (root.isConnected) cover(on);
   };
+  // taps and swipes on the native video (the Android app sends them)
+  let rtspTapAt = 0;
   native.on("rtsp", (d) => {
-    if (!root.isConnected || !d || d.event !== "tap" || current !== "cameras") return;
-    if ((ents.cameras || []).length < 2) return;
-    camBig = camBig ? null : d.id;
-    pages.cameras.render();
+    if (!root.isConnected || !d || current !== "cameras") return;
+    if ((ents.cameras || []).slice(0, CAM_MAX).length < 2) return;
+    if (d.event === "swipe") {
+      if (camBig) stepCam(d.dir === "prev" ? -1 : 1);
+      return;
+    }
+    if (d.event === "dbltap") {
+      camBig = camBig ? null : d.id;
+      return pages.cameras.render();
+    }
+    if (d.event !== "tap") return;
+    if (!camBig) {
+      camBig = d.id;
+      return pages.cameras.render();
+    }
+    // an app without double-tap detection sends two taps: treat them as one double tap
+    const now = Date.now();
+    if (now - rtspTapAt < 450) {
+      rtspTapAt = 0;
+      camBig = null;
+      return pages.cameras.render();
+    }
+    rtspTapAt = now;
   });
   native.on("resume", () => {
     if (root.isConnected && current === "cameras" && !covered && pages.cameras) pages.cameras.render();

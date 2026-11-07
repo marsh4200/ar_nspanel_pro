@@ -1441,9 +1441,12 @@ export function mountResidence(a) {
   let roomOpen = -1; // Rooms tab: the room whose lights are listed
   let cleanT = null;
   function closeSettings() {
+    const had = !!setEl;
     if (setEl && setEl.parentNode) setEl.parentNode.removeChild(setEl);
     setEl = null;
     unlocked = false;
+    // the live RTSP video (drawn by the app above the page) comes back
+    if (had && window.__arCover) window.__arCover(false);
   }
   function openSettings() {
     closeSettings();
@@ -1454,6 +1457,8 @@ export function mountResidence(a) {
     const box = el("div", "el-glass rs-setbox");
     setEl.appendChild(box);
     root.appendChild(setEl);
+    // live RTSP video is drawn by the app above the page: take it away while open
+    if (window.__arCover) window.__arCover(true);
     paintSettings(box);
   }
   // the installer PIN, then the panel's setup screen
@@ -2491,5 +2496,5 @@ export function mountResidence(a) {
     a.ctx.reportPrefs(r);
   }
   reportSoon();
-  return { roomName, roomOrder, nick, selectMode, cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightTone, lightsPage, clockDesign, decorateCover, paintCover, startRoom: homeRoom, utilCards, utilView };
+  return { settingsOpen: () => !!setEl, roomName, roomOrder, nick, selectMode, cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightTone, lightsPage, clockDesign, decorateCover, paintCover, startRoom: homeRoom, utilCards, utilView };
 }

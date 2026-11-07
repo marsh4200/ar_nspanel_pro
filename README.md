@@ -80,6 +80,16 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Camera page: settings on top, double tap, swipe (4.7.6)
+
+- The gear's Settings window now hides live RTSP video while it is open (the app draws that video
+  above the page), and nothing brings it back until Settings closes.
+- A tap opens a camera full size; there a double tap goes back to all cameras (a single tap no
+  longer flips straight back), and a swipe left / right goes to the next / previous camera.
+- Stepping to another camera keeps the current picture until the next one has its first frame
+  (up to 4 s), instead of a black "Connecting…" box. Gestures and the hand-over need the 4.7.6 APK;
+  with an older app two quick taps still count as a double tap.
+
 ## Camera decoder choice per panel (4.7.5)
 
 Some panels' default H.265 hardware decoder (HDL Source 10, RK3568) keeps showing green / stale

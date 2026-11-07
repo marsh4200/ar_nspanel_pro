@@ -7,7 +7,9 @@ import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.view.GestureDetector
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.TextureView
 import android.view.View
 import android.widget.FrameLayout
@@ -116,6 +118,7 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
         val status: TextView,
         var url: String,
         var player: ExoPlayer?,
+        var shown: Boolean = false, // has had a picture
     )
 
     private val cams = HashMap<String, Cam>()
@@ -235,8 +238,51 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
     }
 
     /** Hide every camera except the given ids. */
+    /**
+     * Cameras going away while a new one is still connecting (‹ › or a swipe to the
+     * next camera): they stay on screen under the new one until it has its first
+     * picture (at most 4 s), so the switch is never a black box.
+     */
+    private val leaving = HashMap<String, Cam>()
+
     fun retain(ids: Set<String>) {
-        cams.keys.filter { it !in ids }.forEach { hide(it) }
+        val gone = cams.keys.filter { it !in ids }
+        val waiting = cams.filter { (k, c) -> k in ids && !c.shown }.values
+        if (gone.isEmpty() || waiting.isEmpty()) {
+            gone.forEach { hide(it) }
+            return
+        }
+        // the new camera(s): see-through and quiet until their first picture
+        waiting.forEach { c ->
+            boxColor(c, Color.TRANSPARENT)
+            c.status.visibility = View.GONE
+        }
+        gone.forEach { k ->
+            val c = cams.remove(k) ?: return@forEach
+            leaving[k + "#" + System.nanoTime()] = c
+        }
+        main.postDelayed({ dropLeaving() }, 4000)
+    }
+
+    /** The tile's background colour, keeping its rounded corners. */
+    private fun boxColor(c: Cam, color: Int) {
+        val bg = c.box.background
+        if (bg is GradientDrawable) bg.setColor(color) else c.box.setBackgroundColor(color)
+    }
+
+    private fun dropLeaving() {
+        if (leaving.isEmpty()) return
+        leaving.values.forEach { c ->
+            c.player?.release()
+            c.player = null
+            root.removeView(c.box)
+        }
+        leaving.clear()
+        // a camera still without a picture gets its black box and "Connecting…" back
+        cams.values.filter { !it.shown }.forEach { c ->
+            boxColor(c, Color.BLACK)
+            c.status.visibility = View.VISIBLE
+        }
     }
 
     fun hide(id: String) {
@@ -248,6 +294,7 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
 
     fun hideAll() {
         cams.keys.toList().forEach { hide(it) }
+        dropLeaving()
     }
 
     private fun create(id: String, url: String, name: String): Cam {
@@ -280,7 +327,32 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
             setPadding((8 * d).toInt(), 0, 0, (6 * d).toInt())
         }
         box.addView(label, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.START))
-        box.setOnClickListener { activity.emit("rtsp", "{\"id\":${MiniJson.quote(id)},\"event\":\"tap\"}") }
+        // tap, double tap and swipe go back to the page ("rtsp" events): a tap opens
+        // a camera full size, a double tap goes back to all cameras, a swipe steps
+        val q = MiniJson.quote(id)
+        val gestures = GestureDetector(activity, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent): Boolean = true
+
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                activity.emit("rtsp", "{\"id\":$q,\"event\":\"tap\"}")
+                return true
+            }
+
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                activity.emit("rtsp", "{\"id\":$q,\"event\":\"dbltap\"}")
+                return true
+            }
+
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+                val start = e1 ?: return false
+                val dx = e2.x - start.x
+                val dy = e2.y - start.y
+                if (Math.abs(dx) < 60 * d || Math.abs(dx) < 1.5f * Math.abs(dy)) return false
+                activity.emit("rtsp", "{\"id\":$q,\"event\":\"swipe\",\"dir\":\"" + (if (dx < 0) "next" else "prev") + "\"}")
+                return true
+            }
+        })
+        box.setOnTouchListener { _, ev -> gestures.onTouchEvent(ev) }
         // above the WebView, below the screen-off blackout
         root.addView(box, root.indexOfChild(below))
         val c = Cam(box, video, status, url, null)
@@ -318,6 +390,7 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
             }
         })
         p.volume = 0f
+        c.shown = false
         c.video.animate().cancel()
         c.video.alpha = 0f
         p.setVideoTextureView(c.video)
@@ -327,8 +400,12 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
                 // only now drop "Connecting…" so the tile is never an empty box
                 main.postDelayed({
                     if (cams[id] === c && c.player === p) {
+                        c.shown = true
                         c.status.visibility = View.GONE
+                        boxColor(c, Color.BLACK)
                         c.video.animate().alpha(1f).setDuration(150).start()
+                        // the camera it replaced can go now
+                        main.postDelayed({ dropLeaving() }, 200)
                     }
                 }, 80)
             }
