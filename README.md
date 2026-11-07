@@ -80,6 +80,16 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## RTSP video surface for Android 11+ panels (4.7.3)
+
+On RK3566 / RK3568 panels (Android 11 and newer) RTSP cameras kept flashing green and showing
+stale frames although the player itself ran without a break (one start per opening, no errors in
+the player log). The video was drawn into a TextureView, whose GPU copy of the hardware decoder's
+pictures misbehaves there; those panels now draw into a SurfaceView, Android's own video surface.
+Older panels (px30, Android 8.1) are unchanged. Needs the 4.7.3 APK. The ADB tools' Check camera
+now tests the panel's own RTSP camera without asking for its address (it asks when there are
+several).
+
 ## Cameras stop restarting (4.7.2)
 
 With one camera opened full size from the camera grid, every Home Assistant update (several a

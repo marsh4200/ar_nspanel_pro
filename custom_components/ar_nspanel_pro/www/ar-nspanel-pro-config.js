@@ -12036,6 +12036,21 @@ function IA({
   async function cameraCheck() {
     let last = "";
     try { last = localStorage.getItem("arnp.camcheck.url") || ""; } catch (e) {}
+    // the RTSP cameras of the panel open in the editor: one camera = no question
+    let mine = [];
+    try {
+      const dev = (window.__arnSave || {}).deviceId;
+      if (dev) {
+        const cfg = await e.callWS({ type: "ar_nspanel_pro/get_config", device_id: dev });
+        const el0 = cfg && cfg.device && cfg.device.elegant;
+        mine = (el0 && Array.isArray(el0.rtsp) ? el0.rtsp : []).map((c) => c && typeof c.url === "string" ? c.url.trim() : "").filter((u) => /^rtsps?:\/\//i.test(u));
+      }
+    } catch (x) {}
+    if (mine.length === 1) {
+      await runLogged("camcheck", () => l.adbCameraCheck(S, d, mine[0]), "Camera check done — read the lines above (✓ = fine, ✗ = the problem).");
+      return;
+    }
+    if (mine.length > 1 && mine.indexOf(last) < 0) last = mine[0];
     const url = window.prompt("Camera check — paste the camera's RTSP URL exactly as in Device Setup (e.g. rtsp://admin:password@192.168.0.112:554/Streaming/Channels/102). It is tested from this panel and from Home Assistant; the password isn't shown in the result.", last);
     if (!url || !/^rtsps?:\/\//i.test(url.trim())) return;
     try { localStorage.setItem("arnp.camcheck.url", url.trim()); } catch (e) {}

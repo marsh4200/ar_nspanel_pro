@@ -8,6 +8,8 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
+import android.os.Build
+import android.view.SurfaceView
 import android.view.TextureView
 import android.view.View
 import android.widget.FrameLayout
@@ -85,7 +87,7 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
 
     private class Cam(
         val box: FrameLayout,
-        val video: TextureView,
+        val video: View, // SurfaceView (Android 11+) or TextureView
         val status: TextView,
         var url: String,
         var player: ExoPlayer?,
@@ -209,10 +211,18 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
             setColor(Color.BLACK)
             cornerRadius = 10 * d
         }
-        val video = TextureView(activity)
-        // hidden until the first real frame: the hardware decoder's empty / not yet
-        // keyframed surface is green on Rockchip panels
-        video.alpha = 0f
+        // Android 11+ (RK3566 / RK3568 panels): a SurfaceView. A TextureView there
+        // flickers green and shows stale frames (the GPU copy of the hardware
+        // decoder's buffers), though the player itself runs fine. A media-overlay
+        // SurfaceView sits above the page, as this box does; until its first frame
+        // it is see-through, so "Connecting…" still shows.
+        // Older panels (px30, Android 8.1) keep the TextureView, hidden until its
+        // first real frame.
+        val video: View = if (Build.VERSION.SDK_INT >= 30) {
+            SurfaceView(activity).apply { setZOrderMediaOverlay(true) }
+        } else {
+            TextureView(activity).apply { alpha = 0f }
+        }
         box.addView(video, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         val status = TextView(activity).apply {
             text = "Connecting…"
@@ -246,9 +256,15 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
         // CameraRenderers: no green start (see KeyframeFirstVideoRenderer)
         val p = ExoPlayer.Builder(activity, CameraRenderers(activity)).setLoadControl(load).build()
         p.volume = 0f
-        c.video.animate().cancel()
-        c.video.alpha = 0f
-        p.setVideoTextureView(c.video)
+        val v = c.video
+        if (v is SurfaceView) {
+            v.visibility = View.VISIBLE
+            p.setVideoSurfaceView(v)
+        } else if (v is TextureView) {
+            v.animate().cancel()
+            v.alpha = 0f
+            p.setVideoTextureView(v)
+        }
         p.addListener(object : Player.Listener {
             override fun onRenderedFirstFrame() {
                 // the first frame is a whole picture (keyframe first): show it, and
@@ -256,7 +272,7 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
                 main.postDelayed({
                     if (cams[id] === c && c.player === p) {
                         c.status.visibility = View.GONE
-                        c.video.animate().alpha(1f).setDuration(150).start()
+                        if (c.video is TextureView) c.video.animate().alpha(1f).setDuration(150).start()
                     }
                 }, 80)
             }
@@ -293,6 +309,8 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
                     else -> "Can't play this camera (${error.errorCodeName}) — retrying…\n$why"
                 }
                 c.status.visibility = View.VISIBLE
+                // a SurfaceView sits above the message: take it away so the reason shows
+                if (c.video is SurfaceView) c.video.visibility = View.INVISIBLE
                 activity.emit("rtsp", "{\"id\":${MiniJson.quote(id)},\"event\":\"error\",\"msg\":${MiniJson.quote(error.errorCodeName)}}")
                 // try again while it is still on screen. After a refused login wait a
                 // minute: Hikvision locks a device out after a few wrong logins in a row.
