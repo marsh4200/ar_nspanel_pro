@@ -227,6 +227,14 @@ export function rtspRetain(ids) {
 export function rtspHideAll() {
   call("rtspHideAll");
 }
+/** RTSP camera decoder: "auto" | "alt" | "soft" (app 4.7.5+; "" when the app has none). */
+export function rtspDecoder(mode) {
+  call("rtspDecoder", mode);
+}
+export function rtspDecoderGet() {
+  const v = call("rtspDecoderGet");
+  return typeof v === "string" ? v : "";
+}
 
 // --- kiosk recovery (locked panels) ---------------------------------------------------
 export function kioskState() {

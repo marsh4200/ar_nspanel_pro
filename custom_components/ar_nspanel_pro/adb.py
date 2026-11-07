@@ -1051,8 +1051,13 @@ class PanelAdb:
             ) as resp:
                 if resp.status != 200:
                     if private:
-                        # Don't say why: the token stays a secret on screen.
-                        raise AdbError("github", "Couldn't reach the app release. Try again later.")
+                        # The token itself never shows; the status code says what to fix.
+                        why = {
+                            401: "GitHub refused the access token (expired or revoked). Enter a new one under Private release access.",
+                            403: "GitHub refused the access token for this repo (missing Contents: read permission, or rate-limited). Check the token under Private release access.",
+                            404: "GitHub has no published release to install (only a draft or pre-release?), or the token can't see the repo.",
+                        }.get(resp.status, f"Couldn't reach the app release (GitHub HTTP {resp.status}). Try again later.")
+                        raise AdbError("github", why)
                     raise AdbError(
                         "github", f"GitHub API returned HTTP {resp.status}."
                     )

@@ -21,7 +21,10 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import androidx.media3.exoplayer.rtsp.RtspMediaSource
 import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
 import androidx.media3.exoplayer.video.VideoRendererEventListener
@@ -55,8 +58,31 @@ private class KeyframeFirstVideoRenderer(
     }
 }
 
+/**
+ * Which video decoder cameras use (Settings > Panel > Camera decoder on the panel):
+ * "auto" = Android's first choice; "alt" = the next hardware decoder first;
+ * "soft" = the software decoder first. Some panels' default H.265 hardware decoder
+ * (HDL Source 10, RK3568) shows green / stale pictures on a stream other panels
+ * play cleanly. If the chosen decoder can't start, the next one is tried.
+ */
 @UnstableApi
-private class CameraRenderers(context: Context) : DefaultRenderersFactory(context) {
+private fun cameraSelector(mode: String): MediaCodecSelector = MediaCodecSelector { mime, secure, tunneling ->
+    val all: List<MediaCodecInfo> = MediaCodecSelector.DEFAULT.getDecoderInfos(mime, secure, tunneling)
+    val hw = all.filter { !it.softwareOnly }
+    val sw = all.filter { it.softwareOnly }
+    when (mode) {
+        "alt" -> if (hw.size > 1) hw.drop(1) + hw.take(1) + sw else sw + hw
+        "soft" -> sw + hw
+        else -> all
+    }
+}
+
+@UnstableApi
+private class CameraRenderers(context: Context, private val mode: String) : DefaultRenderersFactory(context) {
+    init {
+        setEnableDecoderFallback(true)
+    }
+
     override fun buildVideoRenderers(
         context: Context,
         extensionRendererMode: Int,
@@ -67,7 +93,8 @@ private class CameraRenderers(context: Context) : DefaultRenderersFactory(contex
         allowedVideoJoiningTimeMs: Long,
         out: ArrayList<Renderer>,
     ) {
-        out.add(KeyframeFirstVideoRenderer(context, mediaCodecSelector, allowedVideoJoiningTimeMs, enableDecoderFallback, eventHandler, eventListener))
+        val selector = if (mode == "auto") mediaCodecSelector else cameraSelector(mode)
+        out.add(KeyframeFirstVideoRenderer(context, selector, allowedVideoJoiningTimeMs, enableDecoderFallback, eventHandler, eventListener))
     }
 }
 
@@ -92,6 +119,29 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
     )
 
     private val cams = HashMap<String, Cam>()
+
+    private val prefs = activity.getSharedPreferences("rtsp", Context.MODE_PRIVATE)
+
+    /** Camera decoder: "auto" | "alt" | "soft" (kept on the panel). */
+    var decoder: String = prefs.getString("decoder", "auto") ?: "auto"
+        private set
+
+    /** Change the camera decoder and restart the cameras on screen with it. */
+    fun setDecoder(mode: String) {
+        val m = if (mode == "alt" || mode == "soft") mode else "auto"
+        if (m == decoder) return
+        decoder = m
+        prefs.edit().putString("decoder", m).apply()
+        cams.forEach { (id, c) ->
+            c.player?.release()
+            c.player = null
+            c.status.text = "Connecting…"
+            c.status.visibility = View.VISIBLE
+            start(id, c)
+        }
+    }
+
+    private var listedDecoders = false
 
     companion object {
         /**
@@ -244,7 +294,29 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
             .setBufferDurationsMs(500, 2000, 300, 300)
             .build()
         // CameraRenderers: no green start (see KeyframeFirstVideoRenderer)
-        val p = ExoPlayer.Builder(activity, CameraRenderers(activity)).setLoadControl(load).build()
+        val p = ExoPlayer.Builder(activity, CameraRenderers(activity, decoder)).setLoadControl(load).build()
+        // the player log (HA: ADB > Check camera) says which decoder plays, and the choices
+        if (!listedDecoders) {
+            listedDecoders = true
+            for (mime in listOf("video/hevc", "video/avc")) {
+                val names = try {
+                    MediaCodecUtil.getDecoderInfos(mime, false, false).joinToString(", ") { it.name + if (it.softwareOnly) " (software)" else "" }
+                } catch (e: Exception) {
+                    "?"
+                }
+                android.util.Log.i("ARRtsp", "decoders for $mime: $names")
+            }
+        }
+        val mode = decoder
+        p.addAnalyticsListener(object : AnalyticsListener {
+            override fun onVideoDecoderInitialized(eventTime: AnalyticsListener.EventTime, decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long) {
+                android.util.Log.i("ARRtsp", "camera $id plays with decoder $decoderName (setting: $mode)")
+            }
+
+            override fun onDroppedVideoFrames(eventTime: AnalyticsListener.EventTime, droppedFrames: Int, elapsedMs: Long) {
+                android.util.Log.w("ARRtsp", "camera $id: $droppedFrames frames dropped in $elapsedMs ms (decoder too slow?)")
+            }
+        })
         p.volume = 0f
         c.video.animate().cancel()
         c.video.alpha = 0f

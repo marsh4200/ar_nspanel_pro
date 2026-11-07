@@ -1979,6 +1979,14 @@ export function mountResidence(a) {
         tb.appendChild(r);
       });
       body.appendChild(tb);
+      // RTSP cameras: which video decoder plays them (only apps that offer the choice)
+      const dec = a.ctx.camDecoder && a.ctx.camDecoder.get();
+      if (dec) {
+        const dr = row("Camera decoder");
+        dr.appendChild(chipRow([["auto", "Auto"], ["alt", "Other hardware"], ["soft", "Software"]], dec, (v) => (a.ctx.camDecoder.set(v), setTimeout(again, 150))));
+        body.appendChild(dr);
+        body.appendChild(txt("div", "rs-sethint", "If RTSP cameras flash green or jump between pictures on this panel, try Other hardware, then Software. Open a camera to see the result; the choice stays on this panel."));
+      }
       const ft = row("", "foot");
       const clean = el("span", "rs-chip big", line("sparkle") + "<span>Clean screen</span>");
       clean.addEventListener("click", () => {

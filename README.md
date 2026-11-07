@@ -80,6 +80,16 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Camera decoder choice per panel (4.7.5)
+
+Some panels' default H.265 hardware decoder (HDL Source 10, RK3568) keeps showing green / stale
+pictures on a stream other panels play cleanly. Settings (gear) > Panel > Camera decoder picks
+Auto, Other hardware or Software for RTSP cameras on that panel; it is kept on the panel and the
+cameras restart with it straight away. The player log (ADB > Check camera) now lists the
+decoders and names the one playing, and reports frames a slow decoder drops. Needs the 4.7.5 APK.
+Also: the vendored RTSP module's androidx.annotation dependency (the 4.7.4 build fix), and the
+release-lookup error now says why GitHub refused (token expired / no permission / no release).
+
 ## H.265 RTSP cameras: green flashes fixed at the source (4.7.4)
 
 Found with the panel's player log: Media3's H.265 RTSP reader (1.5.1, still in 1.11.1) dropped the

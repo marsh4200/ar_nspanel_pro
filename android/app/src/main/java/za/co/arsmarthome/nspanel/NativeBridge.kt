@@ -80,6 +80,15 @@ class NativeBridge(private val activity: MainActivity) {
         activity.runOnUiThread { activity.rtsp.hideAll() }
     }
 
+    /** Camera decoder for RTSP cameras: "auto" | "alt" | "soft" (kept on the panel). */
+    @JavascriptInterface
+    fun rtspDecoder(mode: String) {
+        activity.runOnUiThread { activity.rtsp.setDecoder(mode) }
+    }
+
+    @JavascriptInterface
+    fun rtspDecoderGet(): String = activity.rtsp.decoder
+
     // --- kiosk recovery (setup screen, locked panels only) ---------------------
 
     @JavascriptInterface

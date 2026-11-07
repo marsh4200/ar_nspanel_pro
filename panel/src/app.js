@@ -232,6 +232,11 @@ const ctx = {
     },
   },
   soundVolume: () => soundVol(),
+  // RTSP camera decoder (Residence Settings > Panel), on apps that have the choice
+  camDecoder: {
+    get: () => native.rtspDecoderGet(),
+    set: (m) => native.rtspDecoder(m),
+  },
   chime: () => sound.playOnce("chime", soundVol()),
   panelInfo: () => Object.assign({}, info(), { deviceId: deviceId, broker: settings.brokerUrl || "", connected: !!connected }),
   log,
