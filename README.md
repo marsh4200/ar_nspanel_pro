@@ -80,6 +80,14 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## RTSP cameras without the green start (4.7.1)
+
+RTSP cameras played by the panel app no longer flash green when they open or when you step to the
+next camera. A stream is joined part-way through the camera's picture group, and Rockchip panels'
+hardware decoders turned the frames before the next keyframe into green pictures; the decoder is
+now fed nothing until the first keyframe, so the first picture shown is a whole one ("Connecting…"
+stays until then). Needs the 4.7.1 APK.
+
 ## Customer settings, boot logo, camera and highlight fixes (4.7.0)
 
 New on the panel's gear (Residence):

@@ -1,5 +1,6 @@
 package za.co.arsmarthome.nspanel
 
+import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -15,9 +16,60 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.decoder.DecoderInputBuffer
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.rtsp.RtspMediaSource
+import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
+import androidx.media3.exoplayer.video.VideoRendererEventListener
+
+/**
+ * The video decoder gets nothing before the stream's first keyframe.
+ *
+ * An RTSP stream is joined wherever the camera is in its picture group, so the
+ * first frames refer to a keyframe the panel never received. Rockchip hardware
+ * decoders (px30, RK3566) turn those into green pictures until the next keyframe
+ * comes, seconds later on most cameras. Skipping them means the first picture
+ * decoded is a whole one. The RTSP H.264 / H.265 readers mark IDR frames as keyframes.
+ */
+@UnstableApi
+private class KeyframeFirstVideoRenderer(
+    context: Context,
+    selector: MediaCodecSelector,
+    joiningMs: Long,
+    fallback: Boolean,
+    handler: Handler?,
+    listener: VideoRendererEventListener?,
+) : MediaCodecVideoRenderer(context, selector, joiningMs, fallback, handler, listener, 50) {
+    private var seenKeyframe = false
+
+    override fun shouldSkipDecoderInputBuffer(buffer: DecoderInputBuffer): Boolean {
+        if (!seenKeyframe) {
+            if (!buffer.isKeyFrame) return true
+            seenKeyframe = true
+        }
+        return super.shouldSkipDecoderInputBuffer(buffer)
+    }
+}
+
+@UnstableApi
+private class CameraRenderers(context: Context) : DefaultRenderersFactory(context) {
+    override fun buildVideoRenderers(
+        context: Context,
+        extensionRendererMode: Int,
+        mediaCodecSelector: MediaCodecSelector,
+        enableDecoderFallback: Boolean,
+        eventHandler: Handler,
+        eventListener: VideoRendererEventListener,
+        allowedVideoJoiningTimeMs: Long,
+        out: ArrayList<Renderer>,
+    ) {
+        out.add(KeyframeFirstVideoRenderer(context, mediaCodecSelector, allowedVideoJoiningTimeMs, enableDecoderFallback, eventHandler, eventListener))
+    }
+}
 
 /**
  * RTSP cameras on the Elegant cameras page, played natively (Media3 ExoPlayer,
@@ -191,22 +243,26 @@ class RtspCams(private val activity: MainActivity, private val root: FrameLayout
         val load = DefaultLoadControl.Builder()
             .setBufferDurationsMs(500, 2000, 300, 300)
             .build()
-        val p = ExoPlayer.Builder(activity).setLoadControl(load).build()
+        // CameraRenderers: no green start (see KeyframeFirstVideoRenderer)
+        val p = ExoPlayer.Builder(activity, CameraRenderers(activity)).setLoadControl(load).build()
         p.volume = 0f
         c.video.animate().cancel()
         c.video.alpha = 0f
         p.setVideoTextureView(c.video)
         p.addListener(object : Player.Listener {
             override fun onRenderedFirstFrame() {
-                // a moment after the first frame, so a green start never shows
+                // the first frame is a whole picture (keyframe first): show it, and
+                // only now drop "Connecting…" so the tile is never an empty box
                 main.postDelayed({
-                    if (cams[id] === c && c.player === p) c.video.animate().alpha(1f).setDuration(200).start()
-                }, 350)
+                    if (cams[id] === c && c.player === p) {
+                        c.status.visibility = View.GONE
+                        c.video.animate().alpha(1f).setDuration(150).start()
+                    }
+                }, 80)
             }
 
             override fun onPlaybackStateChanged(state: Int) {
                 if (state == Player.STATE_READY) {
-                    c.status.visibility = View.GONE
                     activity.emit("rtsp", "{\"id\":${MiniJson.quote(id)},\"event\":\"playing\"}")
                 }
             }
