@@ -607,14 +607,18 @@ export function mountResidence(a) {
     }
     paintBar();
   }
+  function setTxt(n, v) {
+    if (n && n.textContent !== v) n.textContent = v;
+  }
   function paintBar() {
     npNow = nowPlaying();
     np.classList.toggle("gone", !npNow);
     if (npNow) {
-      np.querySelector("b").textContent = npNow.title || "";
-      np.querySelector("small").textContent = npNow.sub || "";
+      setTxt(np.querySelector("b"), npNow.title || "");
+      setTxt(np.querySelector("small"), npNow.sub || "");
       const art = np.querySelector(".rs-art");
-      art.style.backgroundImage = npNow.art ? 'url("' + npNow.art + '")' : "";
+      const bi = npNow.art ? 'url("' + npNow.art + '")' : "";
+      if (art.__bi !== bi) art.style.backgroundImage = art.__bi = bi;
       art.classList.toggle("none", !npNow.art);
     }
   }
@@ -1984,6 +1988,23 @@ export function mountResidence(a) {
         tb.appendChild(r);
       });
       body.appendChild(tb);
+      // speed readout: what this panel measured last (wake-up, page, light confirmed by HA)
+      const sp = (a.ctx.speed && a.ctx.speed()) || {};
+      const ago = (o) => (o && o.at ? " · " + Math.max(0, Math.round((Date.now() - o.at) / 1000)) + " s ago" : "");
+      const spl = [
+        ["Wake-up", sp.wake ? sp.wake.ms + " ms" + ago(sp.wake) : "—"],
+        ["Page opened", sp.page ? sp.page.name + ": " + sp.page.ms + " ms" + ago(sp.page) : "—"],
+        ["Light confirmed", sp.light ? sp.light.name + ": " + sp.light.ms + " ms by Home Assistant" + ago(sp.light) : "—"],
+      ];
+      const stb = el("div", "rs-info");
+      spl.forEach((l) => {
+        const r = el("div", "rs-infor", "<span></span><b></b>");
+        r.firstChild.textContent = l[0];
+        r.lastChild.textContent = l[1];
+        stb.appendChild(r);
+      });
+      body.appendChild(txt("div", "rs-sethint", "Speed (last measured on this panel): wake the screen, open a page, switch a light, then look here."));
+      body.appendChild(stb);
       // RTSP cameras: which video decoder plays them (only apps that offer the choice)
       const dec = a.ctx.camDecoder && a.ctx.camDecoder.get();
       if (dec) {
@@ -2176,10 +2197,10 @@ export function mountResidence(a) {
   function paintCalBtn() {
     if (!calBtn) return;
     const now = new Date();
-    calBtn.querySelector(".rs-calday").textContent = String(now.getDate());
+    setTxt(calBtn.querySelector(".rs-calday"), String(now.getDate()));
     const n = itemsOn(dayKey(now)).length;
     const ni = calBtn.querySelector(".rs-caln");
-    ni.textContent = n ? String(n) : "";
+    setTxt(ni, n ? String(n) : "");
     ni.style.display = n ? "" : "none";
   }
 
@@ -2463,7 +2484,7 @@ export function mountResidence(a) {
     const ck = root.querySelector(".el-clock");
     if (ck && dev.clockFormat24h === false) {
       const d = new Date();
-      ck.textContent = (d.getHours() % 12 || 12) + ":" + pad2(d.getMinutes()) + (d.getHours() < 12 ? " am" : " pm");
+      setTxt(ck, (d.getHours() % 12 || 12) + ":" + pad2(d.getMinutes()) + (d.getHours() < 12 ? " am" : " pm"));
     }
   }
 

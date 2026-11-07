@@ -80,6 +80,40 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## All-round performance pass (4.7.9)
+
+Measured on the whole panel app with a busy house (a light dimming and a sensor changing 4 times a
+second), CPU slowed 6x to match the Source 10:
+- Every Home Assistant update used to rebuild the page on screen, even when it showed nothing that
+  changed. The panel now notes which states each page shows and only redraws when one of those
+  changes; a burst of updates is drawn once, before the next frame. Comfort / Listen / Watch /
+  Shades / Cameras / Scenes went from ~100-170 ms of work per second to ~15-20 ms.
+- The top bar (clock, weather, alarm, calendar, now playing) rewrote itself on every update; it now
+  only writes what really changed (DOM churn from ~30 nodes/s to ~1).
+- Checked: no running animations at idle, no memory / listener / timer build-up after 30 rounds of
+  opening every page and the settings.
+
+Setup: two new buttons for HDL panels (Source 10 / Source 7):
+- **AR app as Home screen** makes the AR app the Home screen (opens on boot and on Home) and leaves
+  HDL on, unlike "Use AR app (HDL off)".
+- **HDL as Home screen** makes HDL's screen the Home screen again; nothing is switched on or off and
+  the AR app stays installed. (If HDL was switched off with "Use AR app", use "Back to HDL screen".)
+No APK needed.
+
+## No lag after leaving the cameras page (4.7.8)
+
+Leaving the cameras page released the RTSP players at once, and Android does that on the thread
+that handles touches and draws the screen; on Rockchip the hardware decoder can take a few hundred
+milliseconds to shut down, so the next tap (e.g. Lights) sometimes lagged. The tile now disappears
+at once, stop() frees the decoder on the player's own thread, and the rest is released 1.5 s later.
+Needs the 4.7.8 APK.
+
+## Speed readout (4.7.7)
+
+Settings (gear) > Panel shows what the panel last measured: wake-up (touch to screen ready),
+the last page opened (time to draw it), and the last light switched or dimmed (time until Home
+Assistant reported the change). The same lines go to the console as "[speed] …". Panel UI only.
+
 ## Camera page: settings on top, double tap, swipe (4.7.6)
 
 - The gear's Settings window now hides live RTSP video while it is open (the app draws that video

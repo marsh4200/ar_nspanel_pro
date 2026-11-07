@@ -5869,6 +5869,14 @@ class Ha {
   adbHdlRestore(t, r) {
     return this.hass.callWS({ type: "ar_nspanel_pro/adb", action: "hdl_restore", host: t, port: r });
   }
+  /** Our app becomes Home; the maker's software (HDL) stays on. */
+  adbHomeAr(t, r) {
+    return this.hass.callWS({ type: "ar_nspanel_pro/adb", action: "home_ar", host: t, port: r });
+  }
+  /** The maker's launcher (HDL) becomes Home again; nothing switched on/off. */
+  adbHomeVendor(t, r) {
+    return this.hass.callWS({ type: "ar_nspanel_pro/adb", action: "home_vendor", host: t, port: r });
+  }
   /** Any panel: switch off what a wall panel never uses (undo = put it all back). */
   adbOptimise(t, r, undo) {
     return this.hass.callWS({ type: "ar_nspanel_pro/adb", action: undo ? "unoptimise" : "optimise", host: t, port: r });
@@ -12029,6 +12037,12 @@ function IA({
     if (adbType !== "tdx" && !window.confirm(adbType === "akubela" ? "Switch this panel back to the Akubela screen? The Akubela apps and background services are switched back on and the Akubela app becomes Home again. The AR app stays installed." : "Switch this panel back to the HDL screen? HDL's app and launcher are re-enabled and become Home again. The AR app stays installed.")) return;
     await runLogged("restore", () => l.adbHdlRestore(S, d), adbType === "akubela" ? "Back on the Akubela screen." : adbType === "tdx" ? "Back to stock: the stock launcher is Home again." : "Back on the HDL screen.");
   }
+  async function homeAr() {
+    await runLogged("homear", () => l.adbHomeAr(S, d), "The AR app is the Home screen now — HDL is still on.");
+  }
+  async function homeVendor() {
+    await runLogged("homevendor", () => l.adbHomeVendor(S, d), "HDL is the Home screen again. The AR app stays installed.");
+  }
   async function optimisePanel() {
     if (!window.confirm("Optimise this panel? Apps a wall panel never uses are switched off (browser, gallery, camera, music, calendar, contacts, clock, wallpapers, printing, SMS, screensavers, factory test), Akubela apps that keep running although they are off are removed for the panel's user, Rockchip's AI-chip server is stopped and animations are turned off. Nothing is deleted: \"Undo optimise\" puts it all back.")) return;
     await runLogged("optimise", () => l.adbOptimise(S, d, !1), "Panel optimised — restart it to check everything still works.");
@@ -12195,6 +12209,14 @@ function IA({
         (isS10 || adbType === "akubela" || adbType === "tdx") && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: hdlRestore, children: [
           /* @__PURE__ */ a.jsx(j, { d: N.reload, size: 18 }),
           u === "restore" ? "Restoring…" : adbType === "akubela" ? "Back to Akubela screen" : adbType === "tdx" ? "Back to stock" : "Back to HDL screen"
+        ] }),
+        (isS10 || adbType === "source7") && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: homeAr, title: "Makes the AR app the Home screen (opens on boot and on Home). HDL is left on.", children: [
+          /* @__PURE__ */ a.jsx(j, { d: N.home, size: 18 }),
+          u === "homear" ? "Setting…" : "AR app as Home screen"
+        ] }),
+        (isS10 || adbType === "source7") && /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: homeVendor, title: "Makes HDL's screen the Home screen again. Nothing is switched on or off; the AR app stays installed.", children: [
+          /* @__PURE__ */ a.jsx(j, { d: N.reload, size: 18 }),
+          u === "homevendor" ? "Setting…" : "HDL as Home screen"
         ] }),
         /* @__PURE__ */ a.jsxs("button", { className: "btn ghost", disabled: F, onClick: optimisePanel, title: "Switches off what a wall panel never uses, so only Android and the AR app run. Nothing is deleted.", children: [
           /* @__PURE__ */ a.jsx(j, { d: N.check, size: 18 }),

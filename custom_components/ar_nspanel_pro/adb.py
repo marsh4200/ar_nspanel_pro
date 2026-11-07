@@ -572,6 +572,46 @@ class PanelAdb:
             )
         return {"output": (out or "").strip()}
 
+    async def async_home_ar(self, host: str, port: int) -> dict[str, Any]:
+        """Make our app the Home screen and open it. Nothing of the maker's
+        software is switched off (that's "Use AR app (HDL off)")."""
+        signer = await self._get_signer()
+
+        def fn(d: Any) -> dict[str, Any]:
+            if not _installed(d, APP_PACKAGE):
+                raise AdbError("not_installed", "Install the app first, then make it the Home screen.")
+            log = [_set_home(d, f"{APP_PACKAGE}/{APP_ACTIVITY}", APP_PACKAGE)]
+            d.shell(f"am start -n {APP_PACKAGE}/{APP_ACTIVITY}")
+            log.append("HDL is left on.")
+            return {"output": "\n".join(log)}
+
+        return await self._hass.async_add_executor_job(self._run, host, port, signer, fn)
+
+    async def async_home_vendor(self, host: str, port: int) -> dict[str, Any]:
+        """Make the maker's launcher (HDL) the Home screen again and press Home.
+        Nothing is switched on or off; our app stays installed."""
+        signer = await self._get_signer()
+
+        def fn(d: Any) -> dict[str, Any]:
+            found = _vendor(d)
+            if not found:
+                raise AdbError("no_hdl", "This panel has no HDL screen to go back to.")
+            name, _pkgs, home = found
+            pkg = home.split("/", 1)[0]
+            disabled = d.shell(f"pm list packages -d {pkg}") or ""
+            if f"package:{pkg}" in disabled:
+                raise AdbError(
+                    "vendor_off",
+                    f"The {name} screen is switched off on this panel (“Use AR app” did that): "
+                    f"use “Back to {name} screen” instead, which switches it on again.",
+                )
+            log = [m for m in [_kiosk_unlock(d)] if m]  # its screen can't show while ours is locked in
+            log.append(_set_home(d, home, pkg))
+            d.shell("input keyevent 3")
+            return {"output": "\n".join(log)}
+
+        return await self._hass.async_add_executor_job(self._run, host, port, signer, fn)
+
     async def async_hdl_takeover(self, host: str, port: int) -> dict[str, Any]:
         """HDL Source 10: hand the panel to our app. Disables HDL's app and
         launcher (they grab the knob and the Home button), makes our app Home

@@ -191,7 +191,7 @@ export function buildElegant(cfg, ctx, skin) {
   // to this panel: [{entity: "scene.ar_movie_night", name: "Movie night"}], 4 at most
   keys.push("client_scenes");
   const clientScenes = () => {
-    const c = ctx.get("client_scenes");
+    const c = get("client_scenes");
     return (c && Array.isArray(c.scenes) ? c.scenes : []).filter((s) => s && typeof s.entity === "string").slice(0, 4);
   };
   const runScene = (b, entity, name) => {
@@ -223,11 +223,30 @@ export function buildElegant(cfg, ctx, skin) {
   const room = el("div", "el-room");
   root.appendChild(room);
 
-  const get = (e) => ctx.get(slugify(e)) || {};
+  // Which HA states the page on screen actually shows: every read is noted
+  // against that page, so an update for something it doesn't show (a light in
+  // another room, a sensor on another page) doesn't rebuild it.
+  let readKeys = null;
+  const get = (e) => {
+    const k = slugify(e);
+    if (readKeys) readKeys.add(k);
+    return ctx.get(k) || {};
+  };
   const rawNameOf = (e) => (isRtsp(e) ? rtspCam(e).name || "Camera" : get(e).name || e.split(".")[1].replace(/_/g, " "));
   // a nickname the customer gave it on the panel (Residence settings > Rooms) wins
   const nameOf = (e) => (RX && RX.nick && RX.nick(e)) || rawNameOf(e);
-  const send = (action, value) => ctx.event("el", action, { value: value });
+  // speed readout: a light switched / dimmed here, until HA reports it changed
+  const SPD = (window.__arSpeed = window.__arSpeed || {});
+  let spdCmd = null;
+  function speedPaint(t0, done) {
+    const raf = window.requestAnimationFrame || ((f) => setTimeout(f, 16));
+    raf(() => raf(() => done(Math.round((window.performance ? performance.now() : Date.now()) - t0))));
+  }
+  const send = (action, value) => {
+    const e = value && value.entity;
+    if (typeof e === "string" && e.indexOf("light.") === 0 && (action === "toggle" || action === "dim")) spdCmd = { key: slugify(e), name: rawNameOf(e), t0: Date.now() };
+    ctx.event("el", action, { value: value });
+  };
   function patch(e, p) {
     ctx.optimistic(slugify(e), p);
   }
@@ -311,7 +330,7 @@ export function buildElegant(cfg, ctx, skin) {
       ds = d.toDateString();
     }
     hero.appendChild(txt("div", "el-date", ds));
-    const w = ctx.get("weather");
+    const w = get("weather");
     if (w && w.value) {
       const wx = el("div", "el-wx", svg("sun", "el-wxic") + '<div><div class="el-wxt"></div><div class="el-wxd"></div></div>');
       wx.querySelector(".el-wxt").textContent = typeof w.temperature === "number" ? Math.round(w.temperature) + "°" : "—";
@@ -3311,6 +3330,7 @@ export function buildElegant(cfg, ctx, skin) {
   let current = "home";
   function go(k) {
     if (RX && RX.intercept(k)) return;
+    const goT0 = window.performance ? performance.now() : Date.now();
     if (!pages[k] || (k !== "home" && !curCats().some((c) => c.key === k))) k = "home";
     if (current === "cameras" && k !== "cameras") {
       stopCams();
@@ -3333,19 +3353,46 @@ export function buildElegant(cfg, ctx, skin) {
     Array.prototype.forEach.call(dock.children, (b) => b.classList.toggle("on", b.getAttribute("data-go") === k));
     title.textContent = k === "home" ? "Home" : RX ? RX.title(k) : (CATS.filter((c) => c.key === k)[0] || {}).title;
     pages[k].render();
+    speedPaint(goT0, (ms) => {
+      SPD.page = { name: title.textContent, ms, at: Date.now() };
+      if (window.console) console.log("[speed] " + title.textContent + " page " + ms + " ms");
+    });
   }
 
   function chrome() {
+    // the top bar is not part of the page: its reads don't count for the page
+    const rk = readKeys;
+    readKeys = null;
+    try {
+      chromeNow();
+    } finally {
+      readKeys = rk;
+    }
+  }
+  function setText(n, v) {
+    if (n && n.textContent !== v) n.textContent = v;
+  }
+  function chromeNow() {
     root.classList.toggle("asleep", !!(ctx.awake && !ctx.awake()));
+    // the top bar is touched on every HA update: only write what really changed
     const d = new Date();
-    clock.textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
-    const w = ctx.get("weather");
-    wxChip.innerHTML = w && typeof w.temperature === "number" ? svg("sun") + "<span>" + Math.round(w.temperature) + "°</span>" : "";
+    setText(clock, pad(d.getHours()) + ":" + pad(d.getMinutes()));
+    const w = get("weather");
+    const wx = w && typeof w.temperature === "number" ? Math.round(w.temperature) + "°" : "";
+    if (wxChip.__v !== wx) {
+      wxChip.__v = wx;
+      wxChip.innerHTML = wx ? svg("sun") + "<span>" + wx + "</span>" : "";
+    }
     // the alarm chip only when an alarm is set up (it used to say "Unknown" without one)
-    if (ents.security && ents.security.length) {
-      secChip.innerHTML = svg("security") + "<span></span>";
-      secChip.lastChild.textContent = alarmName(get(ents.security[0]).value);
-    } else secChip.innerHTML = "";
+    const sec = ents.security && ents.security.length ? alarmName(get(ents.security[0]).value) : null;
+    if (secChip.__v !== sec) {
+      secChip.__v = sec;
+      if (sec === null) secChip.innerHTML = "";
+      else {
+        secChip.innerHTML = svg("security") + "<span></span>";
+        secChip.lastChild.textContent = sec;
+      }
+    }
     const anyOn = (ents.lights || []).some((e) => get(e).on);
     room.classList.toggle("dim", !!ents.lights && !anyOn);
     if (RX) RX.chrome();
@@ -3537,7 +3584,14 @@ export function buildElegant(cfg, ctx, skin) {
     const render = pg.render;
     pg.render = function () {
       const before = Array.prototype.map.call(pg.el.querySelectorAll(SCROLLERS), (x) => x.scrollTop);
-      const r = render.apply(this, arguments);
+      pg.__keys = readKeys = new Set();
+      let r;
+      try {
+        r = render.apply(this, arguments);
+      } finally {
+        // later reads (a sheet opening, a delayed paint) count for the page on screen
+        readKeys = (pages[current] && pages[current].__keys) || null;
+      }
       if (before.some((t) => t > 0)) {
         Array.prototype.forEach.call(pg.el.querySelectorAll(SCROLLERS), (x, i) => {
           if (before[i]) x.scrollTop = before[i];
@@ -3549,6 +3603,8 @@ export function buildElegant(cfg, ctx, skin) {
 
   let tick = null;
   let updTimer = null;
+  let hasPending = false;
+  const pendKeys = new Set();
   fit();
   applyRoom(roomIdx, rsStartWhole);
   go("home");
@@ -3558,14 +3614,41 @@ export function buildElegant(cfg, ctx, skin) {
     el: page,
     keys: keys,
     update(key) {
+      if (spdCmd && key === spdCmd.key) {
+        SPD.light = { name: spdCmd.name, ms: Date.now() - spdCmd.t0, at: Date.now() };
+        if (window.console) console.log("[speed] " + spdCmd.name + " confirmed by Home Assistant after " + SPD.light.ms + " ms");
+        spdCmd = null;
+      }
       chrome();
       if (turning()) return;
-      if (!LITE) return redrawNow(); // Source 10 / NSPanel: exactly as before
+      if (!LITE) {
+        // Source 10 / NSPanel: redraw before the next frame, once for a burst
+        // of updates, and only when the page on screen shows what changed
+        pendKeys.add(key);
+        if (!hasPending) {
+          hasPending = true;
+          requestAnimationFrame(() => {
+            hasPending = false;
+            const ks = Array.from(pendKeys);
+            pendKeys.clear();
+            if (turning()) return;
+            const seen = pages[current] && pages[current].__keys;
+            if (seen && !ks.some((k) => seen.has(k))) return;
+            redrawNow();
+          });
+        }
+        return;
+      }
       // Source 7 (slow chip): a busy house sends bursts of updates, so redraw once per batch
+      pendKeys.add(key);
       if (updTimer) return;
       updTimer = setTimeout(() => {
         updTimer = null;
+        const ks = Array.from(pendKeys);
+        pendKeys.clear();
         if (turning() || dragging) return;
+        const seen = pages[current] && pages[current].__keys;
+        if (seen && !ks.some((k) => seen.has(k))) return;
         if (current === "cameras") {
           // never restart running video for an unrelated update
           if (camsChanged()) pages.cameras.render();
