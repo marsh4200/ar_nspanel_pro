@@ -695,11 +695,16 @@ class PanelAdb:
                 out.append(f"✓ The panel reaches the camera {h}:{p} (it answers \"{first}\")")
             else:
                 out.append(f"✗ The panel can NOT reach the camera {h}:{p}" + (f" ({first[:80]})" if first else " (no answer)"))
-            log = d.shell("logcat -d -v time ARRtsp:V ExoPlayerImplInternal:V RtspClient:V RtspMediaPeriod:V *:S", read_timeout_s=20) or ""
+            log = d.shell("logcat -d -v time ARRtsp:V ExoPlayerImplInternal:V RtspClient:V RtspMediaPeriod:V RtpH265Reader:V RtpH264Reader:V MediaCodecRenderer:W MediaCodecVideoRenderer:W *:S", read_timeout_s=20) or ""
             lines = [ln for ln in log.splitlines() if ln.strip() and not ln.startswith("-----")]
             # keep the start of each error and its causes, not whole Java stack traces
             keep = [ln for ln in lines if "\tat " not in ln and " at androidx." not in ln and " at java." not in ln and " at android." not in ln]
+            # the H.264 / H.265 readers warn once per dropped packet: count those, keep a sample
+            drops = [ln for ln in keep if "Dropping packet" in ln or "unexpected sequence" in ln]
+            keep = [ln for ln in keep if ln not in drops] + drops[-3:]
             keep = [re.sub(r"(rtsps?://[^:@/\s]*:)[^@\s]*@", r"\1****@", ln) for ln in keep][-25:]
+            if drops:
+                out.append(f"✗ The player dropped {len(drops)} video packet(s) it couldn't fit together — broken pictures (green / old frames) come from this")
             out.append("Player log (latest):" if keep else "Player log: nothing logged (has the camera page been opened since the panel started?)")
             out += ["  " + ln[:220] for ln in keep]
             return out

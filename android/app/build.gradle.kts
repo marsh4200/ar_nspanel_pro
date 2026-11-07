@@ -67,6 +67,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    // the vendored Media3 RTSP sources use Media3's own unstable / library-group APIs
+    lint {
+        disable += setOf("UnsafeOptInUsageError", "RestrictedApi")
+    }
     kotlinOptions {
         jvmTarget = "17"
         // GeckoView's AndroidX dependencies may be built with a newer Kotlin
@@ -80,7 +84,12 @@ dependencies {
     // DECODED login, so a password with @ in it sent the stream to the wrong host
     // (androidx/media#1138, fixed in 1.5.0).
     implementation("androidx.media3:media3-exoplayer:1.5.1")
-    implementation("androidx.media3:media3-exoplayer-rtsp:1.5.1")
+    // The RTSP module is vendored in src/main/java/androidx/media3/exoplayer/rtsp (1.5.1 +
+    // the H.265 sequence-number rollover fix, see README-AR.md there), not this artifact:
+    // implementation("androidx.media3:media3-exoplayer-rtsp:1.5.1")
+    // what that module's own build compiles against (annotations only, nothing ships)
+    compileOnly("org.checkerframework:checker-qual:3.13.0")
+    compileOnly("com.google.errorprone:error_prone_annotations:2.18.0")
 
 }
 

@@ -80,6 +80,16 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## H.265 RTSP cameras: green flashes fixed at the source (4.7.4)
+
+Found with the panel's player log: Media3's H.265 RTSP reader (1.5.1, still in 1.11.1) dropped the
+video packet numbered 65535 every time the camera's 16-bit RTP counter rolled over (every ~90 s
+on a 4 MP camera), so a picture broke and the panel showed green / stale frames until the next
+keyframe. The app now carries Media3's RTSP module with that one line fixed
+(android/app/src/main/java/androidx/media3/exoplayer/rtsp, see README-AR.md there). H.264 cameras
+were never affected. The 4.7.3 SurfaceView change is undone (camera name and rounded corners are
+back). Check camera now also reports packets the player dropped. Needs the 4.7.4 APK.
+
 ## RTSP video surface for Android 11+ panels (4.7.3)
 
 On RK3566 / RK3568 panels (Android 11 and newer) RTSP cameras kept flashing green and showing
