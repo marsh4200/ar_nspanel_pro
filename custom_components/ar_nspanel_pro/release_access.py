@@ -99,6 +99,7 @@ async def async_setup(hass: HomeAssistant) -> None:
         tok = data.get("token")
         st["token"] = tok if isinstance(tok, str) and tok else None
         hass.http.register_view(PanelApkView)
+        hass.http.register_view(ApkUploadView)
 
 
 def get_token(hass: HomeAssistant) -> str | None:
@@ -327,6 +328,71 @@ class PanelApkView(HomeAssistantView):
             content_type="application/vnd.android.package-archive",
             headers={"Content-Disposition": f'attachment; filename="{entry["name"]}"'},
         )
+
+
+# --- manual APK upload (Device Setup: drop an .apk) ------------------------------
+
+APK_UPLOAD_URL = "/api/ar_nspanel_pro/apk_upload"
+
+
+async def async_stage_upload(hass: HomeAssistant, data: bytes, name: str) -> dict[str, Any]:
+    """Keep an APK uploaded in Device Setup, for the panel to download from HA.
+    Returns its key (for ``get_staged``), name and size."""
+    if not data.startswith(b"PK"):
+        raise ReleaseError("not_apk", "That file isn't an APK.")
+    st = _state(hass)
+    apks: dict[str, dict[str, Any]] = st["apks"]
+    now = time.monotonic()
+    for k in [k for k, v in apks.items() if v["exp"] <= now]:
+        apks.pop(k, None)
+    sha = await hass.async_add_executor_job(lambda: hashlib.sha256(data).hexdigest())
+    safe_name = "".join(c for c in name if c.isalnum() or c in "-_.") or "app.apk"
+    if not safe_name.lower().endswith(".apk"):
+        safe_name += ".apk"
+    for key, v in apks.items():
+        if v["src"] == "upload:" + sha:
+            v["exp"] = now + _APK_TTL
+            return {"key": key, "name": v["name"], "size": len(v["data"])}
+    while len(apks) >= _MAX_APKS:
+        apks.pop(min(apks, key=lambda k: apks[k]["exp"]), None)
+    key = secrets.token_urlsafe(24)
+    apks[key] = {"src": "upload:" + sha, "name": safe_name, "data": data, "sha256": sha, "exp": now + _APK_TTL}
+    return {"key": key, "name": safe_name, "size": len(data)}
+
+
+def get_staged(hass: HomeAssistant, key: str) -> tuple[StagedApk, str] | None:
+    """(staged APK, file name) for an uploaded APK's key, or None once it expired."""
+    v = _state(hass)["apks"].get(key)
+    if v is None or v["exp"] <= time.monotonic():
+        return None
+    v["exp"] = time.monotonic() + _APK_TTL
+    return StagedApk(_served_url(hass, key, v["name"]), v["sha256"], len(v["data"]), v["data"]), v["name"]
+
+
+class ApkUploadView(HomeAssistantView):
+    """Device Setup sends a dropped .apk here (admins only). Read as a stream,
+    so the APK's size isn't held to Home Assistant's 16 MB request limit."""
+
+    url = APK_UPLOAD_URL
+    name = "api:ar_nspanel_pro:apk_upload"
+    requires_auth = True
+
+    async def post(self, request: web.Request) -> web.Response:
+        hass: HomeAssistant = request.app["hass"]
+        user = request.get("hass_user")
+        if user is None or not user.is_admin:
+            return self.json_message("Only an administrator can install apps.", 401)
+        name = request.query.get("name") or "app.apk"
+        buf = bytearray()
+        async for chunk in request.content.iter_chunked(65536):
+            buf.extend(chunk)
+            if len(buf) > _MAX_APK_BYTES:
+                return self.json_message("The file is too large for an APK.", 413)
+        try:
+            res = await async_stage_upload(hass, bytes(buf), name)
+        except ReleaseError as err:
+            return self.json_message(str(err), 400)
+        return self.json(res)
 
 
 # --- integration self-update -------------------------------------------------

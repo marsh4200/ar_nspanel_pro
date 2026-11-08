@@ -5961,6 +5961,47 @@ class Ha {
       }).catch(s);
     }) : Promise.reject(new Error("No live WebSocket connection."));
   }
+  /** Install an uploaded APK (key from uploadApk), streaming progress like adbInstall. */
+  adbInstallFile(t, r, key, n) {
+    const l = this.hass.connection;
+    return l ? new Promise((i, s) => {
+      let d, o = !1;
+      const u = () => {
+        try {
+          d?.();
+        } catch {
+        }
+      };
+      l.subscribeMessage(
+        (c) => {
+          o || (c.step === "progress" ? (c.message != null && n(c.message, c.level === "ok" ? "ok" : "info"), c.pct != null && n(null, "progress", { pct: c.pct, stage: c.stage || "", detail: c.detail || "" })) : c.step === "done" ? (o = !0, i(c.result), u()) : c.step === "error" && (o = !0, s(Object.assign(new Error(c.message ?? "Install failed."), { code: c.code })), u()));
+        },
+        { type: "ar_nspanel_pro/adb_install_file", host: t, port: r, key }
+      ).then((c) => {
+        d = c, o && u();
+      }).catch(s);
+    }) : Promise.reject(new Error("No live WebSocket connection."));
+  }
+  /** Send a dropped .apk to Home Assistant. onProg(sentBytes, totalBytes). Resolves {key,name,size}. */
+  async uploadApk(file, onProg) {
+    const auth = this.hass.auth;
+    if (auth && auth.expired && auth.refreshAccessToken) await auth.refreshAccessToken();
+    const tok = auth && auth.data && auth.data.access_token;
+    return new Promise((ok, bad) => {
+      const x = new XMLHttpRequest();
+      x.open("POST", "/api/ar_nspanel_pro/apk_upload?name=" + encodeURIComponent(file.name || "app.apk"));
+      if (tok) x.setRequestHeader("Authorization", "Bearer " + tok);
+      x.setRequestHeader("Content-Type", "application/octet-stream");
+      x.upload.onprogress = (e) => onProg && onProg(e.loaded, e.total || file.size);
+      x.onload = () => {
+        let j = null;
+        try { j = JSON.parse(x.responseText); } catch (e) {}
+        x.status === 200 && j && j.key ? ok(j) : bad(new Error(j && j.message || `Upload failed (HTTP ${x.status}).`));
+      };
+      x.onerror = () => bad(new Error("Upload to Home Assistant failed — check the connection."));
+      x.send(file);
+    });
+  }
 }
 function Da(e) {
   return JSON.parse(JSON.stringify(e));
@@ -11913,6 +11954,30 @@ function KA(e) {
 const Ad = "dd.adb.host", fd = "dd.adb.port", adbTypeKey = "dd.adb.type";
 // --- Device Setup / Update > Panel time: the panel's Android clock and time zone ---
 const AR_TZS = ["Africa/Johannesburg", "Africa/Harare", "Africa/Maputo", "Africa/Windhoek", "Africa/Gaborone", "Africa/Lusaka", "Africa/Nairobi", "Africa/Lagos", "Africa/Cairo", "Indian/Mauritius", "Europe/London", "Europe/Lisbon", "Europe/Paris", "Europe/Berlin", "Asia/Dubai", "Asia/Kolkata", "Asia/Singapore", "Australia/Sydney", "America/New_York", "America/Los_Angeles", "UTC"];
+/** Device Setup: drop (or pick) an .apk to install it without GitHub. */
+function ApkDrop({ disabled: F, onFile }) {
+  const [over, setOver] = M.useState(!1), inp = M.useRef(null);
+  const take = (fl) => { const f = fl && fl[0]; if (f && !F) onFile(f); };
+  return /* @__PURE__ */ a.jsxs("div", {
+    className: "apk-drop" + (over ? " over" : "") + (F ? " off" : ""),
+    role: "button",
+    tabIndex: F ? -1 : 0,
+    "aria-disabled": F ? "true" : "false",
+    onClick: () => !F && inp.current && inp.current.click(),
+    onKeyDown: (e) => { if (!F && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); inp.current && inp.current.click(); } },
+    onDragOver: (e) => { e.preventDefault(); F || setOver(!0); },
+    onDragLeave: () => setOver(!1),
+    onDrop: (e) => { e.preventDefault(); setOver(!1); take(e.dataTransfer && e.dataTransfer.files); },
+    children: [
+      /* @__PURE__ */ a.jsx(j, { d: N.download, size: 22 }),
+      /* @__PURE__ */ a.jsxs("div", { className: "apk-drop-t", children: [
+        /* @__PURE__ */ a.jsx("b", { children: "Install from file" }),
+        /* @__PURE__ */ a.jsx("span", { children: "Drop an .apk here, or click to choose one. Installs it the same way as the button above, without GitHub. HDL stays exactly as it is." })
+      ] }),
+      /* @__PURE__ */ a.jsx("input", { ref: inp, type: "file", accept: ".apk,application/vnd.android.package-archive", style: { display: "none" }, onChange: (e) => { take(e.target.files); e.target.value = ""; } })
+    ]
+  });
+}
 function ArPanelTime({ api: l, host: S, port: d, blocked: F, log: T }) {
   const [st, setSt] = M.useState(null), [busy, setBusy] = M.useState(!1), [err, setErr] = M.useState("");
   const [tz, setTz] = M.useState(""), [hand, setHand] = M.useState(!1), [day, setDay] = M.useState(""), [tm, setTm] = M.useState("");
@@ -12104,6 +12169,30 @@ function IA({
     try {
       const Z = await l.adbInstall(S, d, (Be, Ir, pr) => pr ? setInstProg((o) => ({ ...pr, pct: Math.max(o?.pct || 0, pr.pct), state: "run" })) : T(Be, Ir)), te = `Installed ${Z.version ? `v${Z.version}` : Z.tag} (${Z.asset}).`;
       setInstProg((o) => ({ pct: 100, stage: "Installed", detail: (Z.version ? `v${Z.version}` : Z.tag || "") + ` · ${Math.round((Date.now() - instT0.current) / 1e3)} s`, state: "ok" })), p({ kind: "ok", text: te }), T(te, "ok"), n(te, "ok"), T(isS10 ? "HDL is left on. Use “Use AR app (HDL off)” only if you need it — on some HDL panels HDL also runs the network." : "Tip: use “Set as Home” to make this the panel’s launcher (kiosk)."), Oe();
+    } catch (Z) {
+      const K = Z?.message || String(Z);
+      setInstProg((o) => ({ ...(o || { pct: 0 }), stage: "Failed", detail: K, state: "err" })), p({ kind: "err", text: K }), T(K, "err"), n(K, "err");
+    } finally {
+      c(null);
+    }
+  }
+  async function installFile(file) {
+    if (!file) return;
+    if (!/\.apk$/i.test(file.name || "")) {
+      p({ kind: "err", text: "That isn't an .apk file." }), T(`${file.name || "File"} isn't an .apk — nothing installed.`, "err");
+      return;
+    }
+    if (!S) {
+      p({ kind: "err", text: "Enter the panel’s IP address first." });
+      return;
+    }
+    const mbs = (n) => (n / 1048576).toFixed(1) + " MB";
+    c("install"), p({ kind: "ok", text: "Installing from file…" }), T(`— Install from file started: ${file.name} (${mbs(file.size)}) —`), instT0.current = Date.now(), setInstProg({ pct: 0, stage: "Uploading to Home Assistant", detail: "", state: "run" });
+    try {
+      const up = await l.uploadApk(file, (got, tot) => setInstProg({ pct: Math.min(5, 5 * got / (tot || 1)), stage: "Uploading to Home Assistant", detail: `${mbs(got)} / ${mbs(tot || file.size)}`, state: "run" }));
+      T(`Uploaded ${up.name} to Home Assistant.`, "ok");
+      const Z = await l.adbInstallFile(S, d, up.key, (Be, Ir, pr) => pr ? setInstProg((o) => ({ ...pr, pct: Math.max(o?.pct || 0, pr.pct), state: "run" })) : T(Be, Ir)), te = `Installed ${Z.version ? `v${Z.version}` : ""} from ${Z.asset}.`.replace("  ", " ");
+      setInstProg((o) => ({ pct: 100, stage: "Installed", detail: (Z.version ? `v${Z.version}` : "") + ` · ${Math.round((Date.now() - instT0.current) / 1e3)} s`, state: "ok" })), p({ kind: "ok", text: te }), T(te, "ok"), n(te, "ok"), Oe();
     } catch (Z) {
       const K = Z?.message || String(Z);
       setInstProg((o) => ({ ...(o || { pct: 0 }), stage: "Failed", detail: K, state: "err" })), p({ kind: "err", text: K }), T(K, "err"), n(K, "err");
@@ -12367,6 +12456,7 @@ function IA({
           b?.app_installed ? ` Installed: v${b.app_version}${L ? " — up to date." : " — update available."}` : b ? " Not installed on the panel." : " Connect to compare with the installed version."
         ] })
       ] }),
+      /* @__PURE__ */ a.jsx(ApkDrop, { disabled: F, onFile: installFile }),
       instProg && /* @__PURE__ */ a.jsxs("div", { className: "inst-prog " + instProg.state, role: "progressbar", "aria-valuemin": 0, "aria-valuemax": 100, "aria-valuenow": Math.round(instProg.pct), children: [
         /* @__PURE__ */ a.jsxs("div", { className: "inst-prog-top", children: [
           /* @__PURE__ */ a.jsx("span", { className: "inst-prog-stage", children: instProg.stage + (instProg.state === "run" ? "…" : "") }),
@@ -13433,6 +13523,13 @@ textarea.jsonedit:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0
 
 /* --- Setup/Update (ADB) modal ------------------------------------------- */
 .adb-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.apk-drop{display:flex;align-items:center;gap:12px;margin:12px 0 0;padding:14px 16px;border-radius:12px;border:1.5px dashed var(--divider-color,rgba(127,127,127,.35));color:var(--secondary-text-color);cursor:pointer;transition:border-color .15s,background .15s}
+.apk-drop:hover,.apk-drop:focus-visible,.apk-drop.over{border-color:var(--accent,var(--primary-color));background:var(--secondary-background-color,rgba(127,127,127,.08));outline:none}
+.apk-drop.over{border-style:solid}
+.apk-drop.off{opacity:.5;cursor:default}
+.apk-drop-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.apk-drop-t b{color:var(--primary-text-color)}
+.apk-drop-t span{font-size:.9em}
 .inst-prog{position:relative;margin:12px 0 4px;padding:12px 14px;border-radius:12px;background:var(--secondary-background-color,rgba(127,127,127,.08));border:1px solid var(--divider-color,rgba(127,127,127,.2))}
 .inst-prog-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px;padding-right:22px}
 .inst-prog-stage{font-weight:600}

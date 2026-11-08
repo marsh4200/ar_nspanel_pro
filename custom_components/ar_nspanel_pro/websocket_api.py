@@ -77,6 +77,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_notify)
     websocket_api.async_register_command(hass, ws_adb)
     websocket_api.async_register_command(hass, ws_adb_install)
+    websocket_api.async_register_command(hass, ws_adb_install_file)
     websocket_api.async_register_command(hass, ws_app_latest)
     websocket_api.async_register_command(hass, ws_release_access)
     websocket_api.async_register_command(hass, ws_integration_latest)
@@ -936,6 +937,69 @@ async def ws_adb_install(
         )
     except Exception as err:  # noqa: BLE001
         _LOGGER.exception("ADB install failed")
+        connection.send_message(
+            websocket_api.event_message(
+                mid, {"step": "error", "code": "adb_error", "message": str(err)}
+            )
+        )
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "ar_nspanel_pro/adb_install_file",
+        vol.Required("host"): str,
+        vol.Optional("port", default=ADB_DEFAULT_PORT): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=65535)
+        ),
+        vol.Required("key"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_adb_install_file(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Install an APK dropped into Device Setup (uploaded first to
+    /api/ar_nspanel_pro/apk_upload), streaming progress like adb_install."""
+    mid = msg["id"]
+    adb = get_adb(hass)
+
+    @callback
+    def emit(
+        message: str | None,
+        level: str = "info",
+        *,
+        pct: float | None = None,
+        stage: str | None = None,
+        detail: str | None = None,
+    ) -> None:
+        ev: dict[str, Any] = {"step": "progress", "level": level, "message": message}
+        if pct is not None:
+            ev["pct"] = pct
+        if stage is not None:
+            ev["stage"] = stage
+        if detail is not None:
+            ev["detail"] = detail
+        connection.send_message(websocket_api.event_message(mid, ev))
+
+    connection.subscriptions[mid] = lambda: None
+    connection.send_result(mid)
+
+    try:
+        res = await adb.async_install_file(msg["host"], msg["port"], msg["key"], emit)
+        connection.send_message(
+            websocket_api.event_message(mid, {"step": "done", "result": res})
+        )
+    except AdbError as err:
+        connection.send_message(
+            websocket_api.event_message(
+                mid, {"step": "error", "code": err.code, "message": str(err)}
+            )
+        )
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.exception("ADB install from file failed")
         connection.send_message(
             websocket_api.event_message(
                 mid, {"step": "error", "code": "adb_error", "message": str(err)}

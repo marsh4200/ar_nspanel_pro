@@ -1149,6 +1149,107 @@ class PanelAdb:
         )
         return {"tag": tag, "asset": name, "version": version, "package": APP_PACKAGE}
 
+    async def async_install_file(
+        self, host: str, port: int, key: str, progress: Callable[..., None] | None = None
+    ) -> dict[str, Any]:
+        """Install an APK dropped into Device Setup (no GitHub involved).
+
+        The same steps as ``async_install_latest`` once it has the APK: the
+        panel downloads it from Home Assistant (or, without curl, Home Assistant
+        sends it over ADB), ``pm install`` + storage check + ``sync`` (and Home
+        on HDL panels), then the Source 7 kiosk lock. Nothing else is touched:
+        HDL stays on or off exactly as it was.
+        """
+        say = progress or (lambda *a, **k: None)
+        loop = self._hass.loop
+
+        def bar(pct: float, stage: str, detail: str | None = None) -> None:
+            say(None, "info", pct=round(max(0.0, min(100.0, pct)), 1), stage=stage, detail=detail)
+
+        def mb(n: int) -> str:
+            return f"{n / 1048576:.1f} MB"
+
+        got_file = release_access.get_staged(self._hass, key)
+        if got_file is None:
+            raise AdbError("upload_gone", "The uploaded APK is no longer in Home Assistant. Drop it again.")
+        staged, name = got_file
+        total = staged.size
+        bar(5, "Connecting to the panel")
+        signer = await self._get_signer()
+        sdk_raw = await self._hass.async_add_executor_job(
+            self._shell_blk, host, port, signer, "getprop ro.build.version.sdk"
+        )
+        sdk = int(sdk_raw.strip()) if sdk_raw.strip().isdigit() else 99
+        if sdk < LEGACY_BELOW_SDK and not _is_legacy_apk(name):
+            say(f"Android SDK {sdk}: this panel normally needs the legacy APK (…-legacy-….apk).", "info")
+        elif sdk >= LEGACY_BELOW_SDK and _is_legacy_apk(name):
+            say(f"Android SDK {sdk}: this panel normally uses the standard APK, not the legacy one.", "info")
+        say(f"Installing {name} ({mb(total)}) from your file — GitHub isn't used.", "ok")
+
+        say(f"Panel is downloading {name} from Home Assistant…")
+        bar(6, "Panel is downloading the app", f"0 / {mb(total)}")
+        try:
+            dl = asyncio.ensure_future(
+                self._hass.async_add_executor_job(self._download_blk, host, port, signer, staged.url)
+            )
+            while not dl.done():
+                await asyncio.wait({dl}, timeout=1.0)
+                if dl.done():
+                    break
+                got = await self._hass.async_add_executor_job(self._remote_size_blk, host, port, signer)
+                if got and total:
+                    bar(6 + 64 * min(1.0, got / total), "Panel is downloading the app", f"{mb(got)} / {mb(total)}")
+            size = dl.result()
+            bar(70, "Downloaded to the panel", mb(size))
+            say(f"Downloaded {size:,} bytes to the panel.", "ok")
+        except AdbError as err:
+            if err.code == "download":
+                raise AdbError(
+                    "download",
+                    "The panel couldn't download the APK from Home Assistant — check the "
+                    "panel can reach Home Assistant's address."
+                    + (" (curl:" + str(err).split("(curl:", 1)[1] if "(curl:" in str(err) else ""),
+                ) from err
+            if err.code != "no_curl":
+                raise
+            say("This panel has no curl — Home Assistant sends the APK over ADB…")
+
+            def push_tick(sent: int, tot: int) -> None:
+                loop.call_soon_threadsafe(
+                    lambda: bar(6 + 64 * sent / tot, "Sending the app to the panel", f"{mb(sent)} / {mb(tot)}")
+                )
+
+            size = await self._hass.async_add_executor_job(
+                self._push_b64_blk, host, port, signer, staged.data, push_tick
+            )
+            bar(70, "Sent to the panel", mb(size))
+            say(f"Sent {size:,} bytes to the panel.", "ok")
+
+        say("Installing on the panel (pm install)…")
+        bar(75, "Installing on the panel")
+        inst = asyncio.ensure_future(
+            self._hass.async_add_executor_job(self._pm_install_blk, host, port, signer)
+        )
+        pct = 75.0
+        while not inst.done():
+            await asyncio.wait({inst}, timeout=1.0)
+            if not inst.done():
+                pct = min(95.0, pct + (95.0 - pct) * 0.12)
+                bar(pct, "Installing on the panel")
+        version, notes = inst.result()
+        for line in notes:
+            say(line, "info" if "✗" in line or line.startswith("Home not set") else "ok")
+        bar(97, "Locking the panel")
+        try:
+            ok, kmsg = await self._hass.async_add_executor_job(self._run, host, port, signer, _kiosk_lock)
+            if kmsg:
+                say(kmsg, "ok" if ok else "info")
+        except Exception as err:  # noqa: BLE001
+            say(f"Panel not locked: {err}", "info")
+        bar(100, "Done", f"v{version}" if version else None)
+        say(f"Installed{(' v' + version) if version else ''} from your file and launched — done.", "ok")
+        return {"tag": "file", "asset": name, "version": version, "package": APP_PACKAGE}
+
     async def async_latest_release(self, legacy: bool = False) -> tuple[str, str, str]:
         """(apk download URL, tag, asset name) of the latest GitHub release,
         the standard or the legacy (Android 5) APK. Used by the update entity,

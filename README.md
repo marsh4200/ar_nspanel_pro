@@ -80,6 +80,16 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Install the app from a file (4.8.7)
+
+**Device Setup / Update** has an **Install from file** box under the App buttons. Drop an `.apk` on it (or click and choose one) and it installs exactly like **Install app**, only without GitHub: handy when GitHub is slow or you have a build that isn't released yet.
+
+- The file goes to Home Assistant first, then the panel fetches it from Home Assistant (panels without curl get it sent over ADB).
+- Same install as the button: `pm install`, check the app is on storage, `sync`, and on HDL panels Home is set and saved again. The Source 7 kiosk lock is applied as usual.
+- Nothing else changes. **Use AR app (HDL off)** and **Back to HDL screen** are untouched, and HDL stays on or off as it was.
+- Android 5/6 panels need the `-legacy-` APK; the log warns if the file looks like the wrong one.
+- Only Home Assistant administrators can upload. The file is kept in memory for an hour, then dropped.
+
 ## Uploaded icons and backgrounds (4.8.6)
 
 - New `set_media` service, used by **AR Lighting Scenes 1.1.0**: the icons and backgrounds the customer
