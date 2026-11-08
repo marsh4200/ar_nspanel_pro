@@ -80,6 +80,10 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Boot firework (4.8.9)
+
+The boot screen now opens with a small firework: a rocket climbs from the bottom and bursts into blue, ice-white and gold sparks, and the A&R Smart Home logo pops out of the burst. The logo then holds while the loading bar fills, and the panel fades into the app after about 5.8 s (was 8 s). A tap no longer skips it. It is drawn on one canvas in plain old JavaScript, so Android 5 panels run it too. Panel screen only: no new APK.
+
 ## Faster Icons and Backgrounds, icon categories (4.8.8)
 
 - **Settings → Icons opens fast.** The built-in icons are drawings with blur and gradients, slow for a panel to draw, and Settings drew all 61 again on every tap. Each one is now drawn once, quietly, a few seconds after start-up, into a small picture that shows instantly.
