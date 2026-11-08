@@ -981,6 +981,30 @@ class PanelAdb:
 
         self._run(host, port, signer, fn)
 
+    async def async_restart_panel(self, host: str, ports: tuple[int, ...]) -> int:
+        """The panel's own Restart panel button (Settings > Panel): ``sync``
+        then ``reboot``, nothing else (the ADB port is left as it is). Tries
+        each port in turn; returns the one that worked, raises AdbError if
+        none did."""
+        signer = await self._get_signer()
+        last: Exception | None = None
+        for port in ports:
+            try:
+                await self._hass.async_add_executor_job(self._restart_blk, host, port, signer)
+                return port
+            except AdbError as err:
+                last = err
+        raise last or AdbError("unreachable", f"Couldn't reach {host} over ADB.")
+
+    def _restart_blk(self, host: str, port: int, signer: Any) -> None:
+        def fn(device: Any) -> None:
+            try:
+                device.shell("sync; reboot", read_timeout_s=4)
+            except Exception:  # noqa: BLE001 — socket drops as the device reboots
+                pass
+
+        self._run(host, port, signer, fn)
+
     def _shell_blk(self, host: str, port: int, signer: Any, cmd: str) -> str:
         return self._run(host, port, signer, lambda d: d.shell(cmd) or "")
 

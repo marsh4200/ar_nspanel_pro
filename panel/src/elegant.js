@@ -573,8 +573,9 @@ export function buildElegant(cfg, ctx, skin) {
       }
       if (lay === "dial") rsDial(main, list, W, H);
       else {
-        const box = el("div", "rs-ltbox" + (lay === "faders" ? " x" : " y") + (lay === "faders" && list.length > 4 ? " many" : ""));
-        const mk = { faders: rsFader, tiles: rsTile, bubbles: rsBubble, keypad: rsKeyRow, gallery: rsGCard }[lay] || rsFader;
+        const pad = lay === "pills" || lay === "plates" || lay === "minimal";
+        const box = el("div", "rs-ltbox" + (lay === "faders" ? " x" : " y") + (lay === "faders" && list.length > 4 ? " many" : "") + (pad ? " pad" : ""));
+        const mk = { faders: rsFader, tiles: rsTile, bubbles: rsBubble, keypad: rsKeyRow, gallery: rsGCard, pills: rsPill, plates: rsPlate, minimal: rsMin }[lay] || rsFader;
         list.forEach((e, i) => box.appendChild(mk(e, i, W, H, list.length)));
         main.appendChild(box);
       }
@@ -883,6 +884,36 @@ export function buildElegant(cfg, ctx, skin) {
     if (gs) rsDim(c, e, i, { axis: "x", tapSets: true, zone: gs, area: () => gs });
     return c;
   }
+  // Pills: a capsule per light that fills with the light's colour to its level;
+  // slide along it to dim, tap to switch, the lamp switches too
+  const twoCol = (W) => (root.classList.contains("tall") ? W - 4 : Math.floor((W - 18) / 2) - 2);
+  function rsPill(e, i, W) {
+    const c = rsItem("rs-ltpill", e, i, '<i class="rs-ltfill"></i><div class="rs-ltpi rs-lthit">' + lightScene(lightIconOf(e), 54, 62, FLAT) + '</div><div class="rs-ltpt"><div class="rs-ltnm"></div><div class="rs-ltpc"></div></div>');
+    c.style.width = twoCol(W) + "px";
+    rsDim(c, e, i, { axis: "x", area: () => c });
+    return c;
+  }
+  // Wall plates: a glass wall plate per light, its key lit by an LED line;
+  // tap the key to switch, slide up / down on it to dim
+  function rsPlate(e, i, W, H, n) {
+    const s = cellSize(W, H, n);
+    const k = Math.max(96, Math.min(s[0] - 40, s[1] - 50));
+    const c = rsItem("rs-ltplate", e, i, '<div class="rs-ltpl" style="width:' + k + "px;height:" + k + 'px"><div class="rs-ltky"><i class="rs-ltled"></i><div class="rs-ltnm"></div></div><div class="rs-ltbar"><i></i></div><b class="rs-ltsc"></b><b class="rs-ltsc b"></b></div><div class="rs-ltpc"></div>');
+    c.style.width = s[0] + "px";
+    c.style.height = s[1] + "px";
+    if (i % s[2] !== s[2] - 1) c.style.marginRight = "14px";
+    c.style.marginBottom = "14px";
+    rsDim(c, e, i, { axis: "y", area: () => c.firstChild });
+    return c;
+  }
+  // Minimal: big type, the level in thin numerals and a hairline that fills;
+  // slide along the row to dim, tap to switch
+  function rsMin(e, i, W) {
+    const c = rsItem("rs-ltmin", e, i, '<div class="rs-ltnm"></div><div class="rs-ltpc"></div><div class="rs-ltln"><i></i></div>');
+    c.style.width = twoCol(W) + "px";
+    rsDim(c, e, i, { axis: "x", area: () => c });
+    return c;
+  }
   // dial: the room's lights on the left (tap = pick, the switch = on / off);
   // the picked one gets the big dial with its lamp shining in the middle
   function rsDial(main, list, W, H) {
@@ -1021,10 +1052,17 @@ export function buildElegant(cfg, ctx, skin) {
     }
     const gs = c.querySelector(".rs-ltgs");
     if (gs) gs.firstChild.style.width = Math.max(10, on ? v * 100 : 0) + "%";
+    const full = dimOk(e) ? h : on ? "100%" : "0%";
+    const fill = c.querySelector(".rs-ltfill");
+    if (fill) fill.style.width = full;
+    const bar = c.querySelector(".rs-ltbar");
+    if (bar) bar.firstChild.style.height = full;
+    const ln = c.querySelector(".rs-ltln");
+    if (ln) ln.firstChild.style.width = full;
     c.style.setProperty("--lv", on ? String(Math.max(0.15, v)) : "0");
   }
   function rsLightsPaint(p) {
-    Array.prototype.forEach.call(p.querySelectorAll(".rs-ltcol,.rs-lttile,.rs-ltbub,.rs-ltkey,.rs-ltgc,.rs-ltdr,.rs-4crow"), rsPaintOne);
+    Array.prototype.forEach.call(p.querySelectorAll(".rs-ltcol,.rs-lttile,.rs-ltbub,.rs-ltkey,.rs-ltgc,.rs-ltdr,.rs-4crow,.rs-ltpill,.rs-ltplate,.rs-ltmin"), rsPaintOne);
     const dm = p.querySelector(".rs-ltdm");
     if (dm) rsPaintDial(dm, ents.lights || []);
   }

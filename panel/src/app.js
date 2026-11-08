@@ -166,6 +166,12 @@ function saveMirrorSoon() {
 
 // ctx handed to tiles/pages
 const ctx = {
+  // Settings > Panel > Restart panel: Home Assistant restarts this panel over ADB
+  restartPanel() {
+    if (!connected) return false;
+    publish("sys/reboot", { at: Date.now() }, false);
+    return true;
+  },
   get(key) {
     const m = mirror[key];
     const o = overlays[key];
@@ -760,6 +766,12 @@ setInterval(tick, 1000);
 // selected it goes to Home Assistant as an event on the "knob" button.
 initKnob((action, extra) => {
   wake("knob");
+  // the knob counts as use (Residence: settings / pages close after 20 s idle)
+  try {
+    window.dispatchEvent(new Event("ar-activity"));
+  } catch (e) {
+    /* old WebView: fine */
+  }
   const v = views[pageIdx] && views[pageIdx].view;
   if (v) {
     if ((action === "rotate_cw" || action === "rotate_ccw") && v.knob && v.knob(action === "rotate_cw" ? 1 : -1)) return activity();

@@ -239,6 +239,7 @@ class PanelBridge:
             (topic_sys(self.device_id, "license"), self._on_license),
             (topic_sys(self.device_id, "license_request"), self._on_license_request),
             (topic_sys(self.device_id, "prefs"), self._on_prefs),
+            (topic_sys(self.device_id, "reboot"), self._on_reboot),
         ]
         for topic, cb in subs:
             self._unsubs.append(await mqtt.async_subscribe(self.hass, topic, cb))
@@ -726,6 +727,40 @@ class PanelBridge:
         """The customer's own choices on the panel (Settings gear), display only."""
         data = _parse(msg.payload)
         self.panel_prefs = data if isinstance(data, dict) else {}
+
+    @callback
+    def _on_reboot(self, msg: mqtt.ReceiveMessage) -> None:
+        """Settings > Panel > Restart panel: restart it over ADB (sync, reboot)."""
+        if getattr(self, "_rebooting", False):
+            return
+        self._rebooting = True
+        self.hass.async_create_task(self._async_restart_panel())
+
+    async def _async_restart_panel(self) -> None:
+        from .adb import AdbError, get_adb  # here: adb pulls in adb-shell lazily
+
+        try:
+            ip = str((self.sys_info or {}).get("ip") or "").strip()
+            if not ip:
+                raise AdbError("no_ip", "Home Assistant doesn't know this panel's IP address yet.")
+            port = await get_adb(self.hass).async_restart_panel(ip, (8555, 5555))
+            _LOGGER.info("Panel %s restarted from its Settings (ADB %s:%s)", self.device_id, ip, port)
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Panel %s asked to restart but ADB failed: %s", self.device_id, err)
+            try:
+                await self.async_cmd(
+                    "notify",
+                    {
+                        "title": "Couldn't restart",
+                        "message": "Home Assistant couldn't reach this panel over ADB. "
+                        "Restart it from the ADB tools in Home Assistant, or with its power.",
+                        "level": "warning",
+                    },
+                )
+            except Exception:  # noqa: BLE001
+                pass
+        finally:
+            self._rebooting = False
 
     @callback
     def _on_license_request(self, msg: mqtt.ReceiveMessage) -> None:

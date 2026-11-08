@@ -166,7 +166,7 @@ export function mountResidence(a) {
   // Designs (Settings > Look > Designs, or Device Setup): the Lights page layout
   // and the clock screen. The latest choice wins: the customer's pick on the
   // panel stays until the installer pushes a different one from Home Assistant.
-  const LIGHT_LAYOUTS = [["classic", "Classic"], ["faders", "Faders"], ["tiles", "Bubble tiles"], ["bubbles", "Bubbles"], ["keypad", "Keypad list"], ["dial", "Dial"], ["gallery", "Gallery"], ["fourc", "4C style"]];
+  const LIGHT_LAYOUTS = [["classic", "Classic"], ["faders", "Faders"], ["tiles", "Bubble tiles"], ["bubbles", "Bubbles"], ["keypad", "Keypad list"], ["dial", "Dial"], ["gallery", "Gallery"], ["fourc", "4C style"], ["pills", "Pills"], ["plates", "Wall plates"], ["minimal", "Minimal"]];
   const CLOCKS = [["classic", "Classic"], ["glow", "Signature glow"], ["sun", "Sun path"], ["halo", "Halo"], ["moon", "Moonlight"], ["edit", "Editorial"], ["photo", "Living photo"], ["flip", "Flip clock"], ["sky", "Blue sky"]];
   const isOpt = (L, v) => L.some((o) => o[0] === v);
   const instLights = () => (rc.lightsPage === "cards" ? "classic" : isOpt(LIGHT_LAYOUTS, rc.lightsPage) ? rc.lightsPage : "faders");
@@ -357,7 +357,7 @@ export function mountResidence(a) {
   // Built from the loaded style sheets, so it covers every page without a second
   // copy of the CSS; the clock screen keeps its own sizes.
   const TEXT_SIZES = [[1, "Normal"], [1.15, "Large"], [1.3, "Extra large"]];
-  const textNow = () => (PREF.text === 1.15 || PREF.text === 1.3 ? PREF.text : 1);
+  const textNow = () => 1; // text size option removed (4.8.2): always normal
   let textBuilt = 0;
   function applyText() {
     const f = textNow();
@@ -1774,9 +1774,10 @@ export function mountResidence(a) {
       sm.appendChild(chipRow(SEL, selectMode() || instSel, (v) => ((PREF.select = v === instSel ? undefined : v), savePref(), again())));
       body.appendChild(sm);
       body.appendChild(txt("div", "rs-sethint", "Highlight: the first tap picks a light (the knob then dims it) and shows a ring around it; a second tap switches it. Off: every tap switches straight away."));
-      const tx = row("Text size");
-      tx.appendChild(chipRow(TEXT_SIZES, textNow(), (v) => ((PREF.text = v === 1 ? undefined : v), savePref(), applyText(), again())));
-      body.appendChild(tx);
+      const bkr = row("Back to the room");
+      bkr.appendChild(chipRow([[false, "Off"], [true, "On"]], !!PREF.backRoom, (v) => ((PREF.backRoom = v || undefined), savePref(), again())));
+      body.appendChild(bkr);
+      body.appendChild(txt("div", "rs-sethint", "On: a page you open (Lights, Comfort, Listen…) goes back to the room's main screen after 20 seconds without a touch. Off: it stays where it was left. Settings always closes after 20 seconds."));
       const cl = row("Cleaning");
       const cb = el("span", "rs-chip big", line("sparkle") + "<span>Clean screen</span>");
       cb.addEventListener("click", () => {
@@ -2056,6 +2057,34 @@ export function mountResidence(a) {
         cleanScreen();
       });
       ft.appendChild(clean);
+      // Restart panel: Home Assistant restarts it over ADB (sync, then reboot)
+      if (a.ctx.restartPanel) {
+        let armed = null;
+        const rb = el("span", "rs-chip big", line("power") + "<span>Restart panel</span>");
+        rb.addEventListener("click", () => {
+          if (!armed) {
+            rb.lastChild.textContent = "Tap again to restart";
+            rb.classList.add("on");
+            armed = setTimeout(() => {
+              armed = null;
+              rb.lastChild.textContent = "Restart panel";
+              rb.classList.remove("on");
+            }, 4000);
+            return;
+          }
+          clearTimeout(armed);
+          armed = null;
+          if (a.ctx.restartPanel()) {
+            rb.lastChild.textContent = "Restarting…";
+            a.toast("Restarting the panel");
+          } else {
+            rb.lastChild.textContent = "Restart panel";
+            rb.classList.remove("on");
+            a.toast("Not connected to Home Assistant");
+          }
+        });
+        ft.appendChild(rb);
+      }
       if (a.ctx.openSetup) {
         const inst = el("span", "rs-chip big", line("security") + "<span>Installer setup</span>");
         inst.addEventListener("click", () => {
@@ -2151,6 +2180,24 @@ export function mountResidence(a) {
     },
     true,
   );
+
+  window.addEventListener("ar-activity", () => (lastTouch = Date.now()));
+  // --- 20 s without a touch (or a knob turn) --------------------------------------------
+  // Settings always closes (back to the room's main screen). Pages opened from
+  // the room (Lights, Comfort, Listen…) go back to it too when "Back to the
+  // room" is on (Settings > Display). Never during an intercom call.
+  const BACK_MS = 20000;
+  const backT = setInterval(() => {
+    if (!root.isConnected) return clearInterval(backT);
+    if (Date.now() - lastTouch < BACK_MS) return;
+    if (document.querySelector(".ic-call.show")) return;
+    if (setEl) {
+      closeSettings();
+      if (a.current() !== "home") a.go("home");
+      return;
+    }
+    if (PREF.backRoom && !add && a.current() !== "home") a.go("home");
+  }, 2000);
 
   // --- back to the home room when idle / asleep (Settings > Clock & room) ------------------
   function homeRoom() {

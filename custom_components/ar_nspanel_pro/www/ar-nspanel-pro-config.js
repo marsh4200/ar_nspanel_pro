@@ -9394,7 +9394,7 @@ function rsToneLabel(h, e, rc) {
   const d = RS_TONES.filter((o) => o[0] === rc.lightTone)[0] || RS_TONES[0];
   return "Default: " + d[1].replace(/ \(.*\)/, "");
 }
-const RS_LIGHT_LAYOUTS = [["classic", "Classic (the old cards)"], ["faders", "Faders"], ["tiles", "Bubble tiles"], ["bubbles", "Bubbles"], ["keypad", "Keypad list (Control4 style)"], ["dial", "Dial"], ["gallery", "Gallery"], ["fourc", "4C style (Lights / Scenes, a row per light)"]];
+const RS_LIGHT_LAYOUTS = [["classic", "Classic (the old cards)"], ["faders", "Faders"], ["tiles", "Bubble tiles"], ["bubbles", "Bubbles"], ["keypad", "Keypad list (Control4 style)"], ["dial", "Dial"], ["gallery", "Gallery"], ["fourc", "4C style (Lights / Scenes, a row per light)"], ["pills", "Pills (capsules that fill with light)"], ["plates", "Wall plates (glass keys with an LED line)"], ["minimal", "Minimal (big type, a line that fills)"]];
 const RS_UTIL_LAYOUTS = [["classic", "Classic (picture tiles)"], ["list", "Living list"], ["flow", "Flow (water and power lines)"], ["plate", "Switch plate (brass rockers)"]];
 const RS_CLOCKS = [["classic", "Classic"], ["glow", "Signature glow"], ["sun", "Sun path"], ["halo", "Halo"], ["moon", "Moonlight"], ["edit", "Editorial"], ["photo", "Living photo"], ["flip", "Flip clock"], ["sky", "Blue sky"]];
 const RS_LOOKS = [["match", "Match each light"], ["lamp", "Pendant lamp"], ["edison", "Filament bulb"], ["downlight", "Downlight"], ["bulb", "Bulb glow"]];

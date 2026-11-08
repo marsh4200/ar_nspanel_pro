@@ -80,6 +80,18 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Panel designs, idle return and Restart panel (4.8.2)
+
+- 4C style: the selected light's highlight ring is no longer clipped at the top and sides (Lights and Scenes tabs).
+- Three new Lights page designs next to the existing ones: **Pills**, **Wall plates** and **Minimal**
+  (Settings > Look > Designs on the panel, or Device Setup).
+- Settings on the panel: Text size removed (every panel back to normal size); **Restart panel** under
+  Panel: tap twice and Home Assistant restarts the panel over ADB (`sync; reboot`, ports 8555 then 5555;
+  the ADB port is left alone). If HA can't reach it, the panel shows a message.
+- Settings always closes after 20 seconds without a touch or knob turn. New **Back to the room**
+  (Settings > Display, off by default): a page opened from a room goes back to that room's main screen
+  after 20 seconds idle. Never during an intercom call.
+
 ## Customer settings backup + home auto-fit (4.8.1)
 
 - **Customer settings** tab on each panel's device page in Home Assistant: shows what the customer
