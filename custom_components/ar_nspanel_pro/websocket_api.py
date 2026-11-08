@@ -414,7 +414,7 @@ async def ws_panel_prefs_backup(
                 connection.send_error(
                     msg["id"],
                     "no_report",
-                    "The panel hasn't sent its settings yet. It needs panel app 4.8.0 or newer, connected once.",
+                    "The panel hasn't sent its settings yet. It needs panel app 4.8.1 or newer, connected once.",
                 )
                 return
             backup = {

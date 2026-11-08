@@ -361,6 +361,31 @@ def _set_home(device: Any, component: str, pkg: str, *, strict: bool = True) -> 
     )
 
 
+def _app_on_storage(device: Any) -> bool:
+    """The app's files are really there (``pm path`` gives its base.apk). After
+    a restart soon after installing, Android can keep the app's record while its
+    folder is gone; then this is False."""
+    out = device.shell(f"pm path {APP_PACKAGE}") or ""
+    return any(ln.strip().startswith("package:") for ln in out.splitlines())
+
+
+def _home_and_save(device: Any) -> str:
+    """HDL panels: make the AR app Home, check it, then ``sync`` so it all
+    survives a reboot or a power cut. One line for the log."""
+    _set_home(device, f"{APP_PACKAGE}/{APP_ACTIVITY}", APP_PACKAGE, strict=False)
+    home = _home_now(device)
+    try:
+        device.shell("sync")
+    except Exception:  # noqa: BLE001
+        pass
+    if APP_PACKAGE in home:
+        return "Home = AR app ✓ · saved ✓. Safe to reboot."
+    return (
+        f"Home is still {home or 'not set'} ✗ (saved ✓). Press Home on the panel and "
+        "choose the AR app with “Always”, or run “Set as Home”."
+    )
+
+
 def _github_session() -> aiohttp.ClientSession:
     """github.com (release pages, and the download redirect) sends headers
     (Content-Security-Policy) longer than aiohttp's default 8190-byte limit:
@@ -685,7 +710,7 @@ class PanelAdb:
         signer = await self._get_signer()
 
         def fn(d: Any) -> dict[str, Any]:
-            if not _installed(d, APP_PACKAGE):
+            if not _installed(d, APP_PACKAGE) or not _app_on_storage(d):
                 raise AdbError("not_installed", "Install the app first, then take the panel over.")
             log = []
             # HDL's own software is what switches network ADB on (port 8555,
@@ -736,6 +761,12 @@ class PanelAdb:
                     d.shell(f"am start -n {APP_PACKAGE}/{APP_ACTIVITY}")
                 except Exception as err:  # noqa: BLE001 - the connection went with the maker's software
                     log.append(f"The ADB connection dropped while switching {name} off ({type(err).__name__}): reconnect in a few seconds and check.")
+                    return {"output": "\n".join(log)}
+            # check Home is ours and write it all to storage before any reboot
+            try:
+                log.append(_home_and_save(d))
+            except Exception as err:  # noqa: BLE001
+                log.append(f"Couldn't check Home / save ({type(err).__name__}): run “Boot check” before rebooting.")
             return {"output": "\n".join(log)}
 
         return await self._hass.async_add_executor_job(self._run, host, port, signer, fn)
@@ -1075,7 +1106,9 @@ class PanelAdb:
             if not inst.done():
                 pct = min(95.0, pct + (95.0 - pct) * 0.12)
                 bar(pct, "Installing on the panel")
-        version = inst.result()
+        version, notes = inst.result()
+        for line in notes:
+            say(line, "info" if "✗" in line or line.startswith("Home not set") else "ok")
         # kiosk: make the app device owner and lock the panel in (no Home /
         # Recents / Clear all on swipe up). Never fails the install.
         bar(97, "Locking the panel")
@@ -1378,8 +1411,10 @@ class PanelAdb:
 
         return self._run(host, port, signer, fn, xfer=True)
 
-    def _pm_install_blk(self, host: str, port: int, signer: Any) -> str | None:
-        """On the panel: ``pm install`` the downloaded APK, then read its version."""
+    def _pm_install_blk(self, host: str, port: int, signer: Any) -> tuple[str | None, list[str]]:
+        """On the panel: ``pm install`` the downloaded APK, check it is really on
+        storage, read its version; HDL panels: make it Home and ``sync``.
+        (version, log lines)."""
         remote = _REMOTE_APK
 
         def fn(device: Any) -> str | None:
@@ -1391,6 +1426,13 @@ class PanelAdb:
             )
             try:  # best-effort on-device cleanup
                 device.shell(f"rm -f {remote}")
+            except Exception:  # noqa: BLE001
+                pass
+            # Write the new install to flash now. Without this a power cut or
+            # reboot soon after (HDL Source 7 / 10) can lose the app's folder
+            # while Android keeps its record: the app is gone after restart.
+            try:
+                device.shell("sync")
             except Exception:  # noqa: BLE001
                 pass
             if "Success" not in out:
@@ -1410,6 +1452,13 @@ class PanelAdb:
                     "install_failed",
                     f"pm install failed: {out.strip() or 'unknown error'}",
                 )
+            if not _app_on_storage(device):
+                raise AdbError(
+                    "install_not_stored",
+                    "The install didn't stick: Android has no files for the app "
+                    f"(pm path {APP_PACKAGE} is empty). Install again.",
+                )
+            notes = ["App on storage ✓ (pm path) · saved ✓ (sync)."]
             version = _parse_version_name(
                 device.shell(f"dumpsys package {APP_PACKAGE} | grep versionName")
             )
@@ -1439,13 +1488,20 @@ class PanelAdb:
                     device.shell(f"su 0 setprop persist.adb.tcp.port {cur}")
             except Exception:  # noqa: BLE001 — best effort
                 pass
+            # HDL panels: Home = AR app every install (an update can clear the
+            # Home choice), checked, then sync -- so a reboot opens the AR app.
+            try:
+                if _hdl(device):
+                    notes.append(_home_and_save(device))
+            except Exception as err:  # noqa: BLE001 - never fails the install
+                notes.append(f"Home not set: {err}")
             try:  # best-effort: launch the app so the panel comes up ready
                 device.shell(
                     f"monkey -p {APP_PACKAGE} -c android.intent.category.LAUNCHER 1"
                 )
             except Exception:  # noqa: BLE001
                 pass
-            return version
+            return version, notes
 
         return self._run(host, port, signer, fn, xfer=True)
 

@@ -80,13 +80,17 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
-## Customer settings backup + home auto-fit (4.8.0)
+## Customer settings backup + home auto-fit (4.8.1)
 
 - **Customer settings** tab on each panel's device page in Home Assistant: shows what the customer
   changed with the panel's gear button, **Save backup** keeps it in Home Assistant, and **Restore to
   panel** sends it back (the panel reloads with it). Use it before an update or push, after a reset,
   or on a replacement panel. Restored design picks (Lights page, Utilities page, clock) win over the
-  setup pushed since. Needs panel app 4.8.0+ (the panel now reports its full settings on `sys/prefs`).
+  setup pushed since. Needs panel app 4.8.1+ (the panel now reports its full settings on `sys/prefs`).
+- HDL panels (Source 7 / Source 10): ADB install/update and "Use AR app (HDL off)" now check the app is
+  really on storage (`pm path`), run `sync`, make the AR app Home (`set-home-activity`, every install,
+  since an update can clear the Home choice), check Home and `sync` again, so a reboot or a power cut
+  opens the AR app. The log ends with "Home = AR app ✓ · saved ✓. Safe to reboot."
 - Residence home screen stays a still screen: when the category buttons don't fit (many categories,
   or shorter screens like the Source 10 / Source 7), the grid picks the best column count and shrinks
   just enough to fit, instead of pushing a row off the bottom.

@@ -11220,7 +11220,7 @@ function kA(e) {
     /* @__PURE__ */ a.jsx(ArPrefsBackupCard, { hass: e.hass, device: t, onChange: r })
   ] });
 }
-// ---- Customer settings backup (4.8.0) ---------------------------------------------
+// ---- Customer settings backup (4.8.1) ---------------------------------------------
 // The customer's own choices from the panel's gear button live on the panel. Save a
 // backup in Home Assistant, update / push / reset, then Restore to panel: it comes
 // back exactly as the customer had it (their design picks win over the new setup).
@@ -11290,7 +11290,7 @@ function ArPrefsBackupCard({ hass: h, device: t, onChange: r }) {
         /* @__PURE__ */ a.jsx("span", { className: "hint", children: st ? (st.online ? "Panel online" : "Panel offline · last report") + (P.at ? " · " + fmt(P.at) : "") : "Reading…" })
       ] }),
       st && !P.v ? /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 6 }, children: "This panel hasn't reported its settings yet. It needs to be connected once." }) : table(live, "Nothing changed on the panel: it uses your setup as it is."),
-      st && P.v && !hasRaw && /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 6, color: "var(--warning,#e0a02a)" }, children: "Update the panel app to 4.8.0 or newer to back these up." }),
+      st && P.v && !hasRaw && /* @__PURE__ */ a.jsx("div", { className: "hint", style: { marginTop: 6, color: "var(--warning,#e0a02a)" }, children: "Update the panel app to 4.8.1 or newer to back these up." }),
       /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }, children: [
         /* @__PURE__ */ a.jsx("button", { type: "button", className: "btn ghost", disabled: !!busy || !devId, onClick: () => call("get"), children: busy === "get" ? "Reading…" : "Read panel" }),
         /* @__PURE__ */ a.jsx("button", { type: "button", className: "btn primary", disabled: !!busy || !devId || !hasRaw, onClick: () => call("save", "Backup saved in Home Assistant."), children: busy === "save" ? "Saving…" : B ? "Save backup (replace)" : "Save backup" })
