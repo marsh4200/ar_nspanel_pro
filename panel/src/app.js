@@ -261,7 +261,7 @@ const ctx = {
   },
 };
 
-// --- boot logo (index.html): the firework and logo, about 5.8 s from the start (no skip)
+// --- boot logo (index.html): the firework and logo, about 6 s from the start (no skip)
 (function bootLogo() {
   const b = document.getElementById("boot");
   if (!b) return;
@@ -273,8 +273,9 @@ const ctx = {
     setTimeout(() => b.parentNode && b.parentNode.removeChild(b), 750);
   };
   const t0 = typeof window.__bootAt === "number" ? window.__bootAt : Date.now();
-  const ms = typeof window.__bootMs === "number" ? window.__bootMs : 5800;
-  setTimeout(end, Math.max(0, ms - (Date.now() - t0)));
+  const ms = typeof window.__bootMs === "number" ? window.__bootMs : 6000;
+  // at least 2.5 s from here: the home screen is built and filled behind the logo
+  setTimeout(end, Math.max(2500, ms - (Date.now() - t0)));
 })();
 
 // --- intercom ------------------------------------------------------------------
