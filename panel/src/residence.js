@@ -824,7 +824,7 @@ export function mountResidence(a) {
     if (mineI === "line") return { html: line(k), fill: false };
     if (typeof mineI === "string" && mineI.indexOf("lib:") === 0 && LIB[mineI.slice(4)]) return { html: '<img alt="" src="' + libUrl(mineI.slice(4)).replace(/"/g, "%22") + '">', fill: false };
     const up = mediaUrl("icons", mineI);
-    if (up) return { html: '<img alt="" src="' + up.replace(/"/g, "%22") + '">', fill: true };
+    if (up) return { html: '<img alt="" src="' + up.replace(/"/g, "%22") + '">', fill: false }; // an icon, not a photo: sits in the button like the built-in ones
     return instIconHtml(k);
   }
   function instIconHtml(k) {

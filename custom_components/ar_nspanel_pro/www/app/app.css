@@ -1981,4 +1981,4 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.skin-residence .rs-icimg img{max-width:52px;max-height:52px}
 .el-root.skin-residence .rs-icimg svg{width:30px;height:30px}
 .el-root.skin-residence .rs-ictile span:last-child{font-size:12px;opacity:.75;margin-top:6px;text-align:center;line-height:1.15;text-transform:capitalize;overflow:hidden;max-height:28px}
-.el-root.skin-residence .rs-icimg img.up{width:52px;height:52px;border-radius:50%;object-fit:cover}
+.el-root.skin-residence .rs-icimg img.up{width:40px;height:40px;object-fit:contain}

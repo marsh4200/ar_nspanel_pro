@@ -80,6 +80,10 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Uploaded icons shown as icons (4.8.8)
+
+An icon uploaded in AR Lighting Scenes now sits in the home button like the built-in icons (the button's ring and style stay), instead of filling the button like a photo. Settings → Icons shows it the same way. With AR Lighting Scenes 1.1.1 the background is removed on upload, so only the icon shows. Panel screen only: no new APK.
+
 ## Install the app from a file (4.8.7)
 
 **Device Setup / Update** has an **Install from file** box under the App buttons. Drop an `.apk` on it (or click and choose one) and it installs exactly like **Install app**, only without GitHub: handy when GitHub is slow or you have a build that isn't released yet.
