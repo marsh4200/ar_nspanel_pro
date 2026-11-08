@@ -190,6 +190,7 @@ export function buildElegant(cfg, ctx, skin) {
   // lighting scenes the customer made in the AR Lighting Scenes card and pushed
   // to this panel: [{entity: "scene.ar_movie_night", name: "Movie night"}], 4 at most
   keys.push("client_scenes");
+  keys.push("client_media"); // AR Lighting Scenes uploads (Residence: Settings > Icons / Backgrounds)
   const clientScenes = () => {
     const c = get("client_scenes");
     return (c && Array.isArray(c.scenes) ? c.scenes : []).filter((s) => s && typeof s.entity === "string").slice(0, 4);

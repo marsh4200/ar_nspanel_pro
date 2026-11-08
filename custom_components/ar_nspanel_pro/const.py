@@ -42,6 +42,9 @@ EVENT_NOTIFICATION = "ar_nspanel_pro_notification"
 EVENT_PANEL_STATUS = "ar_nspanel_pro_panel_status"
 #: State key the customer's lighting scenes are published on (Elegant dashboard).
 CLIENT_SCENES_KEY = "client_scenes"
+#: AR Lighting Scenes uploads: icons and backgrounds every panel can pick (retained state)
+CLIENT_MEDIA_KEY = "client_media"
+MAX_CLIENT_MEDIA = 10
 #: Most customer scenes one panel shows (home screen row / Lights page row).
 MAX_CLIENT_SCENES = 4
 
@@ -62,6 +65,7 @@ SERVICE_DISCOVER = "discover"
 SERVICE_REQUEST_LICENSE = "request_license"
 SERVICE_LIST_PANELS = "list_panels"
 SERVICE_SET_SCENES = "set_scenes"
+SERVICE_SET_MEDIA = "set_media"
 
 # --- licence activation (AR Smart Home licence server) -----------------------
 #: Product slug the licence server issues keys for.

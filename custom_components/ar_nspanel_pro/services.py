@@ -30,6 +30,7 @@ from .const import (
     EVENT_DISCOVERY,
     SERVICE_DISCOVER,
     SERVICE_LIST_PANELS,
+    SERVICE_SET_MEDIA,
     SERVICE_SET_SCENES,
     SERVICE_NOTIFY,
     SERVICE_NOTIFY_CLEAR,
@@ -344,6 +345,41 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                     cv.ensure_list,
                     [vol.Schema({vol.Required("entity"): cv.entity_id, vol.Optional("name"): cv.string}, extra=vol.ALLOW_EXTRA)],
                 )
+            },
+            extra=vol.ALLOW_EXTRA,
+        ),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+
+    async def set_media(call: ServiceCall) -> ServiceResponse:
+        """AR Lighting Scenes: the uploaded icons and backgrounds, on every panel
+        (or only the targeted ones)."""
+        if call.data.get(ATTR_DEVICE_ID):
+            bridges = _bridges(hass, call)
+        else:
+            bridges = [
+                e.runtime_data
+                for e in hass.config_entries.async_entries(DOMAIN)
+                if getattr(e, "runtime_data", None) is not None and hasattr(e.runtime_data, "async_set_client_media")
+            ]
+        media = {"icons": call.data.get("icons") or [], "backgrounds": call.data.get("backgrounds") or []}
+        shown = {}
+        for bridge in bridges:
+            shown[bridge.device_id] = await bridge.async_set_client_media(media)
+        return {"panels": shown}
+
+    _media_item = vol.Schema(
+        {vol.Required("id"): cv.string, vol.Required("url"): cv.string, vol.Optional("name"): cv.string},
+        extra=vol.ALLOW_EXTRA,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SET_MEDIA,
+        set_media,
+        vol.Schema(
+            {
+                vol.Optional("icons", default=list): vol.All(cv.ensure_list, [_media_item]),
+                vol.Optional("backgrounds", default=list): vol.All(cv.ensure_list, [_media_item]),
             },
             extra=vol.ALLOW_EXTRA,
         ),

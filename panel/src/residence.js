@@ -216,8 +216,21 @@ export function mountResidence(a) {
     if (typeof rc.base === "string" && /^https?:/i.test(rc.base)) return rc.base.replace(/\/+$/, "");
     return /^https?:/i.test(location.protocol) ? location.origin : "";
   }
+  // --- AR Lighting Scenes uploads: icons and backgrounds every panel can pick --------
+  // ("media:<id>"; icons only from the icons list, backgrounds only from the backgrounds list)
+  function clientMedia(kind) {
+    const m = a.get("client_media");
+    const l = m && Array.isArray(m[kind]) ? m[kind] : [];
+    return l.filter((x) => x && typeof x.id === "string" && typeof x.url === "string" && x.url.charAt(0) === "/");
+  }
+  function mediaUrl(kind, v) {
+    if (typeof v !== "string" || v.indexOf("media:") !== 0) return "";
+    const it = clientMedia(kind).filter((x) => x.id === v.slice(6))[0];
+    return it ? base() + it.url : "";
+  }
   function url(src) {
     if (typeof src !== "string" || !src) return "";
+    if (src.indexOf("media:") === 0) return mediaUrl("backgrounds", src); // only backgrounds go through url()
     if (src.indexOf("preset:") === 0) {
       const f = PRESETS[src.slice(7)];
       return f ? base() + "/ar_nspanel_pro_static/residence/" + f : "";
@@ -236,7 +249,7 @@ export function mountResidence(a) {
     paintCalBtn();
   }
   // background: the customer's pick for this room, else for every room, else as set up
-  const okBg = (v) => (v && PRESETS[String(v).slice(7)] ? v : "");
+  const okBg = (v) => (v && (PRESETS[String(v).slice(7)] || mediaUrl("backgrounds", v)) ? v : "");
   const roomBgOf = (i) => okBg(PREF.roomBg && PREF.roomBg[i]);
   function bgSrc() {
     const r = raw[a.roomIdx()] || {};
@@ -810,6 +823,8 @@ export function mountResidence(a) {
     const mineI = PREF.icons && PREF.icons[k];
     if (mineI === "line") return { html: line(k), fill: false };
     if (typeof mineI === "string" && mineI.indexOf("lib:") === 0 && LIB[mineI.slice(4)]) return { html: '<img alt="" src="' + libUrl(mineI.slice(4)).replace(/"/g, "%22") + '">', fill: false };
+    const up = mediaUrl("icons", mineI);
+    if (up) return { html: '<img alt="" src="' + up.replace(/"/g, "%22") + '">', fill: true };
     return instIconHtml(k);
   }
   function instIconHtml(k) {
@@ -1879,6 +1894,7 @@ export function mountResidence(a) {
           };
           tile("", instIconHtml(k).html, "As set up");
           tile("line", line(k), "Line");
+          clientMedia("icons").forEach((m) => tile("media:" + m.id, '<img class="up" alt="" src="' + (base() + m.url).replace(/"/g, "%22") + '">', m.name || "Uploaded"));
           Object.keys(LIB).forEach((n) => tile("lib:" + n, '<img alt="" src="' + libUrl(n).replace(/"/g, "%22") + '">', LIB[n].n || n.replace(/_/g, " ")));
           it.appendChild(g);
         }
@@ -2025,6 +2041,19 @@ export function mountResidence(a) {
         if (inst) mine.querySelector("i").style.backgroundImage = 'url("' + inst + '")';
         mine.addEventListener("click", () => putBg(null));
         grid.appendChild(mine);
+        const ups = clientMedia("backgrounds");
+        if (ups.length) {
+          grid.appendChild(txt("div", "rs-bggrp", "Uploaded"));
+          ups.forEach((m) => {
+            const v = "media:" + m.id;
+            const t = el("span", "rs-bg" + (curBg === v ? " on" : ""), "<i></i><small></small>");
+            t.querySelector("i").style.backgroundImage = 'url("' + (base() + m.url).replace(/"/g, "%22") + '")';
+            t.querySelector("small").textContent = m.name || "Uploaded";
+            t.addEventListener("click", () => putBg(v));
+            grid.appendChild(t);
+          });
+          grid.appendChild(txt("div", "rs-bggrp", "Scenes"));
+        }
         const grpOf = (k) => (k.indexOf("sky-") === 0 ? "Skies" : k.indexOf("colour-") === 0 ? "Colours" : /^(marble|slate|concrete|steel|walnut|oak|leather|linen)/.test(k) ? "Stone & textures" : "Scenes");
         const order = ["Scenes", "Skies", "Colours", "Stone & textures"];
         const keys = [].concat.apply([], order.map((g) => Object.keys(PRESETS).filter((k) => grpOf(k) === g)));
@@ -2718,8 +2747,20 @@ export function mountResidence(a) {
   if (calPage) calPage.render = renderCal;
   // keep the clock button's count right as Home Assistant updates arrive
   const chrome0 = chrome;
+  let mediaSig = "";
   function chromeAll() {
     chrome0();
+    // AR Lighting Scenes uploads changed: redraw the background and the home buttons
+    const ms = JSON.stringify(a.get("client_media") || {});
+    if (ms !== mediaSig) {
+      const first = !mediaSig;
+      mediaSig = ms;
+      if (!first || PREF.bg || PREF.roomBg || PREF.icons) {
+        background();
+        const hp = a.pages && a.pages.home;
+        if (hp && hp.render && a.current() === "home") hp.render();
+      }
+    }
     paintCalBtn();
     // the top-bar clock follows Settings > Clock (12 / 24 hour)
     const dev = (a.ctx && a.ctx.device && a.ctx.device()) || {};

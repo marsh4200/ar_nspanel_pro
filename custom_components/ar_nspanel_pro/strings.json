@@ -43,6 +43,11 @@
       "description": "Show these lighting scenes on the panel's Elegant dashboard (up to 4).",
       "fields": { "scenes": { "name": "Scenes", "description": "List of scenes, each with entity and name. An empty list clears them." } }
     },
+    "set_media": {
+      "name": "Set uploaded icons and backgrounds",
+      "description": "Icons and backgrounds every panel can pick from its own Settings (Icons, and Look > Backgrounds). Up to 10 of each. Normally done by AR Lighting Scenes.",
+      "fields": { "icons": { "name": "Icons", "description": "List of icons, each with id, name and url (a path on Home Assistant)." }, "backgrounds": { "name": "Backgrounds", "description": "List of backgrounds, each with id, name and url (a path on Home Assistant)." } }
+    },
     "push_config": {
       "name": "Push config",
       "description": "Validate and publish the panel's config so it re-renders."

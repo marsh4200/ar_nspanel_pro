@@ -305,3 +305,20 @@ set_scenes:
       example: '[{"entity": "scene.ar_movie_night", "name": "Movie night"}]'
       selector:
         object:
+
+set_media:
+  name: Set uploaded icons and backgrounds
+  description: >-
+    Icons and backgrounds every panel can pick from its own Settings (Icons, and
+    Look > Backgrounds). Up to 10 of each. Normally done by AR Lighting Scenes.
+  fields:
+    icons:
+      name: Icons
+      description: List of icons, each with id, name and url (a path on Home Assistant).
+      selector:
+        object:
+    backgrounds:
+      name: Backgrounds
+      description: List of backgrounds, each with id, name and url (a path on Home Assistant).
+      selector:
+        object:

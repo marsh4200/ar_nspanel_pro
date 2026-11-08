@@ -84,8 +84,10 @@ from .const import (
     topic_event,
     topic_state,
     topic_sys,
+    CLIENT_MEDIA_KEY,
     CLIENT_SCENES_KEY,
     EVENT_PANEL_STATUS,
+    MAX_CLIENT_MEDIA,
     MAX_CLIENT_SCENES,
 )
 
@@ -667,6 +669,31 @@ class PanelBridge:
             retain=True,
         )
         return clean
+
+    async def async_set_client_media(self, media: dict[str, Any]) -> dict[str, list[dict[str, str]]]:
+        """AR Lighting Scenes uploads: icons for the panel's Settings > Icons and
+        backgrounds for Settings > Look > Backgrounds (each list kept to its own
+        kind, at most 10). Retained, so a panel gets them as soon as it connects."""
+
+        def clean(items: Any) -> list[dict[str, str]]:
+            out: list[dict[str, str]] = []
+            for m in items if isinstance(items, list) else []:
+                if not isinstance(m, dict):
+                    continue
+                mid, url = m.get("id"), m.get("url")
+                if not isinstance(mid, str) or not isinstance(url, str) or not url.startswith("/") or any(o["id"] == mid for o in out):
+                    continue
+                out.append({"id": mid[:40], "name": str(m.get("name") or "")[:24], "url": url[:200]})
+            return out[:MAX_CLIENT_MEDIA]
+
+        data = {"icons": clean(media.get("icons")), "backgrounds": clean(media.get("backgrounds"))}
+        await mqtt.async_publish(
+            self.hass,
+            topic_state(self.device_id, CLIENT_MEDIA_KEY),
+            json.dumps(data),
+            retain=True,
+        )
+        return data
 
     async def _async_push_ma_auth(self) -> None:
         """Send the MA credentials to a panel that just came online."""

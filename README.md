@@ -80,6 +80,14 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Uploaded icons and backgrounds (4.8.6)
+
+- New `set_media` service, used by **AR Lighting Scenes 1.1.0**: the icons and backgrounds the customer
+  uploads there (up to 10 of each, cropped on their phone) go to every panel. On the panel, uploaded icons
+  appear in Settings > Icons and uploaded backgrounds in Settings > Look > Backgrounds (an "Uploaded"
+  group). An icon is only ever offered as an icon, a background only as a background. A deleted upload
+  puts the panels using it back to their own.
+
 ## Home icons from the panel (4.8.5)
 
 - New **Icons** tab in the panel's Settings (under Display): lists the buttons on the home screen; tap one
