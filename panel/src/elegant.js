@@ -720,7 +720,10 @@ export function buildElegant(cfg, ctx, skin) {
   function rsDim(c, e, i, o) {
     if (!dimOk(e)) {
       c.addEventListener("click", (ev) => {
-        if (!(ev.target.closest && ev.target.closest(".rs-noop"))) rsToggle(c, e, i);
+        if (ev.target.closest && ev.target.closest(".rs-noop")) return;
+        if (ev.target.closest && ev.target.closest(".rs-lthit")) return; // its own handler
+        if (rsJustSel(c)) return;
+        rsToggle(c, e, i);
       });
       return;
     }
@@ -781,6 +784,7 @@ export function buildElegant(cfg, ctx, skin) {
       if (!live || ev.type !== "pointerup") return;
       live = false;
       if (ev.target.closest && ev.target.closest(".rs-lthit,.rs-noop")) return;
+      if (rsJustSel(c)) return; // first tap: highlight only
       if (o.tapSets) set(val(ev), true);
       else rsToggle(c, e, i);
     };
@@ -807,6 +811,7 @@ export function buildElegant(cfg, ctx, skin) {
   function rsItem(cls, e, i, html) {
     const c = el("div", cls + " rs-li" + (dimOk(e) ? "" : " sw"), html);
     c.addEventListener("pointerdown", () => {
+      c.__wasSel = c.classList.contains("sel"); // was it highlighted before this touch?
       selLight = i;
       rsMarkSel();
     });
@@ -816,8 +821,15 @@ export function buildElegant(cfg, ctx, skin) {
     c.__i = i;
     c.__4c = cls === "rs-4crow";
     const hit = c.querySelector(".rs-lthit");
-    if (hit) hit.addEventListener("click", () => rsToggle(c, e, i));
+    if (hit) hit.addEventListener("click", () => !rsJustSel(c) && rsToggle(c, e, i));
     return c;
+  }
+  // Tap to select: a first tap on a light that can be highlighted only highlights
+  // it (the knob then dims it); a tap on the highlighted light switches it. With
+  // "Dimmable lights only", on/off lights still switch on the first tap. The
+  // Dial's list is a picker and always just picks.
+  function rsJustSel(c) {
+    return !c.__wasSel && selShows(c) && !c.classList.contains("rs-ltdr");
   }
   function rsFader(e, i, W, H) {
     const c = rsItem("rs-ltcol", e, i, lightScene(lightIconOf(e), 170, H - 96, FLAT) + '<div class="rs-lthit"></div>' + (dimOk(e) ? '<div class="rs-ltrail"><i></i><b></b></div>' : "") + '<div class="rs-ltpc"></div><div class="rs-ltnm"></div>');
@@ -3524,6 +3536,8 @@ export function buildElegant(cfg, ctx, skin) {
   const KNOB_HOLD_MS = 1500;
   let kLastDir = 0;
   let kLastAt = 0;
+  let kStreak = 0; // fast detents in a row (the speed boost only after a sustained spin)
+  let kGlideT = null;
   function hold(k, v) {
     if (v === undefined) return holds[k] ? holds[k].v : undefined;
     holds[k] = { v: v, until: Date.now() + KNOB_HOLD_MS };
@@ -3728,9 +3742,18 @@ export function buildElegant(cfg, ctx, skin) {
     // brisk spin takes bigger steps (lights only; curtains move a fixed step).
     knob(dir) {
       const now = Date.now();
-      const fast = dir === kLastDir && now - kLastAt < 90 ? 3 : dir === kLastDir && now - kLastAt < 180 ? 2 : 1;
+      // smooth knob (4.8.4): slow = half a step, normal = one step, and a gentle
+      // 2x only once the knob has been spun fast for a few detents in a row
+      // (was 3x / 2x from the first quick detent)
+      // slow turn (detents 150 ms+ apart, or the first detent): half a step, for fine control
+      kStreak = dir === kLastDir && now - kLastAt < 110 ? kStreak + 1 : 0;
+      const fast = kStreak >= 3 ? 2 : dir === kLastDir && now - kLastAt < 150 ? 1 : 0.5;
       kLastDir = dir;
       kLastAt = now;
+      // while turning, levels glide between detents instead of jumping
+      root.classList.add("knobbing");
+      clearTimeout(kGlideT);
+      kGlideT = setTimeout(() => root.classList.remove("knobbing"), 450);
       if (current === "lights" && ents.lights) {
         const e = ents.lights[selLight];
         if (!e) return false;

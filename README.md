@@ -80,6 +80,26 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Home icons from the panel (4.8.5)
+
+- New **Icons** tab in the panel's Settings (under Display): lists the buttons on the home screen; tap one
+  to give it a different icon (As set up, the plain line icon, or any of the 61 picture icons).
+  Saved with the customer's settings (so in the Customer settings backup); "Back to how it was set up"
+  clears them. Home Assistant's Customer settings tab lists which buttons were changed.
+
+## Smooth knob, tap to select fixed (4.8.4)
+
+- Knob dimming is smooth: a slow turn moves half a step (2.5% with the default 5%), a normal turn one
+  step, and only a sustained fast spin doubles it (never triples, as before from the first quick detent).
+  While the knob turns, the level glides between detents on every Lights design. Volume follows the
+  same idea (1 point per slow detent).
+- Tap to select now works in every Residence Lights design: the first tap on a light that can be
+  highlighted only highlights it (the knob then dims it); a tap on the highlighted light switches it.
+  With "Dimmable lights only", on/off lights still switch on the first tap. Before, the first tap
+  highlighted and switched at the same time. The 4C power button and the Keypad OFF / ON keys still act
+  at once.
+- Fixed: tapping the lamp of an on/off light in some designs switched it twice (so nothing happened).
+
 ## Lamps per room, highlight fixes (4.8.3)
 
 - New **Lamps** tab on the panel (Settings > Look): per room, set every light's drawn colour

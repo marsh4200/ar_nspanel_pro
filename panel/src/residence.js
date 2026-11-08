@@ -28,6 +28,7 @@ import LIB from "./generated/residence-icons.json";
 import { scene as lampScene, paintScene as lampPaint, kelvinRgb } from "./lightscene.js";
 
 const LINE = {
+  icons: '<circle cx="7.5" cy="7.5" r="3.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><path d="M7.5 13.5l4 6.5h-8z"/><circle cx="16.5" cy="16.5" r="3.5"/>',
   chev: '<path d="M9 6l6 6-6 6"/>',
   rooms: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
   eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
@@ -803,7 +804,15 @@ export function mountResidence(a) {
     wrap.appendChild(fl);
     return wrap;
   }
+  // Settings > Icons: the customer's own icon for a home button ("lib:<name>" from
+  // the picture library, or "line" for the plain line icon); else Device Setup's
   function iconHtml(k) {
+    const mineI = PREF.icons && PREF.icons[k];
+    if (mineI === "line") return { html: line(k), fill: false };
+    if (typeof mineI === "string" && mineI.indexOf("lib:") === 0 && LIB[mineI.slice(4)]) return { html: '<img alt="" src="' + libUrl(mineI.slice(4)).replace(/"/g, "%22") + '">', fill: false };
+    return instIconHtml(k);
+  }
+  function instIconHtml(k) {
     const ic = rc.icons && rc.icons[k];
     const src = ic && typeof ic.src === "string" ? (ic.src.indexOf("lib:") === 0 ? libUrl(ic.src.slice(4)) : url(ic.src)) : "";
     if (src) return { html: '<img alt="" src="' + src.replace(/"/g, "%22") + '">', fill: !!ic.fill };
@@ -1504,6 +1513,7 @@ export function mountResidence(a) {
   let setEl = null;
   let setTab = "display";
   let lookSub = "bg";
+  let iconOpen = null; // Settings > Icons: the home button whose icon list is open
   let lampRoom = null; // Look > Lamps: the room being set
   let lampOpen = null; // …and the light whose own options are open
   // save a lamp choice (scope "room" + index, or "light" + entity); "" = back to the room / as set up
@@ -1720,7 +1730,7 @@ export function mountResidence(a) {
     box.appendChild(hd);
     const wrap = el("div", "rs-setwrap");
     const tabs = el("div", "rs-settabs");
-    [["display", "Display", "sun"], ["look", "Look", "sparkle"], ["rooms", "Rooms", "rooms"], ["clock", "Clock & room", "home"], ["panel", "Panel", "phone"]].forEach((tb) => {
+    [["display", "Display", "sun"], ["icons", "Icons", "icons"], ["look", "Look", "sparkle"], ["rooms", "Rooms", "rooms"], ["clock", "Clock & room", "home"], ["panel", "Panel", "phone"]].forEach((tb) => {
       const t = el("span", "rs-settab" + (setTab === tb[0] ? " on" : ""), line(tb[2]) + "<span></span>");
       t.lastChild.textContent = tb[1];
       t.addEventListener("click", () => {
@@ -1835,6 +1845,45 @@ export function mountResidence(a) {
       cl.appendChild(cb);
       body.appendChild(cl);
       body.appendChild(txt("div", "rs-sethint", "Clean screen turns touch off for 30 seconds so the glass can be wiped."));
+    } else if (setTab === "icons") {
+      // only the buttons on the home screen; tap one to pick its icon
+      const list = cats().filter((c) => !c.hidden);
+      body.appendChild(txt("div", "rs-sethint", "Tap a button to change its icon on the home screen. As set up = the icon from Device Setup."));
+      const pickIcon = (k, v) => {
+        const m = Object.assign({}, PREF.icons || {});
+        if (v) m[k] = v;
+        else delete m[k];
+        PREF.icons = Object.keys(m).length ? m : undefined;
+        savePref();
+        const hp = a.pages && a.pages.home;
+        if (hp && hp.render) hp.render();
+        again();
+      };
+      list.forEach((c) => {
+        const k = c.key;
+        const mine = PREF.icons && PREF.icons[k];
+        const it = el("div", "rs-icit" + (iconOpen === k ? " open" : ""));
+        const ic = iconHtml(k);
+        const hd = el("div", "rs-ichd", '<span class="rs-icnow' + (ic.fill ? " fill" : "") + '">' + ic.html + '</span><b></b><small></small><i class="rs-lampch">' + line("chev") + "</i>");
+        hd.querySelector("b").textContent = title(k);
+        hd.querySelector("small").textContent = mine ? "Your pick" : "As set up";
+        hd.addEventListener("click", () => ((iconOpen = iconOpen === k ? null : k), again()));
+        it.appendChild(hd);
+        if (iconOpen === k) {
+          const g = el("div", "rs-icgrid");
+          const tile = (val, html, label) => {
+            const t = el("div", "rs-ictile" + ((mine || "") === val ? " on" : ""), '<span class="rs-icimg">' + html + "</span><span></span>");
+            t.lastChild.textContent = label;
+            t.addEventListener("click", () => pickIcon(k, val));
+            g.appendChild(t);
+          };
+          tile("", instIconHtml(k).html, "As set up");
+          tile("line", line(k), "Line");
+          Object.keys(LIB).forEach((n) => tile("lib:" + n, '<img alt="" src="' + libUrl(n).replace(/"/g, "%22") + '">', LIB[n].n || n.replace(/_/g, " ")));
+          it.appendChild(g);
+        }
+        body.appendChild(it);
+      });
     } else if (setTab === "look") {
       const sub = el("div", "rs-setsub");
       sub.appendChild(chipRow([["bg", "Backgrounds"], ["themes", "Themes"], ["designs", "Designs"], ["lamps", "Lamps"]], lookSub, (v) => ((lookSub = v), again())));
@@ -2205,7 +2254,7 @@ export function mountResidence(a) {
         });
         ft.appendChild(inst);
       }
-      const changed = PREF.select || PREF.rooms || PREF.nick || PREF.lamps || PREF.text || PREF.roomBg || PREF.bg || PREF.accent || PREF.shape || PREF.look || PREF.lights || PREF.clock || PREF.util || PREF.sound || typeof PREF.room === "number" || (a.ctx.brightness && a.ctx.brightness.get() != null) || Object.keys(LD()).length;
+      const changed = PREF.select || PREF.rooms || PREF.nick || PREF.lamps || PREF.icons || PREF.text || PREF.roomBg || PREF.bg || PREF.accent || PREF.shape || PREF.look || PREF.lights || PREF.clock || PREF.util || PREF.sound || typeof PREF.room === "number" || (a.ctx.brightness && a.ctx.brightness.get() != null) || Object.keys(LD()).length;
       if (changed) {
         const rs = txt("span", "rs-chip big", "Back to how it was set up");
         rs.addEventListener("click", () => {
@@ -2690,6 +2739,7 @@ export function mountResidence(a) {
     if (isLook(PREF.look) || SHAPE_LOOK[PREF.shape]) r.look = lookNow();
     if (PREF.lights && lightsPage() !== instLights()) r.lights = lightsPage();
     if (PREF.lamps) r.lamps = true;
+    if (PREF.icons) r.icons = Object.keys(PREF.icons).map(title);
     if (PREF.util && utilPage() !== instUtil()) r.util = utilPage();
     if (PREF.clock && clockDesign() !== instClock()) r.clock = clockDesign();
     if (typeof PREF.room === "number") {

@@ -958,3 +958,26 @@
 .el-root.skin-residence .rs-lampch svg{width:18px;height:18px}
 .el-root.skin-residence .rs-lampit.open .rs-lampch{transform:rotate(90deg)}
 .el-root.skin-residence .rs-lampit .rs-setrow{padding:6px 16px 10px;border:0}
+
+/* smooth knob (4.8.4): while the knob turns, every design's level glides between detents */
+.el-root.skin-residence.knobbing .rs-ltlvl,.el-root.skin-residence.knobbing .rs-ltrail i,.el-root.skin-residence.knobbing .rs-ltrail b,.el-root.skin-residence.knobbing .rs-ltks i,.el-root.skin-residence.knobbing .rs-ltks b,.el-root.skin-residence.knobbing .rs-ltgs i,.el-root.skin-residence.knobbing .rs-ltfill,.el-root.skin-residence.knobbing .rs-ltbar i,.el-root.skin-residence.knobbing .rs-ltln i,.el-root.skin-residence.knobbing .rs-ltln b{-webkit-transition-duration:.13s!important;transition-duration:.13s!important;-webkit-transition-timing-function:linear!important;transition-timing-function:linear!important;-webkit-transition-property:height,width,left,bottom!important;transition-property:height,width,left,bottom!important}
+.el-root.skin-residence.knobbing .rs-ltarc{-webkit-transition:stroke-dasharray .13s linear;transition:stroke-dasharray .13s linear}
+
+/* Settings > Icons (4.8.5) */
+.el-root.skin-residence .rs-icit{border:1px solid rgba(255,255,255,.1);border-radius:16px;margin-bottom:8px;background:rgba(255,255,255,.03);overflow:hidden}
+.el-root.skin-residence .rs-icit.open{border-color:rgba(var(--acc-rgb),.55);background:rgba(255,255,255,.05)}
+.el-root.skin-residence .rs-ichd{display:flex;align-items:center;height:68px;padding:0 16px 0 10px;cursor:pointer}
+.el-root.skin-residence .rs-icnow{width:50px;height:50px;border-radius:25px;flex:none;display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(255,255,255,.35);background:rgba(10,10,12,.35)}
+.el-root.skin-residence .rs-icnow svg{width:26px;height:26px}
+.el-root.skin-residence .rs-icnow img{width:34px;height:34px;object-fit:contain}
+.el-root.skin-residence .rs-icnow.fill img{width:100%;height:100%;border-radius:25px;object-fit:cover}
+.el-root.skin-residence .rs-ichd b{font-weight:400;font-size:18px;margin-left:14px;flex:1;min-width:0}
+.el-root.skin-residence .rs-ichd small{font-size:14px;opacity:.65;margin-left:12px;white-space:nowrap}
+.el-root.skin-residence .rs-icit.open .rs-lampch{transform:rotate(90deg)}
+.el-root.skin-residence .rs-icgrid{display:flex;flex-wrap:wrap;gap:10px;padding:4px 14px 14px}
+.el-root.skin-residence .rs-ictile{width:96px;height:104px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;box-sizing:border-box;padding:6px}
+.el-root.skin-residence .rs-ictile.on{border-color:rgb(var(--acc-rgb));box-shadow:0 0 0 1px rgb(var(--acc-rgb)),0 0 16px -4px rgba(var(--acc-rgb),.6);background:rgba(var(--acc-rgb),.08)}
+.el-root.skin-residence .rs-icimg{width:52px;height:52px;display:flex;align-items:center;justify-content:center}
+.el-root.skin-residence .rs-icimg img{max-width:52px;max-height:52px}
+.el-root.skin-residence .rs-icimg svg{width:30px;height:30px}
+.el-root.skin-residence .rs-ictile span:last-child{font-size:12px;opacity:.75;margin-top:6px;text-align:center;line-height:1.15;text-transform:capitalize;overflow:hidden;max-height:28px}
