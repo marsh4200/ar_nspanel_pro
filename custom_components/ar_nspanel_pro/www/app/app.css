@@ -1975,6 +1975,11 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.skin-residence .rs-ichd small{font-size:14px;opacity:.65;margin-left:12px;white-space:nowrap}
 .el-root.skin-residence .rs-icit.open .rs-lampch{transform:rotate(90deg)}
 .el-root.skin-residence .rs-icgrid{display:flex;flex-wrap:wrap;gap:10px;padding:4px 14px 14px}
+.el-root.skin-residence .rs-iccats{padding:2px 14px 2px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.el-root.skin-residence .rs-iccats::-webkit-scrollbar{display:none}
+.el-root.skin-residence .rs-iccats .rs-opts{display:flex;flex-wrap:nowrap}
+.el-root.skin-residence .rs-iccats .rs-chip{height:34px;padding:0 13px;font-size:13px;margin:4px 6px 4px 0}
+.el-root.skin-residence .rs-icgrp{width:100%;margin:2px 0 -2px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;opacity:.5}
 .el-root.skin-residence .rs-ictile{width:96px;height:104px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;box-sizing:border-box;padding:6px}
 .el-root.skin-residence .rs-ictile.on{border-color:rgb(var(--acc-rgb));box-shadow:0 0 0 1px rgb(var(--acc-rgb)),0 0 16px -4px rgba(var(--acc-rgb),.6);background:rgba(var(--acc-rgb),.08)}
 .el-root.skin-residence .rs-icimg{width:52px;height:52px;display:flex;align-items:center;justify-content:center}

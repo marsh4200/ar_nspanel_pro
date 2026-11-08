@@ -80,6 +80,12 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Faster Icons and Backgrounds, icon categories (4.8.8)
+
+- **Settings → Icons opens fast.** The built-in icons are drawings with blur and gradients, slow for a panel to draw, and Settings drew all 61 again on every tap. Each one is now drawn once, quietly, a few seconds after start-up, into a small picture that shows instantly.
+- **Look → Backgrounds opens fast.** The tiles show small thumbnails (`www/residence/thumbs/`, 65 KB for all 32) instead of the full photos (1.5 MB). The full photo only loads when it is picked. Uploaded backgrounds get a small copy made once.
+- **Icon categories.** A chip row (All, Lighting, Climate, Security, Media, Doors & shades, Utilities, Scenes & rooms) above the icons. It opens on the category that fits the button (Lights → Lighting, Comfort → Climate, Cameras and Security → Security, Listen and Watch → Media). As set up, Line and your uploaded icons are always in the first row. All shows every category under its own heading.
+
 ## Uploaded icons shown as icons (4.8.8)
 
 An icon uploaded in AR Lighting Scenes now sits in the home button like the built-in icons (the button's ring and style stay), instead of filling the button like a photo. Settings → Icons shows it the same way. With AR Lighting Scenes 1.1.1 the background is removed on upload, so only the icon shows. Panel screen only: no new APK.

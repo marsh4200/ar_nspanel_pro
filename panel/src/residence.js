@@ -240,6 +240,91 @@ export function mountResidence(a) {
     return src;
   }
   const libUrl = (k) => (LIB[k] ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(LIB[k].svg) : "");
+  // --- Settings pictures: small ready-made copies -------------------------------
+  // The built-in icons are drawings with blur and gradients: slow for the panel to
+  // draw, and Settings draws dozens of them again on every tap. Each one is drawn
+  // once (in the background, after start-up) into a small picture that shows
+  // instantly. Backgrounds show small thumbnails, not the full photos.
+  const preThumb = (k) => (PRESETS[k] ? base() + "/ar_nspanel_pro_static/residence/thumbs/" + PRESETS[k] : "");
+  const TH = {}; // key -> small picture; "" while it is being made
+  const thId = {};
+  let thN = 0;
+  const thQ = [];
+  let thBusy = 0;
+  function thumbFor(key, src, w, h, cover) {
+    if (TH[key]) return TH[key];
+    if (TH[key] === undefined && src) {
+      TH[key] = "";
+      thQ.push([key, src, w, h, cover]);
+      thRun();
+    }
+    return "";
+  }
+  const thAttr = (key) => thId[key] || (thId[key] = String(++thN));
+  function thDone(key, url) {
+    TH[key] = url;
+    const id = thId[key];
+    if (!id) return;
+    document.querySelectorAll('[data-th="' + id + '"]').forEach((e) => {
+      if (e.tagName === "IMG") e.src = url;
+      else e.style.backgroundImage = 'url("' + url.replace(/"/g, "%22") + '")';
+      e.removeAttribute("data-th");
+    });
+  }
+  function thRun() {
+    while (thBusy < 2 && thQ.length) {
+      const [key, src, w, h, cover] = thQ.shift();
+      thBusy++;
+      const im = new Image();
+      im.crossOrigin = "anonymous";
+      const next = (url) => {
+        thDone(key, url);
+        thBusy--;
+        setTimeout(thRun, 16); // one at a time between frames: the screen stays smooth
+      };
+      im.onload = () => {
+        try {
+          const c = document.createElement("canvas");
+          c.width = w;
+          c.height = h;
+          const g = c.getContext("2d");
+          const iw = im.naturalWidth || w, ih = im.naturalHeight || h;
+          if (cover) {
+            const k = Math.max(w / iw, h / ih);
+            g.drawImage(im, (iw - w / k) / 2, (ih - h / k) / 2, w / k, h / k, 0, 0, w, h);
+          } else g.drawImage(im, 0, 0, w, h);
+          next(c.toDataURL(cover ? "image/jpeg" : "image/png", 0.8));
+        } catch (e) {
+          next(src); // the picture can't be copied (another site): show it as it is
+        }
+      };
+      im.onerror = () => next(src);
+      im.src = src;
+    }
+  }
+  const libThumbSrc = (n) => (LIB[n] ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(LIB[n].svg.replace("<svg ", '<svg width="104" height="104" ')) : "");
+  // an <img> for a built-in icon in Settings: the ready picture, or the drawing until it's ready
+  function libImg(n) {
+    const key = "lib:" + n;
+    const got = thumbFor(key, libThumbSrc(n), 104, 104, false);
+    return got ? '<img alt="" src="' + got + '">' : '<img alt="" data-th="' + thAttr(key) + '" src="' + libUrl(n).replace(/"/g, "%22") + '">';
+  }
+  // a background thumbnail on an <i>: built-in ones have ready files, others are made once
+  function bgThumb(i, src) {
+    if (!src) return;
+    const m = /\/ar_nspanel_pro_static\/residence\/([^/?#]+)$/.exec(src);
+    const pk = m && Object.keys(PRESETS).filter((k) => PRESETS[k] === m[1])[0];
+    if (pk) {
+      i.style.backgroundImage = 'url("' + preThumb(pk) + '")';
+      return;
+    }
+    const key = "bg:" + src;
+    const got = thumbFor(key, src, 200, 120, true);
+    if (got) i.style.backgroundImage = 'url("' + got.replace(/"/g, "%22") + '")';
+    else i.setAttribute("data-th", thAttr(key)); // filled in when ready
+  }
+  // make the icon pictures early, quietly, so Settings > Icons opens at once
+  setTimeout(() => Object.keys(LIB).forEach((n) => thumbFor("lib:" + n, libThumbSrc(n), 104, 104, false)), 6000);
 
   function onRoom() {
     sqIdx = 0;
@@ -1529,6 +1614,9 @@ export function mountResidence(a) {
   let setTab = "display";
   let lookSub = "bg";
   let iconOpen = null; // Settings > Icons: the home button whose icon list is open
+  let iconCat = null; // ...and the category picked there (null = the one that fits the button)
+  const IC_CATS = ["Lighting", "Climate", "Security", "Media", "Doors & shades", "Utilities", "Scenes & rooms"];
+  const IC_FOR = { lights: "Lighting", climate: "Climate", security: "Security", cameras: "Security", music: "Media", watch: "Media", shades: "Doors & shades", utilities: "Utilities", scenes: "Scenes & rooms", calendar: "all" };
   let lampRoom = null; // Look > Lamps: the room being set
   let lampOpen = null; // …and the light whose own options are open
   // save a lamp choice (scope "room" + index, or "light" + entity); "" = back to the room / as set up
@@ -1882,20 +1970,32 @@ export function mountResidence(a) {
         const hd = el("div", "rs-ichd", '<span class="rs-icnow' + (ic.fill ? " fill" : "") + '">' + ic.html + '</span><b></b><small></small><i class="rs-lampch">' + line("chev") + "</i>");
         hd.querySelector("b").textContent = title(k);
         hd.querySelector("small").textContent = mine ? "Your pick" : "As set up";
-        hd.addEventListener("click", () => ((iconOpen = iconOpen === k ? null : k), again()));
+        hd.addEventListener("click", () => ((iconOpen = iconOpen === k ? null : k), (iconCat = null), again()));
         it.appendChild(hd);
         if (iconOpen === k) {
+          // categories: opens on the one that fits this button; All shows every one
+          const cat = iconCat && (iconCat === "all" || IC_CATS.indexOf(iconCat) >= 0) ? iconCat : IC_FOR[k] || "all";
+          const bar = el("div", "rs-iccats");
+          bar.appendChild(chipRow([["all", "All"]].concat(IC_CATS.map((c) => [c, c])), cat, (v) => ((iconCat = v), again())));
+          it.appendChild(bar);
           const g = el("div", "rs-icgrid");
+          const head = (t) => g.appendChild(txt("div", "rs-icgrp", t));
           const tile = (val, html, label) => {
             const t = el("div", "rs-ictile" + ((mine || "") === val ? " on" : ""), '<span class="rs-icimg">' + html + "</span><span></span>");
             t.lastChild.textContent = label;
             t.addEventListener("click", () => pickIcon(k, val));
             g.appendChild(t);
           };
+          // first row: As set up, Line and the uploaded icons; then the category
           tile("", instIconHtml(k).html, "As set up");
           tile("line", line(k), "Line");
           clientMedia("icons").forEach((m) => tile("media:" + m.id, '<img class="up" alt="" src="' + (base() + m.url).replace(/"/g, "%22") + '">', m.name || "Uploaded"));
-          Object.keys(LIB).forEach((n) => tile("lib:" + n, '<img alt="" src="' + libUrl(n).replace(/"/g, "%22") + '">', LIB[n].n || n.replace(/_/g, " ")));
+          (cat === "all" ? IC_CATS : [cat]).forEach((c) => {
+            const names = Object.keys(LIB).filter((n) => (LIB[n].c || "Other") === c);
+            if (!names.length) return;
+            head(c);
+            names.forEach((n) => tile("lib:" + n, libImg(n), LIB[n].n || n.replace(/_/g, " ")));
+          });
           it.appendChild(g);
         }
         body.appendChild(it);
@@ -2038,7 +2138,7 @@ export function mountResidence(a) {
         const mine = el("span", "rs-bg mine" + (!curBg ? " on" : ""), "<i></i><small></small>");
         mine.querySelector("small").textContent = one ? "Same as every room" : "As set up";
         const inst = url(one ? okBg(PREF.bg) || (raw[bgFor] || {}).rsImage || rc.houseImage || "preset:villa" : (raw[a.roomIdx()] || {}).rsImage || rc.houseImage || "preset:villa");
-        if (inst) mine.querySelector("i").style.backgroundImage = 'url("' + inst + '")';
+        if (inst) bgThumb(mine.querySelector("i"), inst);
         mine.addEventListener("click", () => putBg(null));
         grid.appendChild(mine);
         const ups = clientMedia("backgrounds");
@@ -2047,7 +2147,7 @@ export function mountResidence(a) {
           ups.forEach((m) => {
             const v = "media:" + m.id;
             const t = el("span", "rs-bg" + (curBg === v ? " on" : ""), "<i></i><small></small>");
-            t.querySelector("i").style.backgroundImage = 'url("' + (base() + m.url).replace(/"/g, "%22") + '")';
+            bgThumb(t.querySelector("i"), base() + m.url);
             t.querySelector("small").textContent = m.name || "Uploaded";
             t.addEventListener("click", () => putBg(v));
             grid.appendChild(t);
@@ -2065,7 +2165,7 @@ export function mountResidence(a) {
             grid.appendChild(txt("div", "rs-bggrp", lastGrp));
           }
           const t = el("span", "rs-bg" + (curBg === v ? " on" : ""), "<i></i><small></small>");
-          t.querySelector("i").style.backgroundImage = 'url("' + url(v) + '")';
+          t.querySelector("i").style.backgroundImage = 'url("' + preThumb(k) + '")';
           t.querySelector("small").textContent = BG_NAMES[k] || k;
           t.addEventListener("click", () => putBg(v));
           grid.appendChild(t);
