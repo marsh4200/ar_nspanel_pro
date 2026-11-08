@@ -25,8 +25,10 @@
 //   watch: ["media_player.tv"], rsImage: "/local/…jpg"
 
 import LIB from "./generated/residence-icons.json";
+import { scene as lampScene, paintScene as lampPaint, kelvinRgb } from "./lightscene.js";
 
 const LINE = {
+  chev: '<path d="M9 6l6 6-6 6"/>',
   rooms: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
   eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   eyeoff: '<path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 4.4-1"/>',
@@ -96,7 +98,7 @@ function onAccent(rgb) {
   const c = rgb.split(",").map(Number);
   return (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255 > 0.5 ? "#16130d" : "#ffffff";
 }
-const LOOKS = ["lamp", "edison", "downlight", "bulb"];
+const LAMP_LOOKS = ["lamp", "edison", "downlight", "bulb"]; // (LOOKS inside mount = button looks)
 
 function el(tag, cls, html) {
   const e = document.createElement(tag);
@@ -305,16 +307,41 @@ export function mountResidence(a) {
     return false;
   }
 
+  // --- Settings > Look > Lamps: the customer's own lamp colour (2700K…6500K) and
+  // lamp drawing, for a whole room or one light (one light wins over its room,
+  // both win over Device Setup). Drawing only: lights that report their own
+  // colour to Home Assistant (tunable white, RGB) still show their real colour.
+  const LAMP_K = { warm: 2700, soft: 3000, neutral: 4000, cool: 5000, daylight: 6500 };
+  const LAMP_TONES = [["warm", "2700K"], ["soft", "3000K"], ["neutral", "4000K"], ["cool", "5000K"], ["daylight", "6500K"]];
+  const LAMP_TYPES = [["lamp", "Pendant"], ["edison", "Filament"], ["downlight", "Downlight"], ["bulb", "Bulb / strip"]];
+  const lampPref = () => (PREF.lamps && typeof PREF.lamps === "object" ? PREF.lamps : {});
+  function roomOfLight(e) {
+    const rs = a.rooms();
+    for (let i = 0; i < rs.length; i++) if ((rs[i].lights || []).indexOf(e) >= 0) return i;
+    return -1;
+  }
+  function lampMine(e, k) {
+    const L = lampPref();
+    const one = L.light && L.light[e];
+    if (one && one[k]) return one[k];
+    const i = roomOfLight(e);
+    const rm = i >= 0 && L.room && L.room[i];
+    return (rm && rm[k]) || "";
+  }
   // --- lamp drawings and shade types -----------------------------------------
   function lightType(e) {
-    const look = LOOKS.indexOf(rc.lightLook) >= 0 ? rc.lightLook : "match";
+    const mineT = lampMine(e, "type");
+    if (LAMP_LOOKS.indexOf(mineT) >= 0) return mineT;
+    const look = LAMP_LOOKS.indexOf(rc.lightLook) >= 0 ? rc.lightLook : "match";
     if (look !== "match") return look;
     const t = rc.lightTypes && rc.lightTypes[e];
-    return LOOKS.indexOf(t) >= 0 ? t : guessLightType((a.rawNameOf || a.nameOf)(e) + " " + e);
+    return LAMP_LOOKS.indexOf(t) >= 0 ? t : guessLightType((a.rawNameOf || a.nameOf)(e) + " " + e);
   }
   // the white a light shines when Home Assistant doesn't say (a plain dimmer):
   // per light, else for all lights; "dim" = dim to warm
   function lightTone(e) {
+    const mineK = lampMine(e, "tone");
+    if (LAMP_K[mineK]) return mineK;
     const ok = ["warm", "soft", "neutral", "cool", "daylight", "dim"];
     const t = rc.lightTones && rc.lightTones[e];
     return ok.indexOf(t) >= 0 ? t : ok.indexOf(rc.lightTone) >= 0 ? rc.lightTone : "warm";
@@ -1477,6 +1504,27 @@ export function mountResidence(a) {
   let setEl = null;
   let setTab = "display";
   let lookSub = "bg";
+  let lampRoom = null; // Look > Lamps: the room being set
+  let lampOpen = null; // …and the light whose own options are open
+  // save a lamp choice (scope "room" + index, or "light" + entity); "" = back to the room / as set up
+  function setLamp(scope, id, k, v) {
+    const L = Object.assign({}, lampPref());
+    const m = Object.assign({}, L[scope] || {});
+    const o = Object.assign({}, m[id] || {});
+    if (v) o[k] = v;
+    else delete o[k];
+    if (Object.keys(o).length) m[id] = o;
+    else delete m[id];
+    if (Object.keys(m).length) L[scope] = m;
+    else delete L[scope];
+    PREF.lamps = Object.keys(L).length ? L : undefined;
+  }
+  function lampsChanged() {
+    savePref();
+    const lp = a.pages && a.pages.lights;
+    if (lp && lp.el) lp.el.__rsLt = null; // the lights page redraws its lamps
+    if (lp && lp.render && a.current() === "lights") lp.render();
+  }
   let bgFor = "all"; // Look > Backgrounds: every room, or one room's index
   let roomOpen = -1; // Rooms tab: the room whose lights are listed
   let cleanT = null;
@@ -1789,9 +1837,71 @@ export function mountResidence(a) {
       body.appendChild(txt("div", "rs-sethint", "Clean screen turns touch off for 30 seconds so the glass can be wiped."));
     } else if (setTab === "look") {
       const sub = el("div", "rs-setsub");
-      sub.appendChild(chipRow([["bg", "Backgrounds"], ["themes", "Themes"], ["designs", "Designs"]], lookSub, (v) => ((lookSub = v), again())));
+      sub.appendChild(chipRow([["bg", "Backgrounds"], ["themes", "Themes"], ["designs", "Designs"], ["lamps", "Lamps"]], lookSub, (v) => ((lookSub = v), again())));
       body.appendChild(sub);
-      if (lookSub === "themes") {
+      if (lookSub === "lamps") {
+        const rooms = a.rooms();
+        const withLights = rooms.map((r, i) => i).filter((i) => (rooms[i].lights || []).length);
+        if (lampRoom == null || withLights.indexOf(lampRoom) < 0) lampRoom = withLights.indexOf(a.roomIdx()) >= 0 && !a.whole() ? a.roomIdx() : withLights[0];
+        if (lampRoom == null) {
+          body.appendChild(txt("div", "rs-sethint", "No room has lights yet."));
+        } else {
+          const rr = row("Room", "top");
+          rr.appendChild(chipRow(withLights.map((i) => [i, roomLabel(i)]), lampRoom, (v) => ((lampRoom = v), (lampOpen = null), again())));
+          body.appendChild(rr);
+          const lights = rooms[lampRoom].lights || [];
+          const rm = (lampPref().room && lampPref().room[lampRoom]) || {};
+          const swatch = (k) => "rgb(" + kelvinRgb(LAMP_K[k]).map((v) => Math.round(v + (255 - v) * 0.25)).join(",") + ")";
+          // colour chips with a swatch of each white
+          const toneChips = (cur, first, pick) => {
+            const r = el("span", "rs-opts");
+            [["", first]].concat(LAMP_TONES).forEach((o) => {
+              const c = el("span", "rs-chip rs-kchip" + (cur === o[0] ? " on" : ""), (o[0] ? '<i style="background:' + swatch(o[0]) + '"></i>' : "") + "<span></span>");
+              c.lastChild.textContent = o[1];
+              c.addEventListener("click", () => pick(o[0]));
+              r.appendChild(c);
+            });
+            return r;
+          };
+          // all the lights in the room at once (clears each light's own pick)
+          const allTo = (k, v) => {
+            setLamp("room", lampRoom, k, v);
+            lights.forEach((e) => setLamp("light", e, k, ""));
+            lampsChanged();
+            again();
+          };
+          const ac = row("All lights · colour", "top");
+          ac.appendChild(toneChips(rm.tone || "", "As set up", (v) => allTo("tone", v)));
+          body.appendChild(ac);
+          const at = row("All lights · lamp", "top");
+          at.appendChild(chipRow([["", "As set up"]].concat(LAMP_TYPES), rm.type || "", (v) => allTo("type", v)));
+          body.appendChild(at);
+          body.appendChild(txt("div", "rs-sethint", "Pick for the whole room, or tap a light below to give it its own. Lights that report their own colour to Home Assistant (tunable white, RGB) always show their real colour."));
+          const list = el("div", "rs-lamps");
+          lights.forEach((e) => {
+            const own = (lampPref().light && lampPref().light[e]) || {};
+            const tone = lightTone(e);
+            const type = lightType(e);
+            const it = el("div", "rs-lampit" + (lampOpen === e ? " open" : ""));
+            const hd = el("div", "rs-lamphd", '<span class="rs-lampic">' + lampScene(type, 40, 46, true) + '</span><b></b><small></small><i class="rs-lampch">' + line("chev") + "</i>");
+            lampPaint(hd.firstChild, true, 0.85, kelvinRgb(LAMP_K[tone] || 2700).map((v) => Math.round(v + (255 - v) * 0.25)));
+            hd.querySelector("b").textContent = (a.nameOf ? a.nameOf(e) : e);
+            hd.querySelector("small").textContent = (LAMP_K[tone] ? LAMP_K[tone] + "K" : "Dim to warm") + " · " + ((LAMP_TYPES.find((t) => t[0] === type) || [0, type])[1]) + (own.tone || own.type ? " · its own" : "");
+            hd.addEventListener("click", () => ((lampOpen = lampOpen === e ? null : e), again()));
+            it.appendChild(hd);
+            if (lampOpen === e) {
+              const oc = row("Colour", "top");
+              oc.appendChild(toneChips(own.tone || "", "Same as room", (v) => (setLamp("light", e, "tone", v), lampsChanged(), again())));
+              it.appendChild(oc);
+              const ot = row("Lamp", "top");
+              ot.appendChild(chipRow([["", "Same as room"]].concat(LAMP_TYPES), own.type || "", (v) => (setLamp("light", e, "type", v), lampsChanged(), again())));
+              it.appendChild(ot);
+            }
+            list.appendChild(it);
+          });
+          body.appendChild(list);
+        }
+      } else if (lookSub === "themes") {
         const tr = row("Colour", "top");
         const grid = el("div", "rs-sws");
         const sw = (key, name, rgb, on, pick) => {
@@ -2095,7 +2205,7 @@ export function mountResidence(a) {
         });
         ft.appendChild(inst);
       }
-      const changed = PREF.select || PREF.rooms || PREF.nick || PREF.text || PREF.roomBg || PREF.bg || PREF.accent || PREF.shape || PREF.look || PREF.lights || PREF.clock || PREF.util || PREF.sound || typeof PREF.room === "number" || (a.ctx.brightness && a.ctx.brightness.get() != null) || Object.keys(LD()).length;
+      const changed = PREF.select || PREF.rooms || PREF.nick || PREF.lamps || PREF.text || PREF.roomBg || PREF.bg || PREF.accent || PREF.shape || PREF.look || PREF.lights || PREF.clock || PREF.util || PREF.sound || typeof PREF.room === "number" || (a.ctx.brightness && a.ctx.brightness.get() != null) || Object.keys(LD()).length;
       if (changed) {
         const rs = txt("span", "rs-chip big", "Back to how it was set up");
         rs.addEventListener("click", () => {
@@ -2579,6 +2689,7 @@ export function mountResidence(a) {
     if (ACCENTS[PREF.accent]) r.accent = PREF.accent;
     if (isLook(PREF.look) || SHAPE_LOOK[PREF.shape]) r.look = lookNow();
     if (PREF.lights && lightsPage() !== instLights()) r.lights = lightsPage();
+    if (PREF.lamps) r.lamps = true;
     if (PREF.util && utilPage() !== instUtil()) r.util = utilPage();
     if (PREF.clock && clockDesign() !== instClock()) r.clock = clockDesign();
     if (typeof PREF.room === "number") {

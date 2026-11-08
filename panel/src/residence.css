@@ -912,7 +912,8 @@
 .el-root.skin-residence .rs-ltbub.sel .rs-ltnm{color:var(--acc)}
 
 /* 4.8.2 light designs: Pills, Wall plates, Minimal (scroll box padded so the highlight isn't clipped) */
-.el-root.skin-residence .rs-ltbox.y.pad{padding:8px 10px 2px;margin:-8px -10px 0;justify-content:space-between}
+.el-root.skin-residence .rs-ltbox.y.pad{padding:12px 10px 4px;margin:0 -10px;justify-content:space-between}
+.el-root.skin-residence .rs-lt-keypad .rs-ltbox.y{padding:12px 10px 4px;margin:0 -10px}
 .el-root.skin-residence .rs-ltpill{position:relative;flex:none;height:88px;margin-bottom:14px;border-radius:44px;overflow:hidden;display:flex;align-items:center;cursor:pointer;box-sizing:border-box;padding:0 26px 0 14px;background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.025) 55%,rgba(0,0,0,.22)),rgba(16,16,20,.55);border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 18px 30px -18px rgba(0,0,0,.95)}
 .el-root.skin-residence .rs-ltfill{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,rgba(var(--lc,255,196,120),.42),rgba(var(--lc,255,196,120),.26));box-shadow:inset -1px 0 0 rgba(var(--lc,255,196,120),.8);transition:width .18s ease-out;pointer-events:none}
 .el-root.skin-residence .rs-ltpill.off .rs-ltfill{opacity:0}
@@ -939,4 +940,21 @@
 .el-root.skin-residence .rs-ltmin.off .rs-ltnm,.el-root.skin-residence .rs-ltmin.off .rs-ltpc{opacity:.45}
 .el-root.skin-residence .rs-ltln{position:absolute;left:18px;right:18px;bottom:14px;height:2px;background:rgba(255,255,255,.14)}
 .el-root.skin-residence .rs-ltln i{position:absolute;left:0;top:-1px;height:4px;width:0;border-radius:2px;background:rgb(var(--lc,255,196,120));box-shadow:0 0 12px rgba(var(--lc,255,196,120),.7);transition:width .15s}
+.el-root.skin-residence .rs-ltln b{position:absolute;left:0;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;background:#f6f2ea;box-shadow:0 2px 6px rgba(0,0,0,.6),0 0 0 4px rgba(var(--lc,255,196,120),.22);transition:left .15s}
+.el-root.skin-residence .rs-ltmin.off .rs-ltln b{background:#8a877f;box-shadow:0 2px 6px rgba(0,0,0,.6)}
 .el-root.skin-residence.tall .rs-ltpill,.el-root.skin-residence.tall .rs-ltmin{margin-right:0}
+
+/* Look > Lamps (4.8.3) */
+.el-root.skin-residence .rs-kchip{display:inline-flex;align-items:center}
+.el-root.skin-residence .rs-kchip i{width:16px;height:16px;border-radius:8px;margin-right:8px;box-shadow:0 0 8px rgba(255,255,255,.18),inset 0 0 0 1px rgba(0,0,0,.25);flex:none}
+.el-root.skin-residence .rs-lamps{display:flex;flex-direction:column;margin-top:6px}
+.el-root.skin-residence .rs-lampit{border:1px solid rgba(255,255,255,.1);border-radius:16px;margin-bottom:8px;background:rgba(255,255,255,.03);overflow:hidden}
+.el-root.skin-residence .rs-lampit.open{border-color:rgba(var(--acc-rgb),.55);background:rgba(255,255,255,.05)}
+.el-root.skin-residence .rs-lamphd{display:flex;align-items:center;height:60px;padding:0 16px 0 10px;cursor:pointer}
+.el-root.skin-residence .rs-lampic{position:relative;width:40px;height:46px;flex:none}
+.el-root.skin-residence .rs-lamphd b{font-weight:400;font-size:18px;margin-left:14px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-lamphd small{font-size:14px;opacity:.65;margin-left:12px;white-space:nowrap}
+.el-root.skin-residence .rs-lampch{display:flex;margin-left:12px;opacity:.55;transition:transform .15s}
+.el-root.skin-residence .rs-lampch svg{width:18px;height:18px}
+.el-root.skin-residence .rs-lampit.open .rs-lampch{transform:rotate(90deg)}
+.el-root.skin-residence .rs-lampit .rs-setrow{padding:6px 16px 10px;border:0}

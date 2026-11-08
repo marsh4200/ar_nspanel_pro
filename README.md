@@ -80,6 +80,17 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Lamps per room, highlight fixes (4.8.3)
+
+- New **Lamps** tab on the panel (Settings > Look): per room, set every light's drawn colour
+  (2700K / 3000K / 4000K / 5000K / 6500K) and lamp (Pendant, Filament, Downlight, Bulb / strip) in one tap,
+  or open a light to give it its own. A light's own pick beats its room's; both beat Device Setup.
+  Drawing only: lights that report their own colour to Home Assistant still show their real colour.
+- Fixed: the lamp types picked per light in Device Setup were never applied (a name clash made the panel
+  always guess from the light's name).
+- Pills, Minimal and Keypad list: the selected light's highlight ring is no longer cut off at the top.
+- Minimal: dimmable lights get a round dot at the end of their line.
+
 ## Panel designs, idle return and Restart panel (4.8.2)
 
 - 4C style: the selected light's highlight ring is no longer clipped at the top and sides (Lights and Scenes tabs).

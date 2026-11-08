@@ -909,7 +909,7 @@ export function buildElegant(cfg, ctx, skin) {
   // Minimal: big type, the level in thin numerals and a hairline that fills;
   // slide along the row to dim, tap to switch
   function rsMin(e, i, W) {
-    const c = rsItem("rs-ltmin", e, i, '<div class="rs-ltnm"></div><div class="rs-ltpc"></div><div class="rs-ltln"><i></i></div>');
+    const c = rsItem("rs-ltmin", e, i, '<div class="rs-ltnm"></div><div class="rs-ltpc"></div><div class="rs-ltln"><i></i>' + (dimOk(e) ? "<b></b>" : "") + "</div>");
     c.style.width = twoCol(W) + "px";
     rsDim(c, e, i, { axis: "x", area: () => c });
     return c;
@@ -1058,7 +1058,10 @@ export function buildElegant(cfg, ctx, skin) {
     const bar = c.querySelector(".rs-ltbar");
     if (bar) bar.firstChild.style.height = full;
     const ln = c.querySelector(".rs-ltln");
-    if (ln) ln.firstChild.style.width = full;
+    if (ln) {
+      ln.firstChild.style.width = full;
+      if (ln.lastChild !== ln.firstChild) ln.lastChild.style.left = full;
+    }
     c.style.setProperty("--lv", on ? String(Math.max(0.15, v)) : "0");
   }
   function rsLightsPaint(p) {

@@ -11241,6 +11241,7 @@ function arPrefsRows(rep) {
   if (pr.reordered) out.push(["Room order", "Changed"]);
   if (pr.renamed) out.push(["Renamed", [pr.renamed.rooms ? pr.renamed.rooms + (pr.renamed.rooms === 1 ? " room" : " rooms") : "", pr.renamed.lights ? pr.renamed.lights + (pr.renamed.lights === 1 ? " light" : " lights") : ""].filter(Boolean).join(", ")]);
   if (pr.roomBg && pr.roomBg.length) out.push(["Room backgrounds", pr.roomBg.join(", ")]);
+  if (pr.lamps) out.push(["Lamp colours / types", "Changed (Look → Lamps)"]);
   if (typeof pd.screensaverAfter === "number") out.push(["Screensaver after", SS[pd.screensaverAfter] || pd.screensaverAfter + " s"]);
   if (typeof pd.clock24 === "boolean") out.push(["Clock", pd.clock24 ? "24 hour" : "12 hour"]);
   if (pd.lang) out.push(["Date language", pd.lang]);
