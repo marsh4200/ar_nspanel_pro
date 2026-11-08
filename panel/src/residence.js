@@ -2220,6 +2220,7 @@ export function mountResidence(a) {
               if (v && v !== R[i].name) n[i] = v;
               else delete n[i];
               setRooms({ names: Object.keys(n).length ? n : undefined });
+              lampsChanged(); // the lights page shows room names too (whole home)
             }
             paintSettings(box);
           })
@@ -2250,7 +2251,7 @@ export function mountResidence(a) {
                   if (v && v !== a.rawNameOf(e)) n[e] = v;
                   else delete n[e];
                   PREF.nick = Object.keys(n).length ? n : undefined;
-                  savePref();
+                  lampsChanged(); // saves, and the lights page redraws with the new name
                   chromeAll();
                 }
                 paintSettings(box);

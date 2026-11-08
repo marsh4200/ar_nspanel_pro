@@ -80,6 +80,10 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Renamed lights show up straight away (5.0.0)
+
+Renaming a light (or a room) under Settings > Rooms on the panel saved the new name, but the Residence lights page kept drawing the old one until something else made it rebuild. It now redraws as soon as you rename. Panel screen only: no new APK.
+
 ## Boot firework no longer freezes (4.8.10)
 
 On the panels the firework stopped dead halfway: the app started at the same moment, and starting it keeps the panel too busy to draw. The app is now downloaded during the firework but only started once the burst is over (by 3.6 s at the latest). The logo then holds while the home screen is built behind it, and the boot fades out about 6 s from the start (at least 2.5 s after the app starts). Still no skip. Panel screen only: no new APK.
