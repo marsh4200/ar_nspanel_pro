@@ -574,9 +574,9 @@ export function buildElegant(cfg, ctx, skin) {
       }
       if (lay === "dial") rsDial(main, list, W, H);
       else {
-        const pad = lay === "pills" || lay === "plates" || lay === "minimal";
+        const pad = lay === "pills" || lay === "plates" || lay === "minimal" || lay === "tall";
         const box = el("div", "rs-ltbox" + (lay === "faders" ? " x" : " y") + (lay === "faders" && list.length > 4 ? " many" : "") + (pad ? " pad" : ""));
-        const mk = { faders: rsFader, tiles: rsTile, bubbles: rsBubble, keypad: rsKeyRow, gallery: rsGCard, pills: rsPill, plates: rsPlate, minimal: rsMin }[lay] || rsFader;
+        const mk = { faders: rsFader, tiles: rsTile, bubbles: rsBubble, keypad: rsKeyRow, gallery: rsGCard, pills: rsPill, plates: rsPlate, minimal: rsMin, tall: rsTall }[lay] || rsFader;
         list.forEach((e, i) => box.appendChild(mk(e, i, W, H, list.length)));
         main.appendChild(box);
       }
@@ -927,6 +927,21 @@ export function buildElegant(cfg, ctx, skin) {
     rsDim(c, e, i, { axis: "x", area: () => c });
     return c;
   }
+  // Minimal tall (Residence 2 only, NSPanel Pro / HDL S57): a full-width row per
+  // light that fills to its level in the light's own colour, its dot glowing in
+  // it; tap to switch, slide along the row to dim. The rows share the height, so
+  // the page stays still (no scrolling) for a normal room.
+  const TYPE_NAME = { lamp: "Pendant", edison: "Filament", downlight: "Downlight", bulb: "Bulb / strip" };
+  function rsTall(e, i, W, H, n) {
+    const c = rsItem("rs-lttall", e, i, '<i class="rs-ltfill"></i><span class="rs-lttd"></span><div class="rs-lttx"><div class="rs-ltnm"></div><div class="rs-ltsub"></div></div><div class="rs-ltpc"></div>');
+    const gap = 24;
+    c.style.height = Math.max(120, Math.min(190, Math.floor((H - gap * (n - 1)) / Math.max(n, 1)))) + "px";
+    const s = get(e);
+    const k = typeof s.kelvin === "number" && s.kelvin > 0 ? s.kelvin : TONES[RX && RX.lightTone ? RX.lightTone(e) : "warm"];
+    c.querySelector(".rs-ltsub").textContent = (k ? Math.round(k / 100) * 100 + "K · " : "") + (TYPE_NAME[lightIconOf(e)] || "Light");
+    rsDim(c, e, i, { axis: "x", area: () => c });
+    return c;
+  }
   // dial: the room's lights on the left (tap = pick, the switch = on / off);
   // the picked one gets the big dial with its lamp shining in the middle
   function rsDial(main, list, W, H) {
@@ -1078,7 +1093,7 @@ export function buildElegant(cfg, ctx, skin) {
     c.style.setProperty("--lv", on ? String(Math.max(0.15, v)) : "0");
   }
   function rsLightsPaint(p) {
-    Array.prototype.forEach.call(p.querySelectorAll(".rs-ltcol,.rs-lttile,.rs-ltbub,.rs-ltkey,.rs-ltgc,.rs-ltdr,.rs-4crow,.rs-ltpill,.rs-ltplate,.rs-ltmin"), rsPaintOne);
+    Array.prototype.forEach.call(p.querySelectorAll(".rs-ltcol,.rs-lttile,.rs-ltbub,.rs-ltkey,.rs-ltgc,.rs-ltdr,.rs-4crow,.rs-ltpill,.rs-ltplate,.rs-ltmin,.rs-lttall"), rsPaintOne);
     const dm = p.querySelector(".rs-ltdm");
     if (dm) rsPaintDial(dm, ents.lights || []);
   }

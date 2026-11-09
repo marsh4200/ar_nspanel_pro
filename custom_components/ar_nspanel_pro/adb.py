@@ -113,6 +113,141 @@ def _is_tdx(device: Any) -> bool:
     return model.upper().startswith("TDX_") or build.upper().startswith("TDX_")
 
 
+#: HDL S57 (HDL-MTS57.1WI): 5.7" portrait 640x1280, Allwinner A64, Android
+#: 6.0.1 eng build: the ADB shell is already root (there is no ``su``) and
+#: there is no ``cmd`` (Android 7+), so Home can't be picked with it. HDL's
+#: software is one app, WallApp. It is NOT a Home app: it opens itself at boot
+#: and on every network change, over stock Launcher3. The system WebView is
+#: Chrome 44, so the legacy build runs the panel UI in Chrome (106 is the last
+#: for Android 6), installed once over USB (tools/usb-setup).
+S57_APP = "com.example.wallapp"
+S57_APP_START = f"{S57_APP}/.SplashActivity"
+S57_LAUNCHER = "com.android.launcher3"
+CHROME_PKG = "com.android.chrome"
+#: Chrome reads its flags from here on a debuggable build: no welcome / sign-in screens
+_CHROME_FLAGS = ("/data/local/tmp/chrome-command-line", "chrome --disable-fre --no-first-run --no-default-browser-check")
+_BOOT_RECEIVER = f"{APP_PACKAGE}/.BootReceiver"
+_FS_HELPER = f"{APP_PACKAGE}/{APP_PACKAGE}.FullscreenHelper"
+
+
+def _is_s57(device: Any) -> bool:
+    """An HDL S57: HDL's WallApp is on it (switched on or off)."""
+    return _installed(device, S57_APP)
+
+
+def _s57_chrome(device: Any) -> str | None:
+    """Chrome's version on the panel (None if it isn't installed); writes its
+    no-welcome-screen flags file while at it."""
+    ver = _parse_version_name(device.shell(f"dumpsys package {CHROME_PKG} | grep versionName"))
+    if ver:
+        path, flags = _CHROME_FLAGS
+        device.shell(f"echo '{flags}' > {path}; chmod 644 {path}")
+    return ver
+
+
+def _s57_keep_adb(device: Any, port: int | str | None = None) -> str | None:
+    """Network ADB on the same port after every reboot. The S57's shell is
+    root, so plain ``setprop`` does it (no ``su`` on this panel). The port
+    that was kept, or None."""
+    cur = (device.shell("getprop service.adb.tcp.port") or "").strip()
+    want = cur if cur.isdigit() and int(cur) > 0 else str(port or "")
+    if not want.isdigit():
+        return None
+    device.shell(f"setprop persist.adb.tcp.port {want}")
+    return want if (device.shell("getprop persist.adb.tcp.port") or "").strip() == want else None
+
+
+def _s57_after_install(device: Any) -> list[str]:
+    """HDL S57, after every install/update over ADB: keep network ADB after
+    reboots, check Chrome, and -- while WallApp is on -- keep our app from
+    opening itself at boot, so the two don't fight for the screen."""
+    notes = []
+    kept = _s57_keep_adb(device)
+    if kept:
+        notes.append(f"Network ADB kept on port {kept} after reboots ✓.")
+    ver = _s57_chrome(device)
+    notes.append(
+        f"Chrome {ver} ✓ (runs the panel screen)." if ver else
+        "Chrome isn't installed: on the S57 the panel screen runs in Chrome. Install it "
+        "once over USB (tools/usb-setup, with chrome*.apk next to the script)."
+    )
+    wallapp_on = f"package:{S57_APP}" not in (device.shell(f"pm list packages -d {S57_APP}") or "")
+    if wallapp_on:
+        device.shell(f"pm disable {_BOOT_RECEIVER}")
+        notes.append("WallApp stays in charge: the AR app doesn't open itself at boot (“Use AR app (HDL off)” does that).")
+    else:
+        device.shell(f"pm enable {_BOOT_RECEIVER}")
+    device.shell("sync")
+    return notes
+
+
+def _s57_home_check(device: Any) -> str:
+    """Android 6 has no `cmd` to ask who is Home: press Home and see what
+    comes up. Ours hands the screen to Chrome, so either counts."""
+    device.shell("input keyevent 3")
+    time.sleep(2)
+    top = device.shell("dumpsys activity activities | grep mFocusedActivity") or ""
+    if APP_PACKAGE in top or CHROME_PKG in top:
+        return "Home = AR app ✓ · saved ✓. Safe to reboot."
+    if "ResolverActivity" in top:
+        return "Home asks which app to use ✗: tap the AR app on the panel with “Always”."
+    return f"Home opened something else ✗ ({top.strip() or 'nothing'}): run “Use AR app (HDL off)” again."
+
+
+def _s57_takeover(device: Any, port: int) -> list[str]:
+    """HDL S57: WallApp and Launcher3 off, so the AR app is the only Home app
+    (no `cmd` on Android 6 to pick one); it opens itself at boot, in full
+    screen with no tap, the navigation bar pushed off screen."""
+    if not _installed(device, APP_PACKAGE) or not _app_on_storage(device):
+        raise AdbError("not_installed", "Install the app first, then take the panel over.")
+    ver = _s57_chrome(device)
+    if not ver:
+        raise AdbError(
+            "no_chrome",
+            "Chrome isn't on this panel, so the AR screen would stay blank: HDL was left on. "
+            "Install Chrome 106 once over USB (tools/usb-setup), then try again.",
+        )
+    kept = _s57_keep_adb(device, port)
+    if not kept:
+        raise AdbError(
+            "adb_keep_failed",
+            "Couldn't make network ADB permanent on this panel, so HDL was left on.",
+        )
+    log = [f"Network ADB stays on port {kept} after reboots.", f"Chrome {ver} ✓."]
+    device.shell("settings put global adb_enabled 1")
+    device.shell(f"pm enable {_BOOT_RECEIVER}")
+    # full screen in Chrome with no tap (the app's accessibility helper)
+    device.shell(f"settings put secure enabled_accessibility_services {_FS_HELPER}; settings put secure accessibility_enabled 1")
+    bar = _navbar_hide(device)
+    if bar:
+        log.append(bar)
+    for pkg in (S57_APP, S57_LAUNCHER):
+        log.append(f"{pkg}: " + (device.shell(f"pm disable-user --user 0 {pkg}") or "").strip())
+    device.shell("settings put global device_provisioned 1; settings put secure user_setup_complete 1")
+    device.shell(f"am force-stop {S57_APP}; am start -n {APP_PACKAGE}/{APP_ACTIVITY}")
+    device.shell("sync")
+    log.append(_s57_home_check(device))
+    return log
+
+
+def _s57_back(device: Any) -> list[str]:
+    """HDL S57: WallApp and Launcher3 on again, our boot start, full-screen
+    helper and hidden bar off; WallApp opens. The AR app and Chrome stay."""
+    log = []
+    _navbar_show(device)
+    helpers = (device.shell("settings get secure enabled_accessibility_services") or "").strip()
+    if helpers == _FS_HELPER:
+        device.shell("settings put secure enabled_accessibility_services ''; settings put secure accessibility_enabled 0")
+    for pkg in (S57_LAUNCHER, S57_APP):
+        log.append(f"{pkg}: " + (device.shell(f"pm enable {pkg}") or "").strip())
+    if _installed(device, APP_PACKAGE):
+        device.shell(f"pm disable {_BOOT_RECEIVER}")
+    device.shell(f"am start -n {S57_APP_START}")
+    device.shell("sync")
+    log.append("WallApp is back in front and opens at boot again.")
+    return log
+
+
 KIOSK_ADMIN = f"{APP_PACKAGE}/.KioskAdmin"
 _KIOSK_CTRL = f"{APP_PACKAGE}/.KioskControl"
 
@@ -520,6 +655,7 @@ class PanelAdb:
             found = _hdl(device)
             hdl = found is not None
             size = (device.shell("wm size") or "").strip().split(":")[-1].strip()
+            s57 = not found and _is_s57(device)
             return {
                 "model": model or None,
                 "android": android or None,
@@ -534,8 +670,12 @@ class PanelAdb:
                 # device owner on the S10 only for silent updates, unlocked
                 "kiosk": _kiosk_owner(device) == APP_PACKAGE
                 and "mLockTaskModeState=NONE" not in (device.shell("dumpsys activity activities | grep mLockTaskModeState") or "mLockTaskModeState=NONE"),
-                "hdl_disabled": bool(found) and f"package:{found[1]}" in disabled,
+                "hdl_disabled": (bool(found) and f"package:{found[1]}" in disabled)
+                or (s57 and f"package:{S57_APP}" in disabled),
+                # HDL S57: the panel screen runs in Chrome (None = not installed)
+                "chrome": _parse_version_name(device.shell(f"dumpsys package {CHROME_PKG} | grep versionName")) if s57 else None,
                 "panel_type": ("source10" if found[1] == HDL_LAUNCHER else "source7") if found
+                else "s57" if s57
                 else "akubela" if _installed(device, AKUBELA_APP)
                 else "tdx" if _is_tdx(device)
                 else "samsung" if _is_galaxy_tab(model)
@@ -710,6 +850,8 @@ class PanelAdb:
         signer = await self._get_signer()
 
         def fn(d: Any) -> dict[str, Any]:
+            if not _hdl(d) and _is_s57(d):
+                return {"output": "\n".join(_s57_takeover(d, port))}
             if not _installed(d, APP_PACKAGE) or not _app_on_storage(d):
                 raise AdbError("not_installed", "Install the app first, then take the panel over.")
             log = []
@@ -777,6 +919,8 @@ class PanelAdb:
         signer = await self._get_signer()
 
         def fn(d: Any) -> dict[str, Any]:
+            if not _hdl(d) and _is_s57(d):
+                return {"output": "\n".join(_s57_back(d))}
             found = _vendor(d)
             if not found:
                 raise AdbError("no_hdl", "This panel has no HDL or Akubela software to go back to.")
@@ -882,6 +1026,8 @@ class PanelAdb:
             # a device-owner app can't be uninstalled: release the lock first
             log = [m for m in [_kiosk_unlock(d)] if m]
             found = _vendor(d)
+            if not found and _is_s57(d):
+                log += _s57_back(d)
             if found:
                 name, pkgs, home = found
                 for pkg in pkgs:
@@ -894,7 +1040,10 @@ class PanelAdb:
                 if "Success" not in out:
                     raise AdbError("uninstall_failed", f"Couldn't uninstall the app: {out or 'no output'}")
                 log.append("Uninstalled the app.")
-            d.shell("input keyevent 3")
+            if not found and _is_s57(d):
+                d.shell(f"am start -n {S57_APP_START}")  # WallApp in front, not Launcher3
+            else:
+                d.shell("input keyevent 3")
             return {"output": "\n".join(log)}
 
         return await self._hass.async_add_executor_job(self._run, host, port, signer, fn)
@@ -1618,6 +1767,8 @@ class PanelAdb:
             try:
                 if _hdl(device):
                     notes.append(_home_and_save(device))
+                elif _is_s57(device):
+                    notes += _s57_after_install(device)
             except Exception as err:  # noqa: BLE001 - never fails the install
                 notes.append(f"Home not set: {err}")
             try:  # best-effort: launch the app so the panel comes up ready

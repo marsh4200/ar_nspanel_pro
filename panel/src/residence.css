@@ -987,3 +987,41 @@
 .el-root.skin-residence .rs-icimg svg{width:30px;height:30px}
 .el-root.skin-residence .rs-ictile span:last-child{font-size:12px;opacity:.75;margin-top:6px;text-align:center;line-height:1.15;text-transform:capitalize;overflow:hidden;max-height:28px}
 .el-root.skin-residence .rs-icimg img.up{width:40px;height:40px;object-fit:contain}
+/* ===== Residence 2 (NSPanel Pro / HDL S57 only): one big 3D icon per page, swiped ===== */
+.el-root.skin-residence .rs2{position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden}
+.el-root.skin-residence .rs2-glow{position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;-webkit-transition:opacity .6s ease;transition:opacity .6s ease}
+.el-root.skin-residence .rs2-stage{position:absolute;left:0;top:0;right:0;bottom:0;-webkit-perspective-origin:50% 40%;perspective-origin:50% 40%;touch-action:pan-y}
+.el-root.skin-residence .rs2-it{position:absolute;width:calc(var(--s) * 1.2);height:calc(var(--s) * 1.6);-webkit-transform-origin:50% 40%;transform-origin:50% 40%;cursor:pointer;-webkit-transition:-webkit-transform .68s cubic-bezier(.18,1.12,.3,1),opacity .5s ease;transition:transform .68s cubic-bezier(.18,1.12,.3,1),opacity .5s ease;--lit:.45}
+.el-root.skin-residence .rs2-it.lit{--lit:1}
+.el-root.skin-residence .rs2.drag .rs2-it,.el-root.skin-residence .rs2.drag .rs2-glow{-webkit-transition:none;transition:none}
+.el-root.skin-residence .rs2-halo{position:absolute;left:50%;top:calc(var(--s) * .5);width:calc(var(--s) * 1.45);height:calc(var(--s) * 1.45);margin:calc(var(--s) * -.725) 0 0 calc(var(--s) * -.725);border-radius:50%;pointer-events:none;opacity:calc(var(--hal) * var(--lit))}
+.el-root.skin-residence .rs2-ic{position:absolute;left:calc(var(--s) * .1);top:0;width:var(--s);height:var(--s)}
+.el-root.skin-residence .rs2-ic img,.el-root.skin-residence .rs2-ic svg{display:block;width:100%;height:100%;-o-object-fit:contain;object-fit:contain;-webkit-box-reflect:below calc(var(--s) * -.05) -webkit-linear-gradient(transparent,transparent 72%,rgba(255,255,255,.13));-webkit-box-reflect:below calc(var(--s) * -.05) linear-gradient(transparent 72%,rgba(255,255,255,.13))}
+.el-root.skin-residence .rs2-ic svg{color:#f5f3ee}
+.el-root.skin-residence .rs2.norefl .rs2-ic img,.el-root.skin-residence .rs2.norefl .rs2-ic svg,.el-root.skin-residence.lite .rs2-ic img,.el-root.skin-residence.gsafe .rs2-ic img{-webkit-box-reflect:unset}
+.el-root.skin-residence .rs2-it.cur .rs2-ic{-webkit-animation:rs2bob 4.2s ease-in-out infinite;animation:rs2bob 4.2s ease-in-out infinite}
+.el-root.skin-residence.lite .rs2-it.cur .rs2-ic,.el-root.skin-residence.gsafe .rs2-it.cur .rs2-ic{-webkit-animation:none;animation:none}
+@-webkit-keyframes rs2bob{0%,100%{-webkit-transform:translateY(0)}50%{-webkit-transform:translateY(-2.2%)}}
+@keyframes rs2bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.2%)}}
+.el-root.skin-residence .rs2-sh{position:absolute;left:calc(var(--s) * .25);top:calc(var(--s) * 1.04);width:calc(var(--s) * .7);height:calc(var(--s) * .1);border-radius:50%;background:radial-gradient(ellipse,rgba(0,0,0,.65),rgba(0,0,0,0) 70%);pointer-events:none}
+.el-root.skin-residence .rs2-lb{position:absolute;left:-30%;right:-30%;top:calc(var(--s) * 1.16);display:flex;flex-direction:column;align-items:center;text-align:center;opacity:var(--near);pointer-events:none}
+.el-root.skin-residence .rs2-lb b{font-size:calc(var(--s) * .145);font-weight:500;letter-spacing:.01em;line-height:1.15;white-space:nowrap}
+.el-root.skin-residence .rs2-lb span{margin-top:6px;font-size:calc(var(--s) * .072);opacity:.72;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs2-dots{position:absolute;left:0;right:0;bottom:22px;display:flex;justify-content:center;align-items:center}
+.el-root.skin-residence .rs2-dots span{width:16px;height:16px;margin:0 22px;border-radius:8px;background:rgba(245,243,238,.32);cursor:pointer;-webkit-transition:width .4s cubic-bezier(.2,.9,.3,1),background .3s;transition:width .4s cubic-bezier(.2,.9,.3,1),background .3s}
+.el-root.skin-residence .rs2-dots span.cur{width:56px;background:rgb(var(--acc-rgb))}
+/* Minimal tall lights (Residence 2): scenes / All on / All off on top, a full-width row per light */
+.el-root.skin-residence.tall .rs-lt-tall{-webkit-flex-direction:column-reverse;flex-direction:column-reverse}
+.el-root.skin-residence.tall .rs-lt-tall .rs-ltmoods{margin:0 0 24px}
+.el-root.skin-residence .rs-lt-tall .rs-ltmood{height:104px;border-radius:52px;padding:0 36px;font-size:36px;min-width:0;-webkit-box-flex:1;flex:1 0 auto;justify-content:center}
+.el-root.skin-residence .rs-lt-tall .rs-ltmood i{display:none}
+.el-root.skin-residence .rs-lttall{position:relative;flex:none;width:100%;margin-bottom:24px;box-sizing:border-box;border-radius:56px;border:2px solid rgba(255,255,255,.07);background:rgba(255,255,255,.045);display:flex;align-items:center;padding:0 42px;overflow:hidden;cursor:pointer;touch-action:pan-y}
+.el-root.skin-residence .rs-lttall .rs-ltfill{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,rgba(var(--lc),.34),rgba(var(--lc),.12));opacity:calc(.35 + .65 * var(--lv));-webkit-transition:width .35s cubic-bezier(.2,.9,.3,1);transition:width .35s cubic-bezier(.2,.9,.3,1)}
+.el-root.skin-residence .rs-lttd{position:relative;width:76px;height:76px;flex:none;margin-right:32px;box-sizing:border-box;border-radius:50%;background:radial-gradient(circle at 42% 36%,#fff 0,rgb(var(--lc)) 46%,rgba(var(--lc),.25) 100%);box-shadow:0 0 calc(24px + 46px * var(--lv)) rgba(var(--lc),.75);-webkit-transition:box-shadow .3s,background .3s;transition:box-shadow .3s,background .3s}
+.el-root.skin-residence .rs-lttall.off .rs-lttd{background:rgba(255,255,255,.04);box-shadow:none;border:3px solid rgba(255,255,255,.24)}
+.el-root.skin-residence .rs-lttx{position:relative;flex:1;min-width:0;display:flex;flex-direction:column}
+.el-root.skin-residence .rs-lttall .rs-ltnm{font-size:42px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-lttall .rs-ltsub{margin-top:6px;font-size:30px;letter-spacing:.02em;opacity:.64;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el-root.skin-residence .rs-lttall .rs-ltpc{position:relative;flex:none;margin-left:24px;font-size:52px;font-weight:300;font-variant-numeric:tabular-nums}
+.el-root.skin-residence .rs-lttall.off .rs-ltpc{opacity:.5}
+.el-root.skin-residence .rs-lttall.sel{box-shadow:0 0 0 3px rgba(var(--acc-rgb),.85),0 0 30px -4px rgba(var(--acc-rgb),.85)}

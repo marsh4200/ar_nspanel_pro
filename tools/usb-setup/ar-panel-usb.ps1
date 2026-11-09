@@ -28,6 +28,9 @@ $OWNER_ADMIN = "$PKG/.KioskAdmin"
 $CTRL = "$PKG/.KioskControl"
 $REPO = "marsh4200/ar_nspanel_pro"
 $HERE = Split-Path -Parent $MyInvocation.MyCommand.Path
+# HDL S57: HDL's software is WallApp (not a Home app) over stock Launcher3; Android 6, root shell, no `cmd`
+$S57_APP = "com.example.wallapp"; $S57_LAUNCHER = "com.android.launcher3"
+$BOOT_RX = "$PKG/.BootReceiver"; $FS_HELPER = "$PKG/$PKG.FullscreenHelper"
 
 function Ok($m)   { Write-Host "  [OK] $m" -ForegroundColor Green }
 function Warn($m) { Write-Host "  [!]  $m" -ForegroundColor Yellow }
@@ -92,6 +95,18 @@ $KIND = if ($LEGACY) { "legacy" } else { "standard" }
 Ok "This panel needs the $KIND APK"
 $HDL_L = HdlLauncher
 if ($HDL_L) { Ok "HDL software found ($HDL_L)" }
+$S57 = (-not $HDL_L) -and (Installed $S57_APP)
+if ($S57) { Ok "HDL S57 found (WallApp)" }
+function S57Back {
+  S wm overscan reset | Out-Null
+  if ((S settings get secure enabled_accessibility_services) -eq $FS_HELPER) {
+    S settings put secure enabled_accessibility_services "''" | Out-Null; S settings put secure accessibility_enabled 0 | Out-Null
+  }
+  foreach ($p in @($S57_LAUNCHER, $S57_APP)) { Ok "${p}: $(S pm enable $p)" }
+  if (Installed $PKG) { S pm disable $BOOT_RX | Out-Null }
+  S am start -n "$S57_APP/.SplashActivity" | Out-Null
+  S sync | Out-Null
+}
 
 # --- restore / uninstall ------------------------------------------------------------
 if ($Restore -or $Uninstall) {
@@ -99,13 +114,14 @@ if ($Restore -or $Uninstall) {
   UnlockOwner
   foreach ($p in HdlPkgs) { S pm enable $p | Out-Null; Ok "enabled $p" }
   if ($HDL_L) { SetHome (HomeOf $HDL_L) $HDL_L }
+  if ($S57) { S57Back }
   if ($Uninstall) {
     if (Installed $PKG) {
       $out = A uninstall $PKG
       if ($out -match "Success") { Ok "App uninstalled" } else { Warn "Uninstall: $out" }
     } else { Ok "App wasn't installed" }
   }
-  S input keyevent 3 | Out-Null
+  if ($S57) { S am start -n "$S57_APP/.SplashActivity" | Out-Null } else { S input keyevent 3 | Out-Null }
   Step "Done."; Read-Host "Press Enter to close"; exit 0
 }
 
@@ -130,6 +146,22 @@ if (-not $Apk) {
 if (-not (Test-Path $Apk)) { Die "APK not found: $Apk" }
 Ok (Split-Path -Leaf $Apk)
 
+# --- Chrome (HDL S57: the panel screen runs in Chrome; its own WebView is too old) ----
+if ($S57) {
+  Step "Chrome..."
+  $cv = [regex]::Match((S dumpsys package com.android.chrome), 'versionName=(\S+)').Groups[1].Value
+  if ($cv) { Ok "Chrome $cv already installed" }
+  else {
+    $c = Get-ChildItem -Path $HERE -Filter "chrome*.apk" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($c) {
+      $out = A install -r "$($c.FullName)"
+      if ($out -match "Success") { Ok "Chrome installed ($($c.Name))" } else { Warn "Chrome install failed: $out" }
+    } else { Warn "Chrome isn't installed and there's no chrome*.apk next to this script: the AR screen stays blank until Chrome 106 (arm64-v8a, Android 6.0+) is installed" }
+  }
+  S "echo 'chrome --disable-fre --no-first-run --no-default-browser-check' > /data/local/tmp/chrome-command-line" | Out-Null
+  Ok "Chrome skips its welcome / sign-in screens"
+}
+
 # --- install -------------------------------------------------------------------------
 Step "Installing over USB..."
 # -g (grant runtime permissions) exists from Android 6; Android 5 grants them at install anyway
@@ -151,6 +183,7 @@ $out = S pm set-installer $PKG $PKG
 if ($out -match "(?i)error|exception|unknown") { Warn "couldn't set installer of record: $out" } else { Ok "is its own installer (Android 12+: silent updates)" }
 
 S am start -n "$PKG/.MainActivity" | Out-Null
+if ($S57 -and -not $Takeover) { S pm disable $BOOT_RX | Out-Null; Ok "WallApp stays in charge (the AR app doesn't open itself at boot)" }
 
 $UPDATE_MODE = "tap Update on the panel once per update"
 if (-not $NoOwner) {
@@ -173,7 +206,25 @@ if (-not $NoOwner) {
 if ($UPDATE_MODE -ne "silent" -and $SDK -ge 31) { $UPDATE_MODE = "silent (Android 12+)" }
 
 # --- take over from HDL ----------------------------------------------------------------
-if ($Takeover) {
+if ($Takeover -and $S57) {
+  Step "Taking the S57 over from HDL..."
+  S settings put global adb_enabled 1 | Out-Null
+  S pm enable $BOOT_RX | Out-Null; Ok "the AR app opens itself at boot"
+  S settings put secure enabled_accessibility_services $FS_HELPER | Out-Null
+  S settings put secure accessibility_enabled 1 | Out-Null; Ok "full screen with no tap"
+  $nb = [regex]::Match((S dumpsys window windows), 'NavigationBar[\s\S]{0,4000}?mFrame=\[\d+,(\d+)\]\[\d+,(\d+)\]')
+  if ($nb.Success) {
+    $h = [int]$nb.Groups[2].Value - [int]$nb.Groups[1].Value
+    if ($h -ge 16 -and $h -le 200) { S wm overscan "0,0,0,-$h" | Out-Null; Ok "navigation bar hidden ($h px)" }
+  }
+  # Android 6 has no `cmd` to choose Home: with WallApp and Launcher3 off, ours is the only Home app
+  foreach ($p in @($S57_APP, $S57_LAUNCHER)) { Ok "${p}: $(S pm disable-user --user 0 $p)" }
+  S settings put global device_provisioned 1 | Out-Null
+  S settings put secure user_setup_complete 1 | Out-Null
+  S am force-stop $S57_APP | Out-Null
+  S am start -n "$PKG/.MainActivity" | Out-Null
+  S sync | Out-Null
+} elseif ($Takeover) {
   Step "Taking the panel over from HDL..."
   SetHome "$PKG/.MainActivity" $PKG
   foreach ($p in (HdlPkgs | Where-Object { $_ -notlike "*.launcher" })) { Ok "${p}: $(S pm disable-user --user 0 $p)" }
@@ -192,7 +243,11 @@ if ($m) { $IP = $m.Groups[2].Value }
 if (-not $NoTcpip) {
   Step "Network ADB (for Home Assistant's ADB tools - not needed for updates)..."
   $persist = $false
-  if ((S "command -v su") -match "su") {
+  if ($S57) {
+    # the S57's shell is root already (no su on it)
+    S setprop persist.adb.tcp.port 5555 | Out-Null
+    if ((S getprop persist.adb.tcp.port) -eq "5555") { Ok "port 5555, kept after reboots (root)"; $persist = $true }
+  } elseif ((S "command -v su") -match "su") {
     S su 0 setprop persist.adb.tcp.port 5555 | Out-Null
     if ((S getprop persist.adb.tcp.port) -eq "5555") { Ok "port 5555, kept after reboots (root)"; $persist = $true }
   }

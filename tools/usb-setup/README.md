@@ -22,6 +22,24 @@ if Android asks. Then the first time you press Install in Home Assistant, the pa
 "Install unknown apps" for AR NSPanel Pro: switch it on once. On Android 5 there is no such
 switch; "Unknown sources" covers it. Updates then ask for one tap on the panel.
 
+## HDL S57
+
+The S57 (5.7" portrait, Android 6.0.1) is found by itself: its HDL software is **WallApp**.
+Its own browser engine is too old for the panel screen, so the screen runs in **Chrome**.
+
+- Put **Chrome 106** next to these scripts as `chrome106.apk`: from APKMirror, choose the
+  *arm64-v8a*, *Android 6.0+* build, as a plain APK (not a bundle, and not Trichrome). The
+  scripts install it if it isn't on the panel yet. Chrome 106 is the last version for Android 6.
+- `install.bat` leaves WallApp in charge. The AR app is installed, but it doesn't open itself at boot.
+- `takeover.bat` switches WallApp and the stock launcher off. That leaves the AR app as the only
+  Home app (Android 6 can't choose one any other way), so it opens at boot, full screen, with
+  the navigation bar hidden.
+- `restore.bat` switches WallApp and the launcher back on, and WallApp opens again.
+- ADB on the S57 runs as root, so network ADB on port 5555 stays on after reboots. Home Assistant's
+  Setup tool (panel type **HDL S57**) can then do installs, updates, "Use AR app (HDL off)" and
+  "Back to HDL screen" over the network. Keep the panel on a trusted network: anyone on it
+  can reach ADB.
+
 ## Run it
 
 | Windows (double-click) | Mac / Linux | What it does |

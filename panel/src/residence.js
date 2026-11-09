@@ -26,6 +26,7 @@
 
 import LIB from "./generated/residence-icons.json";
 import { scene as lampScene, paintScene as lampPaint, kelvinRgb } from "./lightscene.js";
+import { deviceInfo } from "./native.js";
 
 const LINE = {
   icons: '<circle cx="7.5" cy="7.5" r="3.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><path d="M7.5 13.5l4 6.5h-8z"/><circle cx="16.5" cy="16.5" r="3.5"/>',
@@ -172,7 +173,26 @@ export function mountResidence(a) {
   const LIGHT_LAYOUTS = [["classic", "Classic"], ["faders", "Faders"], ["tiles", "Bubble tiles"], ["bubbles", "Bubbles"], ["keypad", "Keypad list"], ["dial", "Dial"], ["gallery", "Gallery"], ["fourc", "4C style"], ["pills", "Pills"], ["plates", "Wall plates"], ["minimal", "Minimal"]];
   const CLOCKS = [["classic", "Classic"], ["glow", "Signature glow"], ["sun", "Sun path"], ["halo", "Halo"], ["moon", "Moonlight"], ["edit", "Editorial"], ["photo", "Living photo"], ["flip", "Flip clock"], ["sky", "Blue sky"]];
   const isOpt = (L, v) => L.some((o) => o[0] === v);
-  const instLights = () => (rc.lightsPage === "cards" ? "classic" : isOpt(LIGHT_LAYOUTS, rc.lightsPage) ? rc.lightsPage : "faders");
+  // Residence 2 (Device Setup > Dashboard style): NSPanel Pro and HDL S57 only.
+  // Never on a landscape panel (Source 7 / 10, TDX, Akubela: under 880 tall on
+  // the 1000-wide canvas) or the Samsung tablet: those keep plain Residence.
+  let r2Idx = 0;
+  let r2Tab = null;
+  function r2On() {
+    if (!rc.v2) return false;
+    const f = window.__arFit || {};
+    if (Math.round(((f.stageH || 288) * 1000) / 480) < 880) return false;
+    if (r2Tab === null) {
+      try {
+        r2Tab = /SM-T22[05]/i.test((deviceInfo() || {}).model || "");
+      } catch (e) {
+        r2Tab = false;
+      }
+    }
+    return !r2Tab;
+  }
+  const lightLayouts = () => (r2On() ? LIGHT_LAYOUTS.concat([["tall", "Minimal tall"]]) : LIGHT_LAYOUTS);
+  const instLights = () => (rc.lightsPage === "cards" ? "classic" : isOpt(lightLayouts(), rc.lightsPage) ? rc.lightsPage : r2On() ? "tall" : "faders");
   const instClock = () => (isOpt(CLOCKS, rc.clockDesign) ? rc.clockDesign : "classic");
   const mine = (k, base, L, inst) => {
     const v = PREF[k] === "cards" ? "classic" : PREF[k];
@@ -183,7 +203,7 @@ export function mountResidence(a) {
     PREF.lightsBase = instLights();
     savePref();
   }
-  const lightsPage = () => mine("lights", "lightsBase", LIGHT_LAYOUTS, instLights);
+  const lightsPage = () => mine("lights", "lightsBase", lightLayouts(), instLights);
   const clockDesign = () => mine("clock", "clockBase", CLOCKS, instClock);
   const pickDesign = (k, base, inst, v) => {
     PREF[k] = v;
@@ -1064,6 +1084,175 @@ export function mountResidence(a) {
     p.appendChild(box);
     go(sqIdx, true);
   }
+  // --- Residence 2 home: one big 3D icon per page, icon only (no tile or ring) ---------
+  // A swipe follows the finger: the icon turns away to the side and sinks back as
+  // the next one swings in, then springs into place. Tap the middle icon to open
+  // it, a side one (or the dots) to bring it in. Icons are the same editable ones
+  // as Residence (Settings > Look > Icons, Device Setup); with none picked,
+  // Residence 2's own 3D icons (library "r2_<key>"). Built once per room / list /
+  // size / icons; Home Assistant updates only repaint the status lines and glows,
+  // so a swipe or the floating icon never jumps.
+  const R2_GLOW = { lights: "255,180,90", climate: "88,204,238", music: "168,128,255", watch: "128,150,255", shades: "120,184,255", cameras: "170,184,204", utilities: "250,204,80", security: "70,214,146", scenes: "150,140,255", calendar: "255,128,108" };
+  function r2Icon(k) {
+    const mineI = PREF.icons && PREF.icons[k];
+    const ic = rc.icons && rc.icons[k];
+    if (mineI || (ic && typeof ic.src === "string" && ic.src)) return iconHtml(k).html;
+    return LIB["r2_" + k] ? '<img alt="" src="' + libUrl("r2_" + k).replace(/"/g, "%22") + '">' : iconHtml(k).html;
+  }
+  function r2Lit(c, r) {
+    if (c.key === "lights") return (r.lights || []).some((e) => a.get(e).on);
+    if (c.key === "climate") return (r.climate || []).some((e) => (a.get(e).value || "off") !== "off");
+    if (c.key === "music") return roomPlaying(r);
+    if (c.key === "watch") return (r.watch || []).some((e) => a.get(e).on) || !!watchActive();
+    if (c.key === "security") return (a.ents().security || []).some((e) => a.get(e).on);
+    return true;
+  }
+  function renderR2(p, cs, r) {
+    const W = p.clientWidth || 1000;
+    const H = p.clientHeight || 1600;
+    const key = cs.map((c) => c.key).join(",") + "|" + (r && r.name) + "|" + W + "x" + H + "|" + JSON.stringify([PREF.icons || null, rc.icons || null, rc.v2Reflect === false]);
+    if (p.__r2 && p.__r2.key === key && p.contains(p.__r2.box)) return p.__r2.update(r);
+    p.innerHTML = "";
+    if (r2Idx >= cs.length) r2Idx = 0;
+    const S = Math.round(Math.max(220, Math.min(W * 0.5, H * 0.36)));
+    const SP = W * 0.57;
+    const box = el("div", "rs2" + (rc.v2Reflect === false ? " norefl" : ""));
+    box.style.setProperty("--s", S + "px");
+    const glows = cs.map((c) => {
+      const g = el("div", "rs2-glow");
+      const col = R2_GLOW[c.key] || "243,217,164";
+      g.style.background = "radial-gradient(120% 62% at 50% 42%,rgba(" + col + ",.3),rgba(" + col + ",0) 62%)";
+      box.appendChild(g);
+      return g;
+    });
+    const stage = el("div", "rs2-stage");
+    stage.style.webkitPerspective = stage.style.perspective = Math.round(W * 2.1) + "px";
+    box.appendChild(stage);
+    const its = cs.map((c, i) => {
+      const it = el("div", "rs2-it rs2-k-" + c.key, '<div class="rs2-halo"></div><div class="rs2-ic">' + r2Icon(c.key) + '</div><div class="rs2-sh"></div><div class="rs2-lb"><b></b><span></span></div>');
+      const col = R2_GLOW[c.key] || "243,217,164";
+      it.querySelector(".rs2-halo").style.background = "radial-gradient(circle,rgba(" + col + ",.5),rgba(" + col + ",0) 62%)";
+      it.querySelector("b").textContent = c.title;
+      it.style.left = Math.round(W / 2 - S * 0.6) + "px";
+      it.style.top = Math.round(H * 0.47 - S * 0.62) + "px";
+      it.addEventListener("click", (ev) => {
+        if (ev.__r2Handled) return;
+        ev.__r2Handled = true;
+        if (i === r2Idx) a.go(c.key);
+        else go(i);
+      });
+      stage.appendChild(it);
+      return it;
+    });
+    const dots = el("div", "rs2-dots");
+    cs.forEach((c, i) => {
+      const d = el("span", "");
+      d.addEventListener("click", () => go(i));
+      dots.appendChild(d);
+    });
+    box.appendChild(dots);
+    p.appendChild(box);
+    function lay(pos) {
+      its.forEach((it, i) => {
+        const d = i - pos;
+        const ad = Math.abs(d);
+        const sg = d < 0 ? -1 : 1;
+        const tx = sg * (Math.min(ad, 1) * W * 0.53 + Math.max(ad - 1, 0) * W * 0.26);
+        const ry = Math.max(-62, Math.min(62, -d * 46));
+        const sc = Math.max(0.2, 1 - Math.min(ad, 1) * 0.4 - Math.max(ad - 1, 0) * 0.12);
+        const tf = "translate3d(" + tx.toFixed(1) + "px,0," + (-ad * W * 0.4).toFixed(1) + "px) rotateY(" + ry.toFixed(1) + "deg) scale(" + sc.toFixed(3) + ")";
+        it.style.webkitTransform = it.style.transform = tf;
+        it.style.opacity = ad > 2.3 ? "0" : String(Math.round((1 - Math.max(ad - 0.9, 0) * 0.75) * 1000) / 1000);
+        it.style.zIndex = String(20 - Math.round(ad * 4));
+        it.style.visibility = ad > 2.6 ? "hidden" : "";
+        it.style.setProperty("--near", String(Math.max(0, 1 - ad * 1.8).toFixed(3)));
+        it.style.setProperty("--hal", String(Math.max(0, 1 - ad * 1.2).toFixed(3)));
+        it.classList.toggle("cur", i === Math.round(pos) && ad < 0.5);
+      });
+      glows.forEach((g, i) => (g.style.opacity = String(Math.max(0, 1 - Math.abs(i - pos)).toFixed(3))));
+    }
+    function go(i, now) {
+      r2Idx = Math.max(0, Math.min(cs.length - 1, i));
+      if (now) box.classList.add("drag");
+      lay(r2Idx);
+      Array.prototype.forEach.call(dots.children, (d, k) => d.classList.toggle("cur", k === r2Idx));
+      if (now) {
+        void box.offsetWidth; // apply without the spring, then turn it back on
+        box.classList.remove("drag");
+      }
+    }
+    // the finger turns the carousel; a flick or a fifth of a page moves one along
+    let x0 = null, y0 = 0, t0 = 0, dx = 0, moved = false, scale = 1;
+    stage.addEventListener("pointerdown", (ev) => {
+      x0 = ev.clientX;
+      y0 = ev.clientY;
+      t0 = Date.now();
+      dx = 0;
+      moved = false;
+      const rr = root.getBoundingClientRect();
+      scale = rr.width ? rr.width / 1000 : 1;
+    });
+    stage.addEventListener("pointermove", (ev) => {
+      if (x0 === null) return;
+      const mx = (ev.clientX - x0) / scale;
+      if (!moved && Math.abs(mx) > 14 && Math.abs(mx) > Math.abs(ev.clientY - y0) / scale) {
+        moved = true;
+        a.setDragging(true);
+        window.__arClaimGesture = true;
+        box.classList.add("drag");
+        try {
+          stage.setPointerCapture(ev.pointerId);
+        } catch (x) {
+          /* ignore */
+        }
+      }
+      if (!moved) return;
+      dx = mx;
+      const edge = (r2Idx === 0 && dx > 0) || (r2Idx === cs.length - 1 && dx < 0) ? 0.32 : 1;
+      lay(r2Idx - (dx * edge) / SP);
+    });
+    const end = (ev) => {
+      if (x0 === null) return;
+      const wasX = x0;
+      x0 = null;
+      if (!moved) {
+        // a tap beside the icons: one page that way
+        if (ev && ev.type === "pointerup" && !(ev.target.closest && ev.target.closest(".rs2-it"))) {
+          const rr = stage.getBoundingClientRect();
+          const rel = rr.width ? (wasX - rr.left) / rr.width : 0.5;
+          if (rel < 0.24) go(r2Idx - 1);
+          else if (rel > 0.76) go(r2Idx + 1);
+        }
+        return;
+      }
+      window.__arClaimGesture = false;
+      a.setDragging(false);
+      box.classList.remove("drag");
+      const v = dx / Math.max(1, Date.now() - t0);
+      if (dx < -SP * 0.22 || v < -1) go(r2Idx + 1);
+      else if (dx > SP * 0.22 || v > 1) go(r2Idx - 1);
+      else go(r2Idx);
+    };
+    stage.addEventListener("pointerup", end);
+    stage.addEventListener("pointercancel", end);
+    // a swipe is not a tap
+    stage.addEventListener("click", (ev) => {
+      if (moved) {
+        ev.stopPropagation();
+        ev.preventDefault();
+        moved = false;
+      }
+    }, true);
+    function update(rr) {
+      cs.forEach((c, i) => {
+        its[i].querySelector(".rs2-lb span").textContent = sqStatus(c, rr);
+        its[i].classList.toggle("lit", !!r2Lit(c, rr));
+      });
+    }
+    p.__r2 = { key, box, go, update };
+    update(r);
+    go(r2Idx, true);
+  }
   // back to the first button when the panel wakes or is left alone
   let sqWasAway = false;
   const sqT = setInterval(() => {
@@ -1076,11 +1265,24 @@ export function mountResidence(a) {
         sqIdx = 0;
         if (a.current() === "home") renderHome(a.pages.home.el);
       }
+      if (!sqWasAway && r2Idx !== 0 && r2On()) {
+        r2Idx = 0;
+        const hp = a.pages.home.el;
+        if (hp.__r2) hp.__r2.go(0, true);
+      }
       sqWasAway = true;
     } else sqWasAway = false;
   }, 5000);
 
   function renderHome(p) {
+    if (r2On()) {
+      const cs2 = cats().filter((c) => !c.hidden);
+      if (cs2.length) {
+        renderR2(p, cs2, curRoom());
+        return chrome();
+      }
+    }
+    if (p.__r2) p.__r2 = null;
     p.innerHTML = "";
     const cs = cats().filter((c) => !c.hidden);
     const tall = root.classList.contains("tall");
@@ -2087,7 +2289,7 @@ export function mountResidence(a) {
         body.appendChild(txt("div", "rs-sethint", "The theme colour is used for highlights: lit buttons, badges, tabs, chips and switches. Lamps always show each light's own colour (2700K, 6000K, …) as set up."));
       } else if (lookSub === "designs") {
         const lp = row("Lights page", "top");
-        lp.appendChild(chipRow(LIGHT_LAYOUTS, lightsPage(), (v) => (pickDesign("lights", "lightsBase", instLights, v), again())));
+        lp.appendChild(chipRow(lightLayouts(), lightsPage(), (v) => (pickDesign("lights", "lightsBase", instLights, v), again())));
         body.appendChild(lp);
         const ut = row("Utilities page", "top");
         ut.appendChild(chipRow(UTIL_LAYOUTS, utilPage(), (v) => (pickDesign("util", "utilBase", instUtil, v), again())));

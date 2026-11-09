@@ -57,6 +57,19 @@ adb_() { if [ -n "$SERIAL" ]; then "$ADB_BIN" -s "$SERIAL" "$@"; else "$ADB_BIN"
 sh_()  { adb_ shell "$@" 2>&1 | tr -d '\r'; }
 
 installed() { sh_ pm list packages "$1" | grep -qx "package:$1"; }
+# HDL S57: HDL's software is WallApp (not a Home app) over stock Launcher3; Android 6, root shell, no `cmd`
+S57_APP="com.example.wallapp"; S57_LAUNCHER="com.android.launcher3"
+BOOT_RX="$PKG/.BootReceiver"; FS_HELPER="$PKG/$PKG.FullscreenHelper"
+s57_back() {
+  sh_ wm overscan reset >/dev/null
+  if [ "$(sh_ settings get secure enabled_accessibility_services)" = "$FS_HELPER" ]; then
+    sh_ "settings put secure enabled_accessibility_services ''; settings put secure accessibility_enabled 0" >/dev/null
+  fi
+  for p in "$S57_LAUNCHER" "$S57_APP"; do ok "$p: $(sh_ pm enable "$p")"; done
+  installed "$PKG" && sh_ pm disable "$BOOT_RX" >/dev/null
+  sh_ am start -n "$S57_APP/.SplashActivity" >/dev/null
+  sh_ sync >/dev/null
+}
 owner_pkg() { sh_ dumpsys device_policy | sed -n 's/.*admin=ComponentInfo{\([^/}]*\)\/.*/\1/p' | head -1; }
 
 # HDL's own app + launcher (Source 10 / S10: com.hdl.source.ten[.launcher];
@@ -98,6 +111,7 @@ ok "Found $MODEL (Android $REL, SDK $SDK)"
 if [ "${SDK:-99}" -lt 24 ] 2>/dev/null; then LEGACY=1; KIND="legacy"; else LEGACY=0; KIND="standard"; fi
 ok "This panel needs the $KIND APK"
 HDL_L="$(hdl_launcher)"; [ -n "$HDL_L" ] && ok "HDL software found ($HDL_L)"
+S57=0; if [ -z "$HDL_L" ] && installed "$S57_APP"; then S57=1; ok "HDL S57 found (WallApp)"; fi
 
 # --- restore / uninstall ----------------------------------------------------------
 if [ "$MODE" = "restore" ] || [ "$MODE" = "uninstall" ]; then
@@ -105,12 +119,13 @@ if [ "$MODE" = "restore" ] || [ "$MODE" = "uninstall" ]; then
   unlock_owner
   for p in $(hdl_pkgs); do sh_ pm enable "$p" >/dev/null && ok "enabled $p"; done
   if [ -n "$HDL_L" ]; then set_home "$(home_of "$HDL_L")" "$HDL_L"; fi
+  [ "$S57" = 1 ] && s57_back
   if [ "$MODE" = "uninstall" ]; then
     if installed "$PKG"; then
       OUT="$(adb_ uninstall "$PKG" 2>&1)"; echo "$OUT" | grep -q Success && ok "App uninstalled" || warn "Uninstall: $OUT"
     else ok "App wasn't installed"; fi
   fi
-  sh_ input keyevent 3 >/dev/null
+  if [ "$S57" = 1 ]; then sh_ am start -n "$S57_APP/.SplashActivity" >/dev/null; else sh_ input keyevent 3 >/dev/null; fi
   step "Done."; exit 0
 fi
 
@@ -133,6 +148,22 @@ fi
 [ -f "$APK" ] || die "APK not found: $APK"
 ok "$(basename "$APK")"
 
+# --- Chrome (HDL S57: the panel screen runs in Chrome; its own WebView is too old) ----
+if [ "$S57" = 1 ]; then
+  step "Chrome…"
+  CV="$(sh_ dumpsys package com.android.chrome | sed -n 's/.*versionName=//p' | head -1)"
+  if [ -n "$CV" ]; then ok "Chrome $CV already installed"
+  else
+    CAPK="$(ls -t "$HERE"/chrome*.apk 2>/dev/null | head -1)"
+    if [ -n "$CAPK" ]; then
+      OUT="$(adb_ install -r "$CAPK" 2>&1)"
+      echo "$OUT" | grep -q Success && ok "Chrome installed ($(basename "$CAPK"))" || warn "Chrome install failed: $OUT"
+    else warn "Chrome isn't installed and there's no chrome*.apk next to this script: the AR screen stays blank until Chrome 106 (arm64-v8a, Android 6.0+) is installed"; fi
+  fi
+  sh_ "echo 'chrome --disable-fre --no-first-run --no-default-browser-check' > /data/local/tmp/chrome-command-line" >/dev/null
+  ok "Chrome skips its welcome / sign-in screens"
+fi
+
 # --- install ----------------------------------------------------------------------
 step "Installing over USB…"
 # -g (grant runtime permissions) exists from Android 6; Android 5 grants them at install anyway
@@ -154,6 +185,9 @@ OUT="$(sh_ pm set-installer "$PKG" "$PKG")"
 if echo "$OUT" | grep -qiE 'error|exception|unknown'; then warn "couldn't set installer of record: $OUT"; else ok "is its own installer (Android 12+: silent updates)"; fi
 
 sh_ am start -n "$PKG/.MainActivity" >/dev/null
+if [ "$S57" = 1 ] && [ "$MODE" != "takeover" ]; then
+  sh_ pm disable "$BOOT_RX" >/dev/null; ok "WallApp stays in charge (the AR app doesn't open itself at boot)"
+fi
 
 UPDATE_MODE="tap Update on the panel once per update"
 if [ "$OWNER" = 1 ]; then
@@ -182,7 +216,25 @@ fi
 if [ "$UPDATE_MODE" != "silent" ] && [ "${SDK:-0}" -ge 31 ]; then UPDATE_MODE="silent (Android 12+)"; fi
 
 # --- take over from HDL -------------------------------------------------------------
-if [ "$MODE" = "takeover" ]; then
+if [ "$MODE" = "takeover" ] && [ "$S57" = 1 ]; then
+  step "Taking the S57 over from HDL…"
+  sh_ settings put global adb_enabled 1 >/dev/null
+  sh_ pm enable "$BOOT_RX" >/dev/null && ok "the AR app opens itself at boot"
+  sh_ settings put secure enabled_accessibility_services "$FS_HELPER" >/dev/null
+  sh_ settings put secure accessibility_enabled 1 >/dev/null && ok "full screen with no tap"
+  NB="$(sh_ dumpsys window windows | grep -A60 NavigationBar | grep -m1 -o 'mFrame=\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]')"
+  if [ -n "$NB" ]; then
+    H=$(echo "$NB" | sed 's/mFrame=\[[0-9]*,\([0-9]*\)\]\[[0-9]*,\([0-9]*\)\]/\2 \1/' | awk '{print $1-$2}')
+    if [ "${H:-0}" -ge 16 ] && [ "${H:-0}" -le 200 ]; then sh_ wm overscan "0,0,0,-$H" >/dev/null; ok "navigation bar hidden ($H px)"; fi
+  fi
+  # Android 6 has no `cmd` to choose Home: with WallApp and Launcher3 off, ours is the only Home app
+  for p in "$S57_APP" "$S57_LAUNCHER"; do ok "$p: $(sh_ pm disable-user --user 0 "$p")"; done
+  sh_ settings put global device_provisioned 1 >/dev/null
+  sh_ settings put secure user_setup_complete 1 >/dev/null
+  sh_ am force-stop "$S57_APP" >/dev/null
+  sh_ am start -n "$PKG/.MainActivity" >/dev/null
+  sh_ sync >/dev/null
+elif [ "$MODE" = "takeover" ]; then
   step "Taking the panel over from HDL…"
   set_home "$PKG/.MainActivity" "$PKG"
   for p in $(hdl_pkgs | grep -v '\.launcher$'); do ok "$p: $(sh_ pm disable-user --user 0 "$p")"; done
@@ -199,7 +251,11 @@ PERSIST=""
 IP="$(sh_ ip -4 -o addr show | awk '$2!="lo"{print $4}' | cut -d/ -f1 | head -1)"
 if [ "$TCPIP" = 1 ]; then
   step "Network ADB (for Home Assistant's ADB tools — not needed for updates)…"
-  if sh_ 'command -v su' | grep -q su; then
+  if [ "$S57" = 1 ]; then
+    # the S57's shell is root already (no su on it)
+    sh_ setprop persist.adb.tcp.port 5555 >/dev/null
+    if [ "$(sh_ getprop persist.adb.tcp.port)" = "5555" ]; then ok "port 5555, kept after reboots (root)"; PERSIST=1; fi
+  elif sh_ 'command -v su' | grep -q su; then
     sh_ su 0 setprop persist.adb.tcp.port 5555 >/dev/null
     if [ "$(sh_ getprop persist.adb.tcp.port)" = "5555" ]; then ok "port 5555, kept after reboots (root)"; PERSIST=1; fi
   fi
