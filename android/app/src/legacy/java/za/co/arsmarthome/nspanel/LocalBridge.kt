@@ -247,10 +247,14 @@ class LocalBridge(private val ctx: Context, bridge: NativeBridge) {
         val js = SHIM.replace("__TOKEN__", token).replace("__METHODS__", names)
             .replace("__REALW__", Math.round(dm.widthPixels / d).toString())
             .replace("__REALH__", Math.round(dm.heightPixels / d).toString())
-        val tagged = "<link rel=\"manifest\" href=\"manifest.webmanifest\">" +
-            "<meta name=\"theme-color\" content=\"#000000\"><script>$js</script>"
-        val i = html.indexOf("<script")
-        return if (i >= 0) html.substring(0, i) + tagged + html.substring(i) else html.replace("</body>", "$tagged</body>")
+        // Chrome only reads the manifest from <head> (since 4.8.10 the page's first
+        // <script> is in <body>, so it went there with the script and Chrome saw no
+        // manifest: "Add to Home screen" then made a plain bookmark, not a web app)
+        val head = "<link rel=\"manifest\" href=\"manifest.webmanifest\"><meta name=\"theme-color\" content=\"#000000\">"
+        val withHead = if (html.contains("</head>")) html.replaceFirst("</head>", "$head</head>") else head + html
+        val tagged = "<script>$js</script>"
+        val i = withHead.indexOf("<script")
+        return if (i >= 0) withHead.substring(0, i) + tagged + withHead.substring(i) else withHead.replace("</body>", "$tagged</body>")
     }
 
     private fun manifest(dir: String): String =

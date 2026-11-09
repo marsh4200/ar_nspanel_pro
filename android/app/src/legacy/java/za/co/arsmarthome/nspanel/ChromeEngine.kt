@@ -312,6 +312,9 @@ class ChromeEngine(private val activity: MainActivity, bridge: NativeBridge) : P
             val a = i.action ?: ""
             if (a.contains("WEBAPP", ignoreCase = true)) return true
             val extras = i.extras ?: return false
+            // Chrome's plain "Add to Home screen" bookmark also carries webapp_id /
+            // webapp_source, but opens in a tab (reuse the tab): that's no web app
+            if (extras.keySet().any { it.contains("REUSE_URL_MATCHING_TAB", ignoreCase = true) }) return false
             return extras.keySet().any { it.contains("webapp", ignoreCase = true) }
         }
 
