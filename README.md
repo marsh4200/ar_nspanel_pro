@@ -80,6 +80,11 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Residence 2 swipes smoothly on the HDL S57 (5.0.4)
+
+- While a finger moves, Residence 2 now only moves icons that are already drawn, which is GPU work. Labels, halos and the background glow change once, when the swipe settles. In a 6× CPU-slowed test, the drawing work during one swipe dropped from 548 ms to 13 ms.
+- On the HDL S57 (Mali-400 GPU) the icons don't float and have no reflection. `residence.v2Reflect: true` turns the reflection back on.
+
 ## HDL S57 WebView install fixes (5.0.3)
 
 - `tools/s57-webview`: makes `/system` writable with `adb remount`, which the S57 accepts (its own `mount -o rw,remount` doesn't). It also sets `persist.sys.webview.vmsize` to 250 MB before the reboot: Android 6 keeps only 100 MB for the WebView library, never grows it by itself on the S57, and WebView 106's 64-bit library needs 120 MB.

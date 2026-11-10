@@ -1993,8 +1993,14 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.skin-residence .rs2-stage{position:absolute;left:0;top:0;right:0;bottom:0;-webkit-perspective-origin:50% 40%;perspective-origin:50% 40%;touch-action:pan-y}
 .el-root.skin-residence .rs2-it{position:absolute;width:calc(var(--s) * 1.2);height:calc(var(--s) * 1.6);-webkit-transform-origin:50% 40%;transform-origin:50% 40%;cursor:pointer;-webkit-transition:-webkit-transform .68s cubic-bezier(.18,1.12,.3,1),opacity .5s ease;transition:transform .68s cubic-bezier(.18,1.12,.3,1),opacity .5s ease;--lit:.45}
 .el-root.skin-residence .rs2-it.lit{--lit:1}
+/* each icon is one GPU layer drawn once at full size: a swipe only moves it (no re-drawing the SVG at every size) */
+.el-root.skin-residence .rs2-it{will-change:transform,opacity;-webkit-backface-visibility:hidden;backface-visibility:hidden}
+.el-root.skin-residence .rs2-halo,.el-root.skin-residence .rs2-lb,.el-root.skin-residence .rs2-glow{will-change:opacity}
+.el-root.skin-residence .rs2-halo,.el-root.skin-residence .rs2-lb{-webkit-transition:opacity .35s ease;transition:opacity .35s ease}
+.el-root.skin-residence .rs2.drag .rs2-lb,.el-root.skin-residence .rs2.drag .rs2-halo{opacity:0!important;-webkit-transition:opacity .15s ease;transition:opacity .15s ease}
+.el-root.skin-residence .rs2.drag .rs2-it.cur .rs2-ic,.el-root.skin-residence .rs2.rs2-lo .rs2-it.cur .rs2-ic{-webkit-animation:none;animation:none}
 .el-root.skin-residence .rs2.drag .rs2-it,.el-root.skin-residence .rs2.drag .rs2-glow{-webkit-transition:none;transition:none}
-.el-root.skin-residence .rs2-halo{position:absolute;left:50%;top:calc(var(--s) * .5);width:calc(var(--s) * 1.45);height:calc(var(--s) * 1.45);margin:calc(var(--s) * -.725) 0 0 calc(var(--s) * -.725);border-radius:50%;pointer-events:none;opacity:calc(var(--hal) * var(--lit))}
+.el-root.skin-residence .rs2-halo{position:absolute;left:50%;top:calc(var(--s) * .5);width:calc(var(--s) * 1.45);height:calc(var(--s) * 1.45);margin:calc(var(--s) * -.725) 0 0 calc(var(--s) * -.725);border-radius:50%;pointer-events:none;opacity:0}
 .el-root.skin-residence .rs2-ic{position:absolute;left:calc(var(--s) * .1);top:0;width:var(--s);height:var(--s)}
 .el-root.skin-residence .rs2-ic img,.el-root.skin-residence .rs2-ic svg{display:block;width:100%;height:100%;-o-object-fit:contain;object-fit:contain;-webkit-box-reflect:below calc(var(--s) * -.05) -webkit-linear-gradient(transparent,transparent 72%,rgba(255,255,255,.13));-webkit-box-reflect:below calc(var(--s) * -.05) linear-gradient(transparent 72%,rgba(255,255,255,.13))}
 .el-root.skin-residence .rs2-ic svg{color:#f5f3ee}
@@ -2004,7 +2010,7 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 @-webkit-keyframes rs2bob{0%,100%{-webkit-transform:translateY(0)}50%{-webkit-transform:translateY(-2.2%)}}
 @keyframes rs2bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.2%)}}
 .el-root.skin-residence .rs2-sh{position:absolute;left:calc(var(--s) * .25);top:calc(var(--s) * 1.04);width:calc(var(--s) * .7);height:calc(var(--s) * .1);border-radius:50%;background:radial-gradient(ellipse,rgba(0,0,0,.65),rgba(0,0,0,0) 70%);pointer-events:none}
-.el-root.skin-residence .rs2-lb{position:absolute;left:-30%;right:-30%;top:calc(var(--s) * 1.16);display:flex;flex-direction:column;align-items:center;text-align:center;opacity:var(--near);pointer-events:none}
+.el-root.skin-residence .rs2-lb{position:absolute;left:-30%;right:-30%;top:calc(var(--s) * 1.16);display:flex;flex-direction:column;align-items:center;text-align:center;opacity:0;pointer-events:none}
 .el-root.skin-residence .rs2-lb b{font-size:calc(var(--s) * .145);font-weight:500;letter-spacing:.01em;line-height:1.15;white-space:nowrap}
 .el-root.skin-residence .rs2-lb span{margin-top:6px;font-size:calc(var(--s) * .072);opacity:.72;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .el-root.skin-residence .rs2-dots{position:absolute;left:0;right:0;bottom:22px;display:flex;justify-content:center;align-items:center}

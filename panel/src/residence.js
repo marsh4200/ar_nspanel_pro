@@ -1116,7 +1116,10 @@ export function mountResidence(a) {
     if (r2Idx >= cs.length) r2Idx = 0;
     const S = Math.round(Math.max(220, Math.min(W * 0.5, H * 0.36)));
     const SP = W * 0.57;
-    const box = el("div", "rs2" + (rc.v2Reflect === false ? " norefl" : ""));
+    // HDL S57 (Allwinner A64, Mali-400): the weakest GPU of the lot; there the
+    // icons don't float and have no reflection (rc.v2Reflect: true forces it on)
+    const slow = /sc3859q/i.test(navigator.userAgent || "");
+    const box = el("div", "rs2" + (rc.v2Reflect === false || (slow && rc.v2Reflect !== true) ? " norefl" : "") + (slow ? " rs2-lo" : ""));
     box.style.setProperty("--s", S + "px");
     const glows = cs.map((c) => {
       const g = el("div", "rs2-glow");
@@ -1152,7 +1155,7 @@ export function mountResidence(a) {
     });
     box.appendChild(dots);
     p.appendChild(box);
-    function lay(pos) {
+    function lay(pos, moving) {
       its.forEach((it, i) => {
         const d = i - pos;
         const ad = Math.abs(d);
@@ -1165,10 +1168,13 @@ export function mountResidence(a) {
         it.style.opacity = ad > 2.3 ? "0" : String(Math.round((1 - Math.max(ad - 0.9, 0) * 0.75) * 1000) / 1000);
         it.style.zIndex = String(20 - Math.round(ad * 4));
         it.style.visibility = ad > 2.6 ? "hidden" : "";
-        it.style.setProperty("--near", String(Math.max(0, 1 - ad * 1.8).toFixed(3)));
-        it.style.setProperty("--hal", String(Math.max(0, 1 - ad * 1.2).toFixed(3)));
+        if (moving) return;
+        // labels and halos: their own layers, faded by the GPU (no repaint)
+        it.querySelector(".rs2-lb").style.opacity = String(Math.max(0, 1 - ad * 1.8).toFixed(3));
+        it.querySelector(".rs2-halo").style.opacity = String((Math.max(0, 1 - ad * 1.2) * (it.classList.contains("lit") ? 1 : 0.45)).toFixed(3));
         it.classList.toggle("cur", i === Math.round(pos) && ad < 0.5);
       });
+      if (moving) return;
       glows.forEach((g, i) => (g.style.opacity = String(Math.max(0, 1 - Math.abs(i - pos)).toFixed(3))));
     }
     function go(i, now) {
@@ -1182,7 +1188,7 @@ export function mountResidence(a) {
       }
     }
     // the finger turns the carousel; a flick or a fifth of a page moves one along
-    let x0 = null, y0 = 0, t0 = 0, dx = 0, moved = false, scale = 1;
+    let x0 = null, y0 = 0, t0 = 0, dx = 0, moved = false, scale = 1, raf = 0;
     stage.addEventListener("pointerdown", (ev) => {
       x0 = ev.clientX;
       y0 = ev.clientY;
@@ -1208,8 +1214,13 @@ export function mountResidence(a) {
       }
       if (!moved) return;
       dx = mx;
-      const edge = (r2Idx === 0 && dx > 0) || (r2Idx === cs.length - 1 && dx < 0) ? 0.32 : 1;
-      lay(r2Idx - (dx * edge) / SP);
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        if (x0 === null) return;
+        const edge = (r2Idx === 0 && dx > 0) || (r2Idx === cs.length - 1 && dx < 0) ? 0.32 : 1;
+        lay(r2Idx - (dx * edge) / SP, true);
+      });
     });
     const end = (ev) => {
       if (x0 === null) return;
@@ -1227,6 +1238,8 @@ export function mountResidence(a) {
       }
       window.__arClaimGesture = false;
       a.setDragging(false);
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
       box.classList.remove("drag");
       const v = dx / Math.max(1, Date.now() - t0);
       if (dx < -SP * 0.22 || v < -1) go(r2Idx + 1);
@@ -1248,6 +1261,7 @@ export function mountResidence(a) {
         its[i].querySelector(".rs2-lb span").textContent = sqStatus(c, rr);
         its[i].classList.toggle("lit", !!r2Lit(c, rr));
       });
+      if (x0 === null) lay(r2Idx);
     }
     p.__r2 = { key, box, go, update };
     update(r);
