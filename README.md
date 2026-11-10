@@ -80,6 +80,11 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## HDL S57 WebView install fixes (5.0.3)
+
+- `tools/s57-webview`: makes `/system` writable with `adb remount`, which the S57 accepts (its own `mount -o rw,remount` doesn't). It also sets `persist.sys.webview.vmsize` to 250 MB before the reboot: Android 6 keeps only 100 MB for the WebView library, never grows it by itself on the S57, and WebView 106's 64-bit library needs 120 MB.
+- The script refuses a WebView that isn't named `com.android.webview`, such as Google's.
+
 ## HDL S57 without Chrome (5.0.2)
 
 - The legacy APK now draws the panel screen in Android's own WebView whenever the panel's WebView is new enough (90 or later), the same way as the standard build. Older panels (the HDL S10 touch, WebView 39) keep using Chrome as before.

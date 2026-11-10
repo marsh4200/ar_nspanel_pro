@@ -43,7 +43,10 @@ function A { return Run-Adb @(, [object[]]$args) }
 function S { return Run-Adb @(, ([object[]]@("shell") + [object[]]$args)) }
 function WebViewVersion { return [regex]::Match((S dumpsys package com.android.webview), 'versionName=(\S+)').Groups[1].Value }
 function Writable {
-  S mount -o rw,remount /system | Out-Null
+  # adb remount is the one the S57 accepts (its toolbox mount refuses "-o rw,remount /system")
+  A remount | Out-Null
+  if ((S "mount | grep ' /system '") -notmatch "\srw[,\s]") { S mount -o remount,rw /system | Out-Null }
+  if ((S "mount | grep ' /system '") -notmatch "\srw[,\s]") { S mount -o rw,remount -t ext4 /dev/block/by-name/system /system | Out-Null }
   if ((S "mount | grep ' /system '") -notmatch "\srw[,\s]") { Die "Couldn't make /system writable on this panel. Nothing was changed." }
   Ok "/system is writable"
 }
@@ -141,6 +144,12 @@ S chmod 755 $WV "$WV/lib" "$WV/lib/arm64" "$WV/lib/arm" | Out-Null
 S "chmod 644 $WV/webview.apk $WV/lib/arm64/* $WV/lib/arm/*" | Out-Null
 # the old WebView's compiled code must go, or Android may keep using it
 S "rm -f /data/dalvik-cache/*/system@app@webview@webview.apk@classes.dex" | Out-Null
+# Android 6 keeps a fixed 100 MB block for the WebView library and on the S57 never
+# grows it by itself; WebView 106's 64-bit library is 120 MB ("reserved address space
+# ... smaller than ... needed"). 250 MB fits both; it applies from the next boot.
+S setprop persist.sys.webview.vmsize 262144000 | Out-Null
+if ((S getprop persist.sys.webview.vmsize) -ne "262144000") { Warn "Couldn't set the WebView memory size: after the reboot run  adb shell setprop persist.sys.webview.vmsize 262144000  and reboot again" }
+else { Ok "WebView memory size set (250 MB)" }
 Ok "WebView 106 copied in"
 Remove-Item -Recurse -Force $TMP -ErrorAction SilentlyContinue
 Finish
