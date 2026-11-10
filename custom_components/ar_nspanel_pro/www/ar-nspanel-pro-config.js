@@ -9698,7 +9698,7 @@ function RsPhotoPick({ hass: h, value: v, onChange: set, allowHouse: house }) {
     err && /* @__PURE__ */ a.jsx("div", { className: "hint", style: { color: "#ff8f80", marginTop: 6 }, children: err })
   ] });
 }
-function RsIconPick({ hass: h, keyName: k, label: lb, value: v, onChange: set }) {
+function RsIconPick({ hass: h, keyName: k, label: lb, value: v, onChange: set, def: df }) {
   const [busy, setBusy] = M.useState(!1), [err, setErr] = M.useState(""), [cut, setCut] = M.useState(!0), [fill, setFill] = M.useState(!1), [white, setWhite] = M.useState(!1), [tol, setTol] = M.useState(20);
   const src = v && v.src;
   const kind = !src ? "line" : src.indexOf("lib:") === 0 ? "lib" : "img";
@@ -9719,14 +9719,14 @@ function RsIconPick({ hass: h, keyName: k, label: lb, value: v, onChange: set })
   const prev = { width: 46, height: 46, borderRadius: 23, flex: "none", display: "grid", placeItems: "center", background: "radial-gradient(circle at 50% 30%,#3a332b,#17181b)", border: "1px solid rgba(255,255,255,.25)", overflow: "hidden" };
   return /* @__PURE__ */ a.jsxs("div", { style: { padding: "10px 0", borderTop: "1px solid var(--divider, rgba(127,127,127,.2))" }, children: [
     /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }, children: [
-      /* @__PURE__ */ a.jsx("span", { style: prev, children: kind === "line" ? /* @__PURE__ */ a.jsx("span", { style: { fontSize: 11, opacity: 0.7 }, children: "Line" }) : /* @__PURE__ */ a.jsx("img", { alt: "", src: rsSrc(src), style: v.fill ? { width: "100%", height: "100%", objectFit: "cover" } : { width: "62%", height: "62%", objectFit: "contain" } }) }),
+      /* @__PURE__ */ a.jsx("span", { style: prev, children: kind === "line" ? /* @__PURE__ */ (df && RS_LIB[df] ? /* @__PURE__ */ a.jsx("img", { alt: "", src: rsSrc("lib:" + df), style: { width: "100%", height: "100%", objectFit: "contain" } }) : /* @__PURE__ */ a.jsx("span", { style: { fontSize: 11, opacity: 0.7 }, children: "Line" })) : /* @__PURE__ */ a.jsx("img", { alt: "", src: rsSrc(src), style: v.fill ? { width: "100%", height: "100%", objectFit: "cover" } : { width: "62%", height: "62%", objectFit: "contain" } }) }),
       /* @__PURE__ */ a.jsx("b", { style: { fontWeight: 500, minWidth: 80 }, children: lb }),
       /* @__PURE__ */ a.jsxs("select", { className: "inp", style: { flex: "1 1 200px", minWidth: 0 }, value: kind === "lib" ? src : kind === "img" ? "img" : "", onChange: (m) => {
         const val = m.target.value;
         if (!val) set(void 0);
         else if (val !== "img") set({ src: val });
       }, children: [
-        /* @__PURE__ */ a.jsx("option", { value: "", children: "Line icon (default)" }),
+        /* @__PURE__ */ a.jsx("option", { value: "", children: df && RS_LIB[df] ? RS_LIB[df].n + " (default)" : "Line icon (default)" }),
         kind === "img" && /* @__PURE__ */ a.jsx("option", { value: "img", children: "Your uploaded image" }),
         Object.keys(cats).map((c) => /* @__PURE__ */ a.jsx("optgroup", { label: c, children: cats[c].map((key) => /* @__PURE__ */ a.jsx("option", { value: "lib:" + key, children: RS_LIB[key].n }, key)) }, c))
       ] }),
@@ -9738,7 +9738,7 @@ function RsIconPick({ hass: h, keyName: k, label: lb, value: v, onChange: set })
     /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center", marginTop: 6, fontSize: 13 }, children: [
       /* @__PURE__ */ a.jsx("span", { className: "hint", children: "For uploads:" }),
       /* @__PURE__ */ a.jsxs("label", { children: [/* @__PURE__ */ a.jsx("input", { type: "checkbox", checked: cut, onChange: (m) => setCut(m.target.checked) }), " Remove background"] }),
-      /* @__PURE__ */ a.jsxs("label", { children: [/* @__PURE__ */ a.jsx("input", { type: "checkbox", checked: fill, onChange: (m) => setFill(m.target.checked) }), " Fill the circle"] }),
+      !df && /* @__PURE__ */ a.jsxs("label", { children: [/* @__PURE__ */ a.jsx("input", { type: "checkbox", checked: fill, onChange: (m) => setFill(m.target.checked) }), " Fill the circle"] }),
       /* @__PURE__ */ a.jsxs("label", { children: [/* @__PURE__ */ a.jsx("input", { type: "checkbox", checked: white, onChange: (m) => setWhite(m.target.checked) }), " Make it white"] }),
       cut && /* @__PURE__ */ a.jsxs("label", { title: "Turn down if part of the logo goes missing, up if a light edge is left", children: ["Strength ", /* @__PURE__ */ a.jsx("input", { type: "range", min: 4, max: 120, value: tol, onChange: (m) => setTol(Number(m.target.value)), style: { verticalAlign: "middle", width: 110 } })] })
     ] }),
@@ -10676,20 +10676,27 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
   // not in the map = Other). elegant.utilities stays the full list, section by section.
   // The "3D slider" design shows one 3D icon per section.
   const U_SECT = [["pool", "Pool", "pool pump, heat pump, pool lights…"], ["irrigation", "Irrigation", "sprinklers, garden zones, drip…"], ["geyser", "Geysers", "geysers, boilers, heaters"], ["more", "Other", "fence, gate, borehole, plugs…"]];
+  const U_SECT_ICON = { pool: "r2_pool", irrigation: "r2_irrigation", geyser: "r2_geyser", more: "r2_utilities" };
   const utilSections = () => {
     const all = elList(cfg.utilities), gm = cfg.utilGroups || {};
     const sec = (e) => (gm[e] === "pool" || gm[e] === "irrigation" || gm[e] === "geyser" ? gm[e] : "more");
     const base = EL_HOUSE_CATS.filter((c) => c.key === "utilities")[0];
     return [
       ez("div", { key: "uh", style: lbl }, "Utilities, in sections"),
-      ez("div", { key: "uh2", className: "hint" }, "Put each switch in its section. With the Utilities design “3D slider”, each section is one 3D icon on the panel (Pool, Irrigation, Geysers, Other)."),
-      ...U_SECT.map((x) => field({ ...base, key: "util_" + x[0], title: x[1], hint: x[2] }, all.filter((e) => sec(e) === x[0]), (v) => {
+      ez("div", { key: "uh2", className: "hint" }, "Put each switch in its section. With the Utilities design “3D slider”, each section is one big icon on the panel (Pool, Irrigation, Geysers, Other): pick a 3D icon or upload your own (its background is removed, no circle)."),
+      ...U_SECT.map((x) => ez("div", { key: "us_" + x[0] }, field({ ...base, key: "util_" + x[0], title: x[1], hint: x[2] }, all.filter((e) => sec(e) === x[0]), (v) => {
         const lists = U_SECT.map((y) => (y[0] === x[0] ? v : all.filter((e) => sec(e) === y[0] && !v.includes(e))));
         const next = [].concat.apply([], lists);
         const m = {};
         U_SECT.forEach((y, i) => y[0] !== "more" && lists[i].forEach((e) => (m[e] = y[0])));
         save({ utilities: next.length ? next : void 0, utilGroups: Object.keys(m).length ? m : void 0 });
-      }, -1))
+      }, -1), style === "residence" && a.jsx(RsIconPick, { hass: h, keyName: "u_" + x[0], label: x[1] + " icon", def: U_SECT_ICON[x[0]], value: t.residence && t.residence.icons && t.residence.icons["u_" + x[0]], onChange: (v) => {
+        const rc0 = t.residence && typeof t.residence === "object" ? t.residence : {};
+        const ic = { ...(rc0.icons || {}) };
+        if (v) ic["u_" + x[0]] = v;
+        else delete ic["u_" + x[0]];
+        r({ residence: { ...rc0, icons: Object.keys(ic).length ? ic : void 0 } });
+      } })))
     ];
   };
   // Residence 2 is the Residence style with residence.v2 (one big 3D icon per page);

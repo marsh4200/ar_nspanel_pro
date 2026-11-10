@@ -946,6 +946,29 @@ export function mountResidence(a) {
   root.addEventListener("click", (ev) => {
     if (ev.target && ev.target.closest && ev.target.closest(".el-back")) backAt = Date.now();
   }, true);
+  function uIcon(g) {
+    const k = "u_" + g.g;
+    const mine = PREF.icons && PREF.icons[k];
+    const ic = rc.icons && rc.icons[k];
+    if (mine || (ic && typeof ic.src === "string" && ic.src)) return iconHtml(k).html;
+    return '<img alt="" src="' + libUrl(g.icon).replace(/"/g, "%22") + '">';
+  }
+  // a section's switches: 4C-style rows (picture, name, state, power button), no dimming
+  function uRows(list, tap) {
+    const g = el("div", "rs-4clist rs-urows");
+    list.forEach((e) => {
+      const u = uInfo(e);
+      let key = utilKey(e);
+      if (key === "bulb_on" && !u.on) key = "bulb_off";
+      const c = el("div", "rs-4crow rs-urow4" + (u.on ? "" : " off") + (u.na ? " na" : ""), '<div class="rs-4cic"><img alt=""></div><div class="rs-4ctx"><div class="rs-ltnm"></div><div class="rs-ltpc"></div></div><span class="rs-4cpw"><svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.4 7.2a8 8 0 1 0 11.2 0"/></svg></span>');
+      c.querySelector("img").src = libUrl(key);
+      c.querySelector(".rs-ltnm").textContent = a.nameOf(e);
+      c.querySelector(".rs-ltpc").textContent = u.st + (u.tm ? " · " + u.tm : "");
+      if (!u.na) c.addEventListener("click", () => tap(e));
+      g.appendChild(c);
+    });
+    return g;
+  }
   function utilHub(p, list, tap, again, tabbed) {
     if (utilPage() !== "slider") return false;
     // the sections the installer put each switch in (Device Setup > Whole house > Utilities);
@@ -958,8 +981,7 @@ export function mountResidence(a) {
     const running = (g) => g.list.filter((e) => uInfo(e).on).length;
     if (cur) {
       const wrap = el("div", "rs-ugrp" + (tabbed ? " tabbed" : ""));
-      const hd = el("div", "rs-ughd", '<span class="rs-ugbk"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></span><img alt=""><div><b></b><small></small></div>');
-      hd.querySelector("img").src = libUrl(cur.icon);
+      const hd = el("div", "rs-ughd", '<span class="rs-ugbk"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></span><span class="rs-ugic">' + uIcon(cur) + '</span><div><b></b><small></small></div>');
       hd.querySelector("b").textContent = cur.title;
       const n = running(cur);
       hd.querySelector("small").textContent = n ? n + " running" : cur.list.length + (cur.list.length === 1 ? " device · off" : " devices · all off");
@@ -968,7 +990,7 @@ export function mountResidence(a) {
         again();
       });
       wrap.appendChild(hd);
-      wrap.appendChild(utilCards(cur.list, tap));
+      wrap.appendChild(uRows(cur.list, tap));
       p.appendChild(wrap);
       return true;
     }
@@ -979,7 +1001,7 @@ export function mountResidence(a) {
     renderR2(hub, gs, null, {
       ix: U_IX,
       loop: true,
-      icon: (c) => '<img alt="" src="' + libUrl(c.icon).replace(/"/g, "%22") + '">',
+      icon: (c) => uIcon(c),
       open: (c) => {
         uGroup = c.g;
         again();
@@ -1184,7 +1206,7 @@ export function mountResidence(a) {
     const IX = (o && o.ix) || R2HOME;
     const W = p.clientWidth || 1000;
     const H = p.clientHeight || 1600;
-    const key = cs.map((c) => c.key).join(",") + "|" + (r && r.name) + "|" + W + "x" + H + "|" + JSON.stringify([PREF.icons || null, rc.icons || null, rc.v2Reflect === false]);
+    const key = cs.map((c) => c.key).join(",") + "|" + (r && r.name) + "|" + W + "x" + H + "|" + JSON.stringify([PREF.icons || null, rc.icons || null, rc.v2Reflect === false]) + (o ? "|" + cs.map((c) => (c.list ? c.list.length : 0)).join(",") : "");
     if (p.__r2 && p.__r2.key === key && p.contains(p.__r2.box)) return p.__r2.update(r);
     p.innerHTML = "";
     if (IX.i >= cs.length) IX.i = 0;

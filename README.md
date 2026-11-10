@@ -80,6 +80,11 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Utilities sections: your own icons, 4C-style switches (5.0.11)
+
+- Device Setup > Whole house > Utilities: each section (Pool, Irrigation, Geysers, Other) has its own icon for the 3D slider: the 3D default, any library icon, or your own upload (background removed, shown as the icon only, no circle). Stored as `residence.icons.u_pool` / `u_irrigation` / `u_geyser` / `u_more`; uploads travel inside the setup like the other button icons.
+- Inside a section the switches are 4C-style rows (picture, name, state, power button), on / off only; tap the row or the button. Full width and finger size on the S57, two a row on square and wide panels.
+
 ## Utilities in sections (5.0.10)
 
 - Device Setup > Whole house > Utilities is now four sections: **Pool**, **Irrigation**, **Geysers** and **Other**. Add each switch to its section (adding it to another section moves it). The 3D slider shows one icon per section, whatever the switches are called. Stored as `elegant.utilGroups` (`{entity_id: "pool" | "irrigation" | "geyser"}`; not listed = Other); `elegant.utilities` stays the full list. Setups from before sections still sort by picture and name until a section is set.
