@@ -80,6 +80,19 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Read from panel brings the customer's names (5.0.8)
+
+- The panel now reports the names the customer gave on it (Residence Settings > Rooms: room names and light names), not just how many. Read from panel lists each one (panel name next to the setup name), ticked; "Copy ticked into this setup" puts them into the room names and `elegant.names`, so they survive a reset or a new panel after Save & Push. Panels on an older panel app still show the count only.
+
+## Rename devices for the panel (5.0.7)
+
+- Setup > Rooms (every section: lights, climate, speakers, TVs, shades, scenes, presence) and Whole house (cameras, alarm, utilities): ✎ or tap a name to give it the name the panel shows. "In Home Assistant: …" keeps the real name in view, and ↺ goes back to it. Home Assistant's own names are not touched.
+- Stored as `elegant.names` (`{entity_id: name}`) and pushed with Save & Push. Home Assistant sends the new name in each device's state, so it shows on panels already installed; the panel also reads it from the setup (for scenes). A name the customer gives on the panel itself (Residence Settings > Rooms) still wins.
+
+## Residence 2: big alarm code keypad (5.0.6)
+
+- On tall portrait panels with Residence 2 on, the code keypad that opens from Security (Away / Home / Night / Disarm on an alarm with a code) is now full size: big keys and code dots on a solid backdrop. The keys were capped at the search keyboard's 58 px width. Other panels are unchanged.
+
 ## Residence 2: bigger everything on portrait screens (5.0.5)
 
 - On tall portrait panels (HDL S57, portrait NSPanel Pro) with Residence 2 on, the top bar is two rows: clock, call, calendar and settings on top; a big back (or home) button and the page or room title underneath. Room Off, home and what's playing in the bottom bar are about twice the size.
@@ -561,9 +574,6 @@ Push a version tag:
 ```bash
 git tag v1.2.7 && git push origin v1.2.7
 ```
-
-
-   adb install -r "$env:USERPROFILE\Downloads\ar-nspanel-pro-legacy-5.0.4.apk"
 
 GitHub Actions builds `ar-nspanel-pro-1.2.7.apk`, signs it with the key in
 `android/signing/release.jks` (nothing to set up), and attaches it to the release. Every

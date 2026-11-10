@@ -140,6 +140,9 @@ class PanelBridge:
         # Elegant dashboard: entities it may show/act on (an allow-list for the
         # "el" events) and the ones that get the richer mirror payload.
         self._elegant_entities: set[str] = set()
+        # entity -> the name the panel shows for it (setup > Rooms > rename),
+        # instead of its Home Assistant friendly name (device.elegant.names)
+        self._panel_names: dict[str, str] = {}
         # camera entity -> absolute HLS URL (HA's own live stream, token in the
         # path), handed to the panel so it plays real video instead of the
         # snapshot-based MJPEG proxy.
@@ -360,6 +363,12 @@ class PanelBridge:
         panel's "el" events to act on exactly those entities."""
         self._elegant_entities = {s["entity"] for s in self.client_scenes}
         cfg = self.device_cfg.get("elegant") if isinstance(self.device_cfg, dict) else None
+        names = cfg.get("names") if isinstance(cfg, dict) else None
+        self._panel_names = {
+            k: v.strip()[:40]
+            for k, v in (names.items() if isinstance(names, dict) else ())
+            if isinstance(k, str) and isinstance(v, str) and v.strip()
+        }
         if self.device_cfg.get("dashboardStyle") not in ELEGANT_STYLES or not isinstance(cfg, dict):
             return
         sources = [cfg] + [r for r in (cfg.get("rooms") or []) if isinstance(r, dict)]
@@ -1668,6 +1677,8 @@ class PanelBridge:
             )
         if payload is None:
             return
+        if "name" in payload and entity_id in self._panel_names:
+            payload["name"] = self._panel_names[entity_id]
         body = json.dumps(payload)
         for key in keys:
             self.hass.async_create_task(

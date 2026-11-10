@@ -10128,7 +10128,22 @@ function RsReadPanel({ hass: h, device: t, onChange: r }) {
   if (pr.text) rows.push(["txt", "Text size", pr.text >= 1.3 ? "Extra large" : "Large", "", null]);
   if (pr.hidden && pr.hidden.length) rows.push(["hid", "Hidden rooms", pr.hidden.join(", "), "", null]);
   if (pr.reordered) rows.push(["ord", "Room order", "Changed", "", null]);
-  if (pr.renamed) rows.push(["ren", "Renamed", [pr.renamed.rooms ? pr.renamed.rooms + (pr.renamed.rooms === 1 ? " room" : " rooms") : "", pr.renamed.lights ? pr.renamed.lights + (pr.renamed.lights === 1 ? " light" : " lights") : ""].filter(Boolean).join(", "), "", null]);
+  if (pr.renamed && !pr.nicks && !pr.roomNames) rows.push(["ren", "Renamed", [pr.renamed.rooms ? pr.renamed.rooms + (pr.renamed.rooms === 1 ? " room" : " rooms") : "", pr.renamed.lights ? pr.renamed.lights + (pr.renamed.lights === 1 ? " light" : " lights") : ""].filter(Boolean).join(", "), "", null]);
+  // 5.0.8: each name the customer gave on the panel, to copy into Setup > Rooms names
+  {
+    const el1 = t.elegant && typeof t.elegant === "object" ? t.elegant : {};
+    const R1 = Array.isArray(el1.rooms) ? el1.rooms : [];
+    const nm1 = el1.names || {};
+    const fn1 = (id) => (h && h.states && h.states[id] && h.states[id].attributes && h.states[id].attributes.friendly_name) || id;
+    Object.keys(pr.roomNames || {}).forEach((i) => {
+      const room = R1[Number(i)];
+      if (!room) return;
+      rows.push(["rn:" + i, "Room name: " + (room.name || "Room " + (Number(i) + 1)), pr.roomNames[i], room.name || "", { elRoom: [Number(i), pr.roomNames[i]] }]);
+    });
+    Object.keys(pr.nicks || {}).forEach((e) => {
+      rows.push(["ln:" + e, "Name: " + fn1(e), pr.nicks[e], (typeof nm1[e] === "string" && nm1[e]) || fn1(e), { elNames: { [e]: pr.nicks[e] } }]);
+    });
+  }
   if (pr.roomBg && pr.roomBg.length) rows.push(["rbg", "Room backgrounds", pr.roomBg.join(", "), "", null]);
   if (typeof pd.vol === "number") rows.push(["vol", "Sounds volume", Math.round(pd.vol * 100) + " %", "", null]);
   if (pd.dnd && pd.dnd.on) rows.push(["dnd", "Do not disturb", pd.dnd.from + "–" + pd.dnd.to, "", null]);
@@ -10138,12 +10153,21 @@ function RsReadPanel({ hass: h, device: t, onChange: r }) {
   const copy = () => {
     const nextRc = { ...rc };
     const top = {};
+    let nextEl = null; // elegant: names and room names merge, several rows can change it
+    const elNow = () => nextEl || (nextEl = { ...(t.elegant && typeof t.elegant === "object" ? t.elegant : {}) });
     can.filter((x) => on(x[0])).forEach((x) => {
       Object.keys(x[4]).forEach((k) => {
         if (k === "residence") Object.assign(nextRc, x[4].residence);
+        else if (k === "elegant") Object.assign(elNow(), x[4].elegant);
+        else if (k === "elNames") elNow().names = { ...(elNow().names || {}), ...x[4].elNames };
+        else if (k === "elRoom") elNow().rooms = (elNow().rooms || []).map((y, n) => (n === x[4].elRoom[0] ? { ...y, name: x[4].elRoom[1] } : y));
         else top[k] = x[4][k];
       });
     });
+    if (nextEl) {
+      Object.keys(nextEl).forEach((k) => nextEl[k] === void 0 && delete nextEl[k]);
+      top.elegant = nextEl;
+    }
     Object.keys(nextRc).forEach((k) => nextRc[k] === void 0 && delete nextRc[k]);
     delete nextRc.base;
     r({ ...top, residence: nextRc });
@@ -10304,7 +10328,7 @@ function ResidenceLook({ hass: h, device: t, onChange: r, rooms: R, fname: fn })
 // devices by their names, the ones in that Home Assistant area first. "Import
 // from Home Assistant areas" makes the rooms in one go. Same settings as the
 // long page ("All settings"), which stays one click away.
-const EZ_CSS = ".ez{--ez-acc:#26a9e0}.ez .ezsteps{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 14px}.ez .ezstep{font:inherit;font-size:13.5px;display:flex;align-items:center;gap:8px;color:var(--text2);background:transparent;border:1px solid var(--divider,rgba(127,127,127,.3));border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer}.ez .ezstep b{width:22px;height:22px;border-radius:11px;display:grid;place-items:center;background:var(--surface2,rgba(127,127,127,.18));color:var(--text);font-size:12px}.ez .ezstep.on{border-color:var(--ez-acc);color:var(--text);background:rgba(38,169,224,.12)}.ez .ezstep.on b{background:var(--ez-acc);color:#04131b}.ez .ezstep.done b{background:#44c27a;color:#04131b}.ez .ezgrid{display:grid;grid-template-columns:250px minmax(0,1fr);gap:14px;align-items:start}.ez .ezleft>div+div{margin-top:14px}@media (max-width:760px){.ez .ezgrid{grid-template-columns:1fr}}.ez .ezbox{background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--divider,rgba(127,127,127,.25));border-radius:14px;padding:12px}.ez .ezh{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text2);margin:0 0 10px}.ez .ezroom{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;color:var(--text);background:var(--surface2,rgba(127,127,127,.1));border:1px solid var(--divider,rgba(127,127,127,.25));border-radius:12px;padding:9px;margin-bottom:8px;cursor:pointer}.ez .ezroom.on{border-color:var(--ez-acc);background:rgba(38,169,224,.1)}.ez .ezri{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:rgba(242,184,102,.16);color:#f2b866;flex:none}.ez .ezroom b{display:block;font-weight:600}.ez .ezroom small{display:block;color:var(--text2);font-size:12px}.ez .ezst{display:inline-block;margin-top:3px;font-size:10.5px;font-weight:700;color:var(--ez-acc);border:1px solid rgba(38,169,224,.5);border-radius:999px;padding:0 7px}.ez .ezimp{background:rgba(38,169,224,.1);border:1px solid rgba(38,169,224,.4);border-radius:12px;padding:10px;margin-bottom:10px;font-size:13px}.ez .ezimp b{display:block;margin-bottom:2px}.ez .ezimp small{color:var(--text2)}.ez .ezcats{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}.ez .ezcat{background:var(--surface2,rgba(127,127,127,.08));border:1px solid var(--divider,rgba(127,127,127,.25));border-radius:14px;padding:11px}.ez .ezcat.empty{border-style:dashed;background:transparent}.ez .ezch{display:flex;align-items:center;gap:10px;margin-bottom:8px}.ez .ezci{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:rgba(242,184,102,.14);color:#f2b866;flex:none}.ez .ezch b{font-weight:600;display:block}.ez .ezch small{display:block;color:var(--text2);font-size:12px}.ez .ezn{margin-left:auto;font-size:12px;color:var(--text2)}.ez .ezchip{display:flex;align-items:center;gap:8px;background:var(--surface,rgba(127,127,127,.12));border-radius:9px;padding:5px 6px 5px 9px;margin-bottom:6px;font-size:13.5px}.ez .ezchip>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ez .ezdot{width:8px;height:8px;border-radius:4px;background:#5a6270;flex:none}.ez .ezdot.on{background:#f2b866;box-shadow:0 0 8px rgba(242,184,102,.7)}.ez .ezdot.na{background:#e8705a}.ez .ezchip{flex-wrap:wrap}.ez .ezchip select{font:inherit;font-size:12px;max-width:150px;padding:2px 4px;border-radius:7px;background:var(--surface2,#2b333e);color:var(--text);border:1px solid var(--divider,rgba(127,127,127,.3))}.ez .ezx{border:0;background:none;color:var(--text2);cursor:pointer;font-size:16px;line-height:1;padding:0 4px}.ez .ezplus{font:inherit;font-size:13px;font-weight:600;color:var(--ez-acc);background:transparent;border:1px solid var(--divider,rgba(127,127,127,.3));border-radius:9px;padding:5px 10px;cursor:pointer;margin-top:2px}.ez .ezplus:disabled{opacity:.45;cursor:default}.ez .ezov{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000}.ez .ezpk{width:min(560px,100%);max-height:min(640px,90vh);display:flex;flex-direction:column;background:var(--card-bg,var(--surface,#1c2026));border:1px solid var(--divider,rgba(127,127,127,.3));border-radius:16px;overflow:hidden;color:var(--text)}.ez .ezpk header{padding:14px 16px;border-bottom:1px solid var(--divider,rgba(127,127,127,.25))}.ez .ezpk header b{font-size:16px}.ez .ezpk .ezls{overflow-y:auto;padding:6px 16px}.ez .ezgr{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);margin:10px 0 4px;font-weight:700}.ez .ezpk label{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:9px;cursor:pointer}.ez .ezpk label:hover{background:rgba(127,127,127,.1)}.ez .ezpk label small{display:block;color:var(--text2);font-size:12px}.ez .ezpk em{font-style:normal;font-size:11px;color:var(--ez-acc);border:1px solid rgba(38,169,224,.5);border-radius:999px;padding:0 7px;margin-left:auto;white-space:nowrap}.ez .ezpk footer{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:12px 16px;border-top:1px solid var(--divider,rgba(127,127,127,.25))}.ez .ezscr{position:relative;aspect-ratio:5/3;border-radius:10px;overflow:hidden;background:#1b1d24 center/cover;border:6px solid #0b0c0e;color:#f4f1ea}.ez .ezscr::after{content:\"\";position:absolute;left:0;top:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.15) 35%,rgba(0,0,0,.55))}.ez .eztb{position:absolute;left:8px;right:8px;top:6px;display:flex;justify-content:space-between;font-size:11px;z-index:2}.ez .ezbtns{position:absolute;left:6px;right:6px;top:24px;bottom:18px;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:6px 8px;z-index:2}.ez .ezpb{width:50px;text-align:center;font-size:9px}.ez .ezpb i{display:grid;place-items:center;width:32px;height:32px;margin:0 auto 2px;border-radius:16px;border:1.5px solid rgba(255,255,255,.75);background:rgba(0,0,0,.3)}.ez .ezpb.lit i{border-color:#f2b866;box-shadow:0 0 10px -2px rgba(242,184,102,.9)}.ez .ezpb svg{width:16px;height:16px}.ez .ezwarn{margin-top:10px;font-size:12.5px;color:#ffcc80}.ez .eznav{display:flex;justify-content:space-between;gap:10px;margin-top:14px}.ez .ezchk{list-style:none;margin:0;padding:0}.ez .ezchk li{display:flex;gap:10px;align-items:flex-start;background:var(--surface2,rgba(127,127,127,.08));border-radius:10px;padding:9px 12px;margin-bottom:8px;font-size:13.5px}.ez .ezchk li i{width:20px;height:20px;border-radius:10px;display:grid;place-items:center;font-style:normal;font-size:12px;background:#44c27a;color:#04131b;flex:none}.ez .ezchk li.w i{background:#ffb74d}.ez .ezview{display:flex;gap:6px;margin:0 0 10px}.ez .ezview button{font:inherit;font-size:12.5px;border-radius:999px;padding:5px 12px;border:1px solid var(--divider,rgba(127,127,127,.3));background:transparent;color:var(--text2);cursor:pointer}.ez .ezview button[aria-pressed=\"true\"]{border-color:var(--ez-acc);color:var(--text);background:rgba(38,169,224,.12)}";
+const EZ_CSS = ".ez{--ez-acc:#26a9e0}.ez .ezsteps{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 14px}.ez .ezstep{font:inherit;font-size:13.5px;display:flex;align-items:center;gap:8px;color:var(--text2);background:transparent;border:1px solid var(--divider,rgba(127,127,127,.3));border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer}.ez .ezstep b{width:22px;height:22px;border-radius:11px;display:grid;place-items:center;background:var(--surface2,rgba(127,127,127,.18));color:var(--text);font-size:12px}.ez .ezstep.on{border-color:var(--ez-acc);color:var(--text);background:rgba(38,169,224,.12)}.ez .ezstep.on b{background:var(--ez-acc);color:#04131b}.ez .ezstep.done b{background:#44c27a;color:#04131b}.ez .ezgrid{display:grid;grid-template-columns:250px minmax(0,1fr);gap:14px;align-items:start}.ez .ezleft>div+div{margin-top:14px}@media (max-width:760px){.ez .ezgrid{grid-template-columns:1fr}}.ez .ezbox{background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--divider,rgba(127,127,127,.25));border-radius:14px;padding:12px}.ez .ezh{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text2);margin:0 0 10px}.ez .ezroom{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;color:var(--text);background:var(--surface2,rgba(127,127,127,.1));border:1px solid var(--divider,rgba(127,127,127,.25));border-radius:12px;padding:9px;margin-bottom:8px;cursor:pointer}.ez .ezroom.on{border-color:var(--ez-acc);background:rgba(38,169,224,.1)}.ez .ezri{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:rgba(242,184,102,.16);color:#f2b866;flex:none}.ez .ezroom b{display:block;font-weight:600}.ez .ezroom small{display:block;color:var(--text2);font-size:12px}.ez .ezst{display:inline-block;margin-top:3px;font-size:10.5px;font-weight:700;color:var(--ez-acc);border:1px solid rgba(38,169,224,.5);border-radius:999px;padding:0 7px}.ez .ezimp{background:rgba(38,169,224,.1);border:1px solid rgba(38,169,224,.4);border-radius:12px;padding:10px;margin-bottom:10px;font-size:13px}.ez .ezimp b{display:block;margin-bottom:2px}.ez .ezimp small{color:var(--text2)}.ez .ezcats{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}.ez .ezcat{background:var(--surface2,rgba(127,127,127,.08));border:1px solid var(--divider,rgba(127,127,127,.25));border-radius:14px;padding:11px}.ez .ezcat.empty{border-style:dashed;background:transparent}.ez .ezch{display:flex;align-items:center;gap:10px;margin-bottom:8px}.ez .ezci{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:rgba(242,184,102,.14);color:#f2b866;flex:none}.ez .ezch b{font-weight:600;display:block}.ez .ezch small{display:block;color:var(--text2);font-size:12px}.ez .ezn{margin-left:auto;font-size:12px;color:var(--text2)}.ez .ezchip{display:flex;align-items:center;gap:8px;background:var(--surface,rgba(127,127,127,.12));border-radius:9px;padding:5px 6px 5px 9px;margin-bottom:6px;font-size:13.5px}.ez .ezchip>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ez .ezchip>.ezname{flex:1 1 220px;cursor:text}.ez .ezchip>.ezren{flex:1 1 220px}.ez .ezname b{font-weight:500}.ez .ezname small{display:block;font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis}.ez .ezren{flex:1;min-width:120px;font:inherit;font-size:13.5px;padding:3px 7px;border-radius:7px;border:1px solid var(--ez-acc);background:var(--surface2,#2b333e);color:var(--text);outline:none}.ez .ezpen{font-size:14px;opacity:.7}.ez .ezpen:hover{opacity:1;color:var(--ez-acc)}.ez .ezdot{width:8px;height:8px;border-radius:4px;background:#5a6270;flex:none}.ez .ezdot.on{background:#f2b866;box-shadow:0 0 8px rgba(242,184,102,.7)}.ez .ezdot.na{background:#e8705a}.ez .ezchip{flex-wrap:wrap}.ez .ezchip select{font:inherit;font-size:12px;max-width:150px;padding:2px 4px;border-radius:7px;background:var(--surface2,#2b333e);color:var(--text);border:1px solid var(--divider,rgba(127,127,127,.3))}.ez .ezx{border:0;background:none;color:var(--text2);cursor:pointer;font-size:16px;line-height:1;padding:0 4px}.ez .ezplus{font:inherit;font-size:13px;font-weight:600;color:var(--ez-acc);background:transparent;border:1px solid var(--divider,rgba(127,127,127,.3));border-radius:9px;padding:5px 10px;cursor:pointer;margin-top:2px}.ez .ezplus:disabled{opacity:.45;cursor:default}.ez .ezov{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000}.ez .ezpk{width:min(560px,100%);max-height:min(640px,90vh);display:flex;flex-direction:column;background:var(--card-bg,var(--surface,#1c2026));border:1px solid var(--divider,rgba(127,127,127,.3));border-radius:16px;overflow:hidden;color:var(--text)}.ez .ezpk header{padding:14px 16px;border-bottom:1px solid var(--divider,rgba(127,127,127,.25))}.ez .ezpk header b{font-size:16px}.ez .ezpk .ezls{overflow-y:auto;padding:6px 16px}.ez .ezgr{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);margin:10px 0 4px;font-weight:700}.ez .ezpk label{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:9px;cursor:pointer}.ez .ezpk label:hover{background:rgba(127,127,127,.1)}.ez .ezpk label small{display:block;color:var(--text2);font-size:12px}.ez .ezpk em{font-style:normal;font-size:11px;color:var(--ez-acc);border:1px solid rgba(38,169,224,.5);border-radius:999px;padding:0 7px;margin-left:auto;white-space:nowrap}.ez .ezpk footer{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:12px 16px;border-top:1px solid var(--divider,rgba(127,127,127,.25))}.ez .ezscr{position:relative;aspect-ratio:5/3;border-radius:10px;overflow:hidden;background:#1b1d24 center/cover;border:6px solid #0b0c0e;color:#f4f1ea}.ez .ezscr::after{content:\"\";position:absolute;left:0;top:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.15) 35%,rgba(0,0,0,.55))}.ez .eztb{position:absolute;left:8px;right:8px;top:6px;display:flex;justify-content:space-between;font-size:11px;z-index:2}.ez .ezbtns{position:absolute;left:6px;right:6px;top:24px;bottom:18px;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:6px 8px;z-index:2}.ez .ezpb{width:50px;text-align:center;font-size:9px}.ez .ezpb i{display:grid;place-items:center;width:32px;height:32px;margin:0 auto 2px;border-radius:16px;border:1.5px solid rgba(255,255,255,.75);background:rgba(0,0,0,.3)}.ez .ezpb.lit i{border-color:#f2b866;box-shadow:0 0 10px -2px rgba(242,184,102,.9)}.ez .ezpb svg{width:16px;height:16px}.ez .ezwarn{margin-top:10px;font-size:12.5px;color:#ffcc80}.ez .eznav{display:flex;justify-content:space-between;gap:10px;margin-top:14px}.ez .ezchk{list-style:none;margin:0;padding:0}.ez .ezchk li{display:flex;gap:10px;align-items:flex-start;background:var(--surface2,rgba(127,127,127,.08));border-radius:10px;padding:9px 12px;margin-bottom:8px;font-size:13.5px}.ez .ezchk li i{width:20px;height:20px;border-radius:10px;display:grid;place-items:center;font-style:normal;font-size:12px;background:#44c27a;color:#04131b;flex:none}.ez .ezchk li.w i{background:#ffb74d}.ez .ezview{display:flex;gap:6px;margin:0 0 10px}.ez .ezview button{font:inherit;font-size:12.5px;border-radius:999px;padding:5px 12px;border:1px solid var(--divider,rgba(127,127,127,.3));background:transparent;color:var(--text2);cursor:pointer}.ez .ezview button[aria-pressed=\"true\"]{border-color:var(--ez-acc);color:var(--text);background:rgba(38,169,224,.12)}";
 const EZ_STEPS = ["Style", "Rooms", "Whole house", "Look", "Check & push"];
 const EZ_ICONS = {
   lights: "M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z",
@@ -10380,7 +10404,18 @@ function EzPicker({ hass: h, cat: c, room: x, rooms, self, fname, ids, onAdd, on
 }
 function EasySetup({ hass: h, device: t, onChange: r, style, rooms, start, save, setRoom, fname, ids, styleEl, houseEl, lookEl, step, setStep }) {
   const [sel, setSel] = M.useState(0), [pk, setPk] = M.useState(null), [msg, setMsg] = M.useState("");
+  const [ren, setRen] = M.useState(null); // the device whose panel name is being typed
   const rs = style === "residence";
+  // Panel names: what the panel calls a device, instead of its Home Assistant name (device.elegant.names)
+  const names = (t.elegant && t.elegant.names) || {};
+  const pname = (id) => (typeof names[id] === "string" && names[id].trim()) || fname(id);
+  const setName = (id, v) => {
+    const m = { ...names };
+    v = String(v || "").trim().slice(0, 40);
+    if (v && v !== fname(id)) m[id] = v;
+    else delete m[id];
+    save({ names: Object.keys(m).length ? m : void 0 });
+  };
   const rc = t.residence || {};
   const cur = Math.min(sel, Math.max(0, rooms.length - 1));
   const x = rooms[cur];
@@ -10490,7 +10525,13 @@ function EasySetup({ hass: h, device: t, onChange: r, style, rooms, start, save,
           ez("div", { className: "ezch" }, ez("span", { className: "ezci" }, ezSvg(c.icon)), ez("span", null, ez("b", null, c.title), ez("small", null, c.hint)), v.length > 0 && ez("span", { className: "ezn" }, String(v.length))),
           v.map((id, n) => ez("div", { key: id, className: "ezchip", title: id },
             ez("i", { className: "ezdot" + (na(id) ? " na" : on(id) ? " on" : "") }),
-            ez("span", null, fname(id)),
+            ren === id
+              ? ez("input", { className: "ezren", autoFocus: !0, defaultValue: pname(id), placeholder: fname(id), maxLength: 40, "aria-label": "Name on the panel",
+                  onKeyDown: (m) => { if (m.key === "Enter") m.target.blur(); if (m.key === "Escape") setRen(null); },
+                  onBlur: (m) => { setName(id, m.target.value); setRen(null); } })
+              : ez("span", { className: "ezname", title: "Tap to rename on the panel", onClick: () => setRen(id) }, ez("b", null, pname(id)), names[id] && ez("small", null, "In Home Assistant: " + fname(id))),
+            ren !== id && ez("button", { className: "ezx ezpen", title: "Rename on the panel", "aria-label": "Rename", onClick: () => setRen(id) }, "✎"),
+            ren !== id && names[id] && ez("button", { className: "ezx", title: "Use the Home Assistant name again", "aria-label": "Reset name", onClick: () => setName(id, "") }, "↺"),
             c.key === "lights" && lampMatch && id.split(".")[0] === "light" && ez("select", { "aria-label": "Lamp drawing", value: (rc.lightTypes && rc.lightTypes[id]) || "", onChange: (m) => setLamp(id, m.target.value) },
               ez("option", { value: "" }, "Auto (" + ((lampOpts.filter((o) => o[0] === rsGuessLight(fname(id) + " " + id))[0] || [0, "Pendant"])[1]) + ")"),
               lampOpts.map((o) => ez("option", { key: o[0], value: o[0] }, o[1]))),
@@ -10555,6 +10596,7 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
   const style = ["elegant", "aurora", "nordic", "studio", "tiles", "residence"].includes(t.dashboardStyle) ? t.dashboardStyle : "classic", cfg = t.elegant ?? {};
   const rooms = elRooms(cfg), start = Math.min(cfg.start ?? 0, Math.max(0, rooms.length - 1));
   const [open, setOpen] = M.useState(0);
+  const [ren, setRen] = M.useState(null); // the device whose panel name is being typed
   // Easy setup (room by room, in steps) or All settings (the long page); remembered in this browser
   const [view, setView0] = M.useState(() => {
     try {
@@ -10587,6 +10629,25 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
     return n >= 0 ? "already in " + (rooms[n].name || "room " + (n + 1)) : "";
   };
   const chip = { display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 4px 4px 10px", margin: "0 6px 6px 0", borderRadius: 999, background: "var(--chip-bg, rgba(127,127,127,.16))", fontSize: 13 };
+  // Panel names (device.elegant.names): what the panel calls a device instead of its HA name
+  const names = cfg.names || {};
+  const pname = (id) => (typeof names[id] === "string" && names[id].trim()) || fname(id);
+  const setName = (id, v) => {
+    const m = { ...names };
+    v = String(v || "").trim().slice(0, 40);
+    if (v && v !== fname(id)) m[id] = v;
+    else delete m[id];
+    save({ names: Object.keys(m).length ? m : void 0 });
+  };
+  const nameEl = (id) => ren === id
+    ? ez("input", { autoFocus: !0, defaultValue: pname(id), placeholder: fname(id), maxLength: 40, "aria-label": "Name on the panel", style: { font: "inherit", fontSize: 13, width: 170, padding: "2px 6px", borderRadius: 7, border: "1px solid #26a9e0", background: "var(--surface2,#2b333e)", color: "inherit", outline: "none" },
+        onKeyDown: (m) => { if (m.key === "Enter") m.target.blur(); if (m.key === "Escape") setRen(null); },
+        onBlur: (m) => { setName(id, m.target.value); setRen(null); } })
+    : ez("span", { style: { cursor: "text" }, title: names[id] ? "In Home Assistant: " + fname(id) : "Tap to rename on the panel", onClick: () => setRen(id) }, pname(id), names[id] && ez("small", { style: { opacity: 0.6, marginLeft: 6 } }, "(" + fname(id) + ")"));
+  const nameBtns = (id) => ren === id ? null : [
+    ez("button", { key: "rn", style: { ...xbtn, fontSize: 13, opacity: 0.7 }, title: "Rename on the panel", "aria-label": "Rename", onClick: () => setRen(id) }, "✎"),
+    names[id] && ez("button", { key: "rs", style: { ...xbtn, fontSize: 14, opacity: 0.7 }, title: "Use the Home Assistant name again", "aria-label": "Reset name", onClick: () => setName(id, "") }, "↺")
+  ];
   const xbtn = { border: 0, background: "transparent", color: "inherit", cursor: "pointer", fontSize: 15, lineHeight: 1, padding: "0 5px" };
   const lbl = { fontSize: 12, fontWeight: 700, opacity: 0.7, letterSpacing: ".04em", textTransform: "uppercase", margin: "14px 0 6px" };
   const field = (c, sel, setSel, self) => {
@@ -10594,7 +10655,8 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
     return /* @__PURE__ */ a.jsxs("div", { style: { marginTop: 12 }, children: [
       /* @__PURE__ */ a.jsxs("div", { children: [/* @__PURE__ */ a.jsx("b", { style: { fontWeight: 500 }, children: c.title }), /* @__PURE__ */ a.jsx("span", { className: "hint", style: { marginLeft: 8 }, children: c.hint })] }),
       /* @__PURE__ */ a.jsx("div", { style: { margin: "6px 0" }, children: sel.map((id, n) => /* @__PURE__ */ a.jsxs("span", { style: chip, title: id, children: [
-        fname(id),
+        nameEl(id),
+        nameBtns(id),
         n > 0 && /* @__PURE__ */ a.jsx("button", { style: xbtn, title: "Move left", onClick: () => {
           const v = sel.slice();
           v.splice(n - 1, 0, v.splice(n, 1)[0]);

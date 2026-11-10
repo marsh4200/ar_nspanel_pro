@@ -2159,6 +2159,13 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.skin-residence.rs2-on.rs2-tall .rs-scenes .rs-ring>svg{width:96px;height:96px}
 .el-root.skin-residence.rs2-on.rs2-tall .rs-scenes .rs-lbl{font-size:40px;margin-top:20px;max-width:100%}
 .el-root.skin-residence.rs2-on.rs2-tall .rs-empty{font-size:38px}
+/* Security: the alarm code keypad (Away / Home / Night / Disarm on an alarm with a code) */
+.el-root.skin-residence.rs2-on.rs2-tall .el-pin{top:0;left:-26px;right:-26px;bottom:0;background:rgba(0,0,0,.78)}
+.el-root.skin-residence.rs2-on.rs2-tall .el-pinbox{width:880px;max-width:100%;box-sizing:border-box;padding:44px 40px;border-radius:44px;background:rgba(20,21,26,.97)}
+.el-root.skin-residence.rs2-on.rs2-tall .el-pint{font-size:46px;font-weight:500}
+.el-root.skin-residence.rs2-on.rs2-tall .el-pindots{height:90px;line-height:90px;font-size:80px;letter-spacing:22px;margin:16px 0 26px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-pad{grid-gap:24px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-pad .el-key{max-width:none;height:150px;margin:0;border-radius:32px;font-size:62px;font-weight:500}
 /* the bottom bar's what's playing */
 .el-root.skin-residence.rs2-on.rs2-tall .rs-art{width:80px;height:80px;border-radius:18px;margin-right:20px}
 .el-root.skin-residence.rs2-on.rs2-tall .rs-npt b{font-size:34px}

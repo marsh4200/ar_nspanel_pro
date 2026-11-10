@@ -3119,6 +3119,15 @@ export function mountResidence(a) {
     const rn = Object.keys(roomPref().names || {}).length;
     const ln = Object.keys(PREF.nick || {}).length;
     if (rn || ln) r.renamed = { rooms: rn, lights: ln };
+    // the names themselves, so the installer's "Read from panel" can copy them into the setup
+    if (ln) {
+      r.nicks = {};
+      Object.keys(PREF.nick).forEach((e) => typeof PREF.nick[e] === "string" && PREF.nick[e] && (r.nicks[e] = PREF.nick[e].slice(0, 40)));
+    }
+    if (rn) {
+      r.roomNames = {};
+      Object.keys(roomPref().names).forEach((i) => roomName(Number(i)) && (r.roomNames[i] = roomName(Number(i)).slice(0, 40)));
+    }
     if (Array.isArray(roomPref().order) && roomPref().order.some((x, k) => x !== k)) r.reordered = true;
     const rb = Object.keys(PREF.roomBg || {}).filter((i) => roomBgOf(Number(i))).map((i) => roomLabel(Number(i)) + ": " + (BG_NAMES[String(PREF.roomBg[i]).slice(7)] || ""));
     if (rb.length) r.roomBg = rb;

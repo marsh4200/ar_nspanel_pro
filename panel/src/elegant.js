@@ -233,7 +233,10 @@ export function buildElegant(cfg, ctx, skin) {
     if (readKeys) readKeys.add(k);
     return ctx.get(k) || {};
   };
-  const rawNameOf = (e) => (isRtsp(e) ? rtspCam(e).name || "Camera" : get(e).name || e.split(".")[1].replace(/_/g, " "));
+  // a name given in the Home Assistant setup (Rooms > rename) beats the HA friendly name
+  const NAMES = cfg.names && typeof cfg.names === "object" ? cfg.names : {};
+  const setupName = (e) => (typeof NAMES[e] === "string" && NAMES[e].trim()) || "";
+  const rawNameOf = (e) => (isRtsp(e) ? rtspCam(e).name || "Camera" : setupName(e) || get(e).name || e.split(".")[1].replace(/_/g, " "));
   // a nickname the customer gave it on the panel (Residence settings > Rooms) wins
   const nameOf = (e) => (RX && RX.nick && RX.nick(e)) || rawNameOf(e);
   // speed readout: a light switched / dimmed here, until HA reports it changed
