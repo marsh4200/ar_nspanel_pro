@@ -80,6 +80,18 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## HDL S57 without Chrome (5.0.2)
+
+- The legacy APK now draws the panel screen in Android's own WebView whenever the panel's WebView is new enough (90 or later), the same way as the standard build. Older panels (the HDL S10 touch, WebView 39) keep using Chrome as before.
+- `tools/s57-webview`: gives the HDL S57 WebView 106 (LineageOS's *Android System WebView 106.0.5249.126, arm64-v8a + arm-v7a*, from APKMirror, saved as `webview.apk`). It backs up the original first; `webview-restore.bat` puts the original back. After this, the S57 has no Chrome, no address bar, no switch to full screen and no white strip.
+- Chrome fixes for panels that still use Chrome: the web-app manifest is back in `<head>` (Chrome hadn't been seeing it since 4.8.10), and a plain "Add to Home screen" bookmark is no longer mistaken for a full-screen web app.
+
+## Residence 2 and the HDL S57 (5.0.1)
+
+- **Residence 2** (Device Setup > Dashboard style), for the NSPanel Pro and the HDL S57 only: one big 3D icon per page, with no tile, swiped like a carousel. Its icons can be changed like Residence's, and it comes with a new set of 3D icons. Its Lights page defaults to *Minimal tall*: one full-width row per light, filled to its level in the light's own colour. The landscape panels (Source 7 / 10, TDX, Akubela) and the Samsung tablet always stay on plain Residence.
+- **HDL S57** panel type in Device Setup: Android 6, with the screen running in Chrome. The first install goes over USB (`tools/usb-setup`, with `chrome106.apk` next to the scripts); after that, updates go over the air.
+- The panel only shows the new screen after this app update, or when its *Load UI from* is set to Home Assistant.
+
 ## Renamed lights show up straight away (5.0.0)
 
 Renaming a light (or a room) under Settings > Rooms on the panel saved the new name, but the Residence lights page kept drawing the old one until something else made it rebuild. It now redraws as soon as you rename. Panel screen only: no new APK.

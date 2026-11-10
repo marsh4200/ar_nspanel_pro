@@ -145,6 +145,18 @@ def _s57_chrome(device: Any) -> str | None:
     return ver
 
 
+#: The S57 runs the panel UI in its own WebView (no Chrome) from this version on:
+#: its WebView 44 replaced with 106 (tools/s57-webview). Same rule as the app.
+S57_WEBVIEW_OK = 90
+
+
+def _s57_webview(device: Any) -> int:
+    """Major version of the panel's system WebView (0 if unknown)."""
+    v = _parse_version_name(device.shell("dumpsys package com.android.webview | grep versionName")) or ""
+    head = v.split(".", 1)[0]
+    return int(head) if head.isdigit() else 0
+
+
 def _s57_keep_adb(device: Any, port: int | str | None = None) -> str | None:
     """Network ADB on the same port after every reboot. The S57's shell is
     root, so plain ``setprop`` does it (no ``su`` on this panel). The port
@@ -165,12 +177,17 @@ def _s57_after_install(device: Any) -> list[str]:
     kept = _s57_keep_adb(device)
     if kept:
         notes.append(f"Network ADB kept on port {kept} after reboots ✓.")
+    wv = _s57_webview(device)
     ver = _s57_chrome(device)
-    notes.append(
-        f"Chrome {ver} ✓ (runs the panel screen)." if ver else
-        "Chrome isn't installed: on the S57 the panel screen runs in Chrome. Install it "
-        "once over USB (tools/usb-setup, with chrome*.apk next to the script)."
-    )
+    if wv >= S57_WEBVIEW_OK:
+        notes.append(f"WebView {wv} ✓: the app draws the panel screen itself (no Chrome).")
+    else:
+        notes.append(
+            f"Chrome {ver} ✓ (runs the panel screen)." if ver else
+            "Chrome isn't installed: on the S57 the panel screen runs in Chrome. Install it "
+            "once over USB (tools/usb-setup, with chrome*.apk next to the script), or "
+            "update its WebView (tools/s57-webview)."
+        )
     wallapp_on = f"package:{S57_APP}" not in (device.shell(f"pm list packages -d {S57_APP}") or "")
     if wallapp_on:
         device.shell(f"pm disable {_BOOT_RECEIVER}")
@@ -200,12 +217,14 @@ def _s57_takeover(device: Any, port: int) -> list[str]:
     screen with no tap, the navigation bar pushed off screen."""
     if not _installed(device, APP_PACKAGE) or not _app_on_storage(device):
         raise AdbError("not_installed", "Install the app first, then take the panel over.")
+    wv = _s57_webview(device)
     ver = _s57_chrome(device)
-    if not ver:
+    if wv < S57_WEBVIEW_OK and not ver:
         raise AdbError(
             "no_chrome",
             "Chrome isn't on this panel, so the AR screen would stay blank: HDL was left on. "
-            "Install Chrome 106 once over USB (tools/usb-setup), then try again.",
+            "Update its WebView (tools/s57-webview) or install Chrome 106 over USB "
+            "(tools/usb-setup), then try again.",
         )
     kept = _s57_keep_adb(device, port)
     if not kept:
@@ -213,11 +232,12 @@ def _s57_takeover(device: Any, port: int) -> list[str]:
             "adb_keep_failed",
             "Couldn't make network ADB permanent on this panel, so HDL was left on.",
         )
-    log = [f"Network ADB stays on port {kept} after reboots.", f"Chrome {ver} ✓."]
+    log = [f"Network ADB stays on port {kept} after reboots.", f"WebView {wv} ✓ (no Chrome needed)." if wv >= S57_WEBVIEW_OK else f"Chrome {ver} ✓."]
     device.shell("settings put global adb_enabled 1")
     device.shell(f"pm enable {_BOOT_RECEIVER}")
-    # full screen in Chrome with no tap (the app's accessibility helper)
-    device.shell(f"settings put secure enabled_accessibility_services {_FS_HELPER}; settings put secure accessibility_enabled 1")
+    if wv < S57_WEBVIEW_OK:
+        # full screen in Chrome with no tap (the app's accessibility helper)
+        device.shell(f"settings put secure enabled_accessibility_services {_FS_HELPER}; settings put secure accessibility_enabled 1")
     bar = _navbar_hide(device)
     if bar:
         log.append(bar)
@@ -674,6 +694,7 @@ class PanelAdb:
                 or (s57 and f"package:{S57_APP}" in disabled),
                 # HDL S57: the panel screen runs in Chrome (None = not installed)
                 "chrome": _parse_version_name(device.shell(f"dumpsys package {CHROME_PKG} | grep versionName")) if s57 else None,
+                "webview": _s57_webview(device) if s57 else None,
                 "panel_type": ("source10" if found[1] == HDL_LAUNCHER else "source7") if found
                 else "s57" if s57
                 else "akubela" if _installed(device, AKUBELA_APP)
