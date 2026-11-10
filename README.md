@@ -562,6 +562,9 @@ Push a version tag:
 git tag v1.2.7 && git push origin v1.2.7
 ```
 
+
+   adb install -r "$env:USERPROFILE\Downloads\ar-nspanel-pro-legacy-5.0.4.apk"
+
 GitHub Actions builds `ar-nspanel-pro-1.2.7.apk`, signs it with the key in
 `android/signing/release.jks` (nothing to set up), and attaches it to the release. Every
 panel's **Setup/Update → Install latest** then installs it. Keep that key file: updates only
