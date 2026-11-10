@@ -80,6 +80,10 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Carousel taps right after a swipe (5.0.12)
+
+- Residence 2 home screen and the Utilities 3D slider: a tap on an icon right after a swipe, while the icons are still gliding into place, was lost (the panel only got a click when the finger went down and up on the same spot), so it took a second tap or a wait. The tap is now taken from where the finger went down, as soon as it lifts.
+
 ## Utilities sections: your own icons, 4C-style switches (5.0.11)
 
 - Device Setup > Whole house > Utilities: each section (Pool, Irrigation, Geysers, Other) has its own icon for the 3D slider: the 3D default, any library icon, or your own upload (background removed, shown as the icon only, no circle). Stored as `residence.icons.u_pool` / `u_irrigation` / `u_geyser` / `u_more`; uploads travel inside the setup like the other button icons.

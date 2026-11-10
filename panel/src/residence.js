@@ -1247,12 +1247,18 @@ export function mountResidence(a) {
       it.addEventListener("click", (ev) => {
         if (ev.__r2Handled) return;
         ev.__r2Handled = true;
-        if (i === P) (o && o.open ? o.open(c) : a.go(c.key));
-        else go(LOOP ? P + wrapD(i - P, N) : i);
+        if (Date.now() - tapAt < 700) return; // already done on the finger lifting (below)
+        hit(i);
       });
       stage.appendChild(it);
       return it;
     });
+    // a tap on an icon: open the front one, bring a side one to the front
+    let tapAt = 0;
+    function hit(i) {
+      if (i === P) (o && o.open ? o.open(ks[i]) : a.go(ks[i].key));
+      else go(LOOP ? P + wrapD(i - P, N) : i);
+    }
     const dots = el("div", "rs2-dots");
     cs.forEach((c, i) => {
       const d = el("span", "");
@@ -1296,7 +1302,11 @@ export function mountResidence(a) {
     }
     // the finger turns the carousel; a flick or a fifth of a page moves one along
     let x0 = null, y0 = 0, t0 = 0, dx = 0, moved = false, scale = 1, raf = 0;
+    let downIt = null;
     stage.addEventListener("pointerdown", (ev) => {
+      // the icon under the finger now: the tap counts even if the icon is still
+      // gliding into place when the finger lifts (no click then on a slow panel)
+      downIt = ev.target && ev.target.closest ? ev.target.closest(".rs2-it") : null;
       x0 = ev.clientX;
       y0 = ev.clientY;
       t0 = Date.now();
@@ -1334,6 +1344,18 @@ export function mountResidence(a) {
       const wasX = x0;
       x0 = null;
       if (!moved) {
+        if (ev && ev.type === "pointerup" && downIt && its.indexOf(downIt) >= 0) {
+          tapAt = Date.now();
+          // the click that follows lands on whatever opened under the finger: drop it
+          const kill = (e2) => {
+            e2.stopPropagation();
+            e2.preventDefault();
+          };
+          document.addEventListener("click", kill, true);
+          setTimeout(() => document.removeEventListener("click", kill, true), 450);
+          hit(its.indexOf(downIt));
+          return;
+        }
         // a tap beside the icons: one page that way
         if (ev && ev.type === "pointerup" && !(ev.target.closest && ev.target.closest(".rs2-it"))) {
           const rr = stage.getBoundingClientRect();
