@@ -1253,6 +1253,7 @@ export function buildElegant(cfg, ctx, skin) {
     const up = mkPage("utilities");
     up.render = function () {
       const p = up.el;
+      if (dragging && p.querySelector(".rs-uhub")) return; // a swipe of the groups carousel
       if (uTab === "solar" && SOLAR) {
         if (solarView && solarView.el.parentNode === p) return updateSolar();
         p.innerHTML = "";
@@ -1279,6 +1280,17 @@ export function buildElegant(cfg, ctx, skin) {
       if (!ents.utilities.length) {
         p.appendChild(txt("div", "el-libmsg sl-none", "No switches in Utilities yet: tap Solar above."));
         return;
+      }
+      // Residence, Utilities design "3D slider": Pool / Irrigation / Geysers as big 3D icons first (residence.js)
+      if (RX && RX.utilHub) {
+        const uTap = (e) => {
+          const turnOn = !get(e).on;
+          patch(e, { on: turnOn, since: Date.now() / 1000 });
+          send("toggle", { entity: e });
+          up.render();
+          toast(nameOf(e) + (turnOn ? " on" : " off"));
+        };
+        if (RX.utilHub(p, ents.utilities, uTap, () => up.render(), !!SOLAR)) return;
       }
       if (RX && RX.utilCards) {
         // Residence: realistic tiles (residence.js); the switching is the same

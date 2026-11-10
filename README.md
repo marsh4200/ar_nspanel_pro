@@ -80,6 +80,13 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Utilities: 3D slider, and uploaded icons on the S57 (5.0.9)
+
+- Residence Utilities page has a fifth design, **3D slider** (Device Setup > Utilities page, or the customer's Settings > Look > Designs): Pool, Irrigation and Geysers (and More, for anything else) as big 3D icons on a carousel that goes round and round. Tap the front one for its switches (picture tiles); Back returns to the icons. Devices are grouped by name (pool / pump; sprinkler / irrigation / garden / lawn / zone; geyser / heater / boiler). With only one group the switches show straight away. Works on every Residence panel: tall, square and wide.
+- New 3D icons in the same chrome-and-glass style as Energy and Comfort: Pool, Water drop (irrigation) and Flame (geyser), also in the icon picker.
+- Uploaded button icons now travel inside the setup sent to the panel (up to 200 KB each), so a panel running its built-in screen (the HDL S57) shows them without downloading them from Home Assistant.
+- Residence 2 on tall screens: the Utilities picture tiles are two a row at finger size.
+
 ## Read from panel brings the customer's names (5.0.8)
 
 - The panel now reports the names the customer gave on it (Residence Settings > Rooms: room names and light names), not just how many. Read from panel lists each one (panel name next to the setup name), ticked; "Copy ticked into this setup" puts them into the room names and `elegant.names`, so they survive a reset or a new panel after Save & Push. Panels on an older panel app still show the count only.

@@ -97,3 +97,40 @@ def residence_public(cfg: dict[str, Any], base_url: str | None) -> dict[str, Any
         return cfg
     rs = cfg.get("residence") if isinstance(cfg.get("residence"), dict) else {}
     return {**cfg, "residence": {**rs, "base": base_url.rstrip("/")}}
+
+
+#: an uploaded button icon this small travels inside the panel's setup itself
+INLINE_ICON_MAX = 200 * 1024
+
+
+async def async_inline_icons(hass: HomeAssistant, cfg: dict[str, Any]) -> dict[str, Any]:
+    """Put uploaded Residence button icons into the setup sent to the panel, as
+    ``data:`` pictures. The panel then shows them without fetching anything from
+    Home Assistant, which a panel running its bundled UI (the HDL S57) can fail
+    to do when it can't reach or resolve Home Assistant's address. Photos
+    (backgrounds) stay links: they are too big to send this way."""
+    if cfg.get("dashboardStyle") != "residence":
+        return cfg
+    rs = cfg.get("residence") if isinstance(cfg.get("residence"), dict) else {}
+    icons = rs.get("icons") if isinstance(rs.get("icons"), dict) else None
+    if not icons:
+        return cfg
+    folder = Path(hass.config.path(MEDIA_DIR))
+
+    def _read(name: str) -> bytes | None:
+        p = (folder / name).resolve()
+        if p.parent != folder.resolve() or not p.is_file() or p.stat().st_size > INLINE_ICON_MAX:
+            return None
+        return p.read_bytes()
+
+    out: dict[str, Any] = {}
+    for key, ic in icons.items():
+        src = ic.get("src") if isinstance(ic, dict) else None
+        if isinstance(src, str) and src.startswith(MEDIA_URL + "/"):
+            name = src[len(MEDIA_URL) + 1 :]
+            data = await hass.async_add_executor_job(_read, name) if name and "/" not in name else None
+            if data:
+                mime = "image/png" if data.startswith(_EXT["png"]) else "image/jpeg"
+                ic = {**ic, "src": f"data:{mime};base64," + base64.b64encode(data).decode()}
+        out[key] = ic
+    return {**cfg, "residence": {**rs, "icons": out}}

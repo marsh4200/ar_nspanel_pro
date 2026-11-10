@@ -418,6 +418,13 @@ export function mountResidence(a) {
     return RS_TITLES[k] || "";
   }
   function intercept(k) {
+    // Utilities group open: the back button goes to the groups, not home
+    if (k === "home" && uGroup && a.current() === "utilities" && Date.now() - backAt < 600) {
+      uGroup = null;
+      a.pages.utilities.render();
+      return true;
+    }
+    if (k === "utilities") uGroup = null;
     if (k === "watch") watchEnter();
     if (k === "security" && !(a.ents().security || []).length) {
       a.toast("No alarm set up yet: add one in Device Setup");
@@ -846,7 +853,7 @@ export function mountResidence(a) {
   };
   const UG_OF = { pump: "pump", sprinkler: "sprink", pool: "pool", geyser: "flame", heater: "flame", fence: "fence", gate: "gate", garage: "gate", front_door: "gate", water_tank: "bore", bulb_on: "bulb", bulb_off: "bulb", fan: "fan", aircon: "fan" };
   const WATER = { pump: 1, bore: 1, sprink: 1, pool: 1 };
-  const UTIL_LAYOUTS = [["classic", "Classic"], ["list", "Living list"], ["flow", "Flow"], ["plate", "Switch plate"]];
+  const UTIL_LAYOUTS = [["classic", "Classic"], ["list", "Living list"], ["flow", "Flow"], ["plate", "Switch plate"], ["slider", "3D slider"]];
   const instUtil = () => (UTIL_LAYOUTS.some((o) => o[0] === rc.utilPage) ? rc.utilPage : "classic");
   const utilPage = () => mine("util", "utilBase", UTIL_LAYOUTS, instUtil);
   // restored from a Home Assistant backup: the customer's design picks count as made
@@ -871,7 +878,7 @@ export function mountResidence(a) {
   const uSvg = (g, cls) => '<svg class="rs-ug' + (cls ? " " + cls : "") + '" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + UG[g] + "</svg>";
   function utilView(list, tap) {
     const lay = utilPage();
-    if (lay === "classic") return utilCards(list, tap);
+    if (lay === "classic" || lay === "slider") return utilCards(list, tap); // slider: utilHub, else the tiles
     const wrap = el("div", "rs-uv rs-uv-" + lay + (list.length > 6 ? " many" : ""));
     const item = (e, cls, html) => {
       const u = uInfo(e);
@@ -927,6 +934,59 @@ export function mountResidence(a) {
     });
     wrap.appendChild(fl);
     return wrap;
+  }
+  // Utilities design "3D slider": the groups (Pool, Irrigation, Geysers, More), each one
+  // big 3D icon on a carousel that goes round and round; tap one for its devices
+  // (the picture tiles). One group only: straight to the devices.
+  const U_GROUPS = [["pool", "Pool", "r2_pool"], ["irrigation", "Irrigation", "r2_irrigation"], ["geyser", "Geysers", "r2_geyser"], ["more", "More", "r2_utilities"]];
+  const UG_GROUP = { pool: "pool", pump: "pool", sprink: "irrigation", flame: "geyser" };
+  const U_IX = { i: 0 };
+  let uGroup = null;
+  let backAt = 0;
+  root.addEventListener("click", (ev) => {
+    if (ev.target && ev.target.closest && ev.target.closest(".el-back")) backAt = Date.now();
+  }, true);
+  function utilHub(p, list, tap, again, tabbed) {
+    if (utilPage() !== "slider") return false;
+    const gs = U_GROUPS.map((g) => ({ key: "u_" + g[0], g: g[0], title: g[1], icon: g[2], list: list.filter((e) => (UG_GROUP[uInfo(e).g] || "more") === g[0]) })).filter((g) => g.list.length);
+    if (gs.length < 2) return false;
+    const cur = gs.filter((g) => g.g === uGroup)[0];
+    const running = (g) => g.list.filter((e) => uInfo(e).on).length;
+    if (cur) {
+      const wrap = el("div", "rs-ugrp" + (tabbed ? " tabbed" : ""));
+      const hd = el("div", "rs-ughd", '<span class="rs-ugbk"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></span><img alt=""><div><b></b><small></small></div>');
+      hd.querySelector("img").src = libUrl(cur.icon);
+      hd.querySelector("b").textContent = cur.title;
+      const n = running(cur);
+      hd.querySelector("small").textContent = n ? n + " running" : cur.list.length + (cur.list.length === 1 ? " device · off" : " devices · all off");
+      hd.addEventListener("click", () => {
+        uGroup = null;
+        again();
+      });
+      wrap.appendChild(hd);
+      wrap.appendChild(utilCards(cur.list, tap));
+      p.appendChild(wrap);
+      return true;
+    }
+    uGroup = null;
+    if (U_IX.i >= gs.length) U_IX.i = 0;
+    const hub = el("div", "rs-uhub" + (tabbed ? " tabbed" : ""));
+    p.appendChild(hub);
+    renderR2(hub, gs, null, {
+      ix: U_IX,
+      loop: true,
+      icon: (c) => '<img alt="" src="' + libUrl(c.icon).replace(/"/g, "%22") + '">',
+      open: (c) => {
+        uGroup = c.g;
+        again();
+      },
+      status: (c) => {
+        const k = running(c);
+        return k ? k + " running" : "Off";
+      },
+      lit: (c) => running(c) > 0,
+    });
+    return true;
   }
   // Settings > Icons: the customer's own icon for a home button ("lib:<name>" from
   // the picture library, or "line" for the plain line icon); else Device Setup's
@@ -1098,7 +1158,7 @@ export function mountResidence(a) {
   // Residence 2's own 3D icons (library "r2_<key>"). Built once per room / list /
   // size / icons; Home Assistant updates only repaint the status lines and glows,
   // so a swipe or the floating icon never jumps.
-  const R2_GLOW = { lights: "255,180,90", climate: "88,204,238", music: "168,128,255", watch: "128,150,255", shades: "120,184,255", cameras: "170,184,204", utilities: "250,204,80", security: "70,214,146", scenes: "150,140,255", calendar: "255,128,108" };
+  const R2_GLOW = { lights: "255,180,90", climate: "88,204,238", music: "168,128,255", watch: "128,150,255", shades: "120,184,255", cameras: "170,184,204", utilities: "250,204,80", u_pool: "70,190,255", u_irrigation: "96,214,120", u_geyser: "255,138,64", u_more: "250,204,80", security: "70,214,146", scenes: "150,140,255", calendar: "255,128,108" };
   function r2Icon(k) {
     const mineI = PREF.icons && PREF.icons[k];
     const ic = rc.icons && rc.icons[k];
@@ -1113,14 +1173,28 @@ export function mountResidence(a) {
     if (c.key === "security") return (a.ents().security || []).some((e) => a.get(e).on);
     return true;
   }
-  function renderR2(p, cs, r) {
+  // o (optional): another carousel than the home one, e.g. Utilities' groups:
+  // { ix: {i}, loop, icon(c), open(c), status(c), lit(c) }
+  const R2HOME = { get i() { return r2Idx; }, set i(v) { r2Idx = v; } };
+  function renderR2(p, cs, r, o) {
+    const IX = (o && o.ix) || R2HOME;
     const W = p.clientWidth || 1000;
     const H = p.clientHeight || 1600;
     const key = cs.map((c) => c.key).join(",") + "|" + (r && r.name) + "|" + W + "x" + H + "|" + JSON.stringify([PREF.icons || null, rc.icons || null, rc.v2Reflect === false]);
     if (p.__r2 && p.__r2.key === key && p.contains(p.__r2.box)) return p.__r2.update(r);
     p.innerHTML = "";
-    if (r2Idx >= cs.length) r2Idx = 0;
-    const S = Math.round(Math.max(220, Math.min(W * 0.5, H * 0.36)));
+    if (IX.i >= cs.length) IX.i = 0;
+    // o.loop: round and round (the last button is followed by the first). The buttons are
+    // repeated so there are at least 5; the one that jumps to the other end is out of sight.
+    const n = cs.length;
+    const LOOP = !!(o && o.loop) && n > 1;
+    const N = LOOP ? n * Math.max(1, Math.ceil(5 / n)) : n;
+    const ks = [];
+    for (let j = 0; j < N; j++) ks.push(cs[j % n]);
+    const wrapD = (d, m) => (LOOP ? d - Math.round(d / m) * m : d);
+    let P = IX.i; // position in ks
+    // the home screen only runs on tall screens; another carousel (Utilities) also on wide, low ones
+    const S = Math.round(o && H < 1100 ? Math.max(140, Math.min(W * 0.5, H * 0.32)) : Math.max(220, Math.min(W * 0.5, H * 0.36)));
     const SP = W * 0.57;
     // HDL S57 (Allwinner A64, Mali-400): the weakest GPU of the lot; there the
     // icons don't float and have no reflection (rc.v2Reflect: true forces it on)
@@ -1137,8 +1211,8 @@ export function mountResidence(a) {
     const stage = el("div", "rs2-stage");
     stage.style.webkitPerspective = stage.style.perspective = Math.round(W * 2.1) + "px";
     box.appendChild(stage);
-    const its = cs.map((c, i) => {
-      const it = el("div", "rs2-it rs2-k-" + c.key, '<div class="rs2-halo"></div><div class="rs2-ic">' + r2Icon(c.key) + '</div><div class="rs2-sh"></div><div class="rs2-lb"><b></b><span></span></div>');
+    const its = ks.map((c, i) => {
+      const it = el("div", "rs2-it rs2-k-" + c.key, '<div class="rs2-halo"></div><div class="rs2-ic">' + (o && o.icon ? o.icon(c) : r2Icon(c.key)) + '</div><div class="rs2-sh"></div><div class="rs2-lb"><b></b><span></span></div>');
       const col = R2_GLOW[c.key] || "243,217,164";
       it.querySelector(".rs2-halo").style.background = "radial-gradient(circle,rgba(" + col + ",.5),rgba(" + col + ",0) 62%)";
       it.querySelector("b").textContent = c.title;
@@ -1147,8 +1221,8 @@ export function mountResidence(a) {
       it.addEventListener("click", (ev) => {
         if (ev.__r2Handled) return;
         ev.__r2Handled = true;
-        if (i === r2Idx) a.go(c.key);
-        else go(i);
+        if (i === P) (o && o.open ? o.open(c) : a.go(c.key));
+        else go(LOOP ? P + wrapD(i - P, N) : i);
       });
       stage.appendChild(it);
       return it;
@@ -1156,14 +1230,14 @@ export function mountResidence(a) {
     const dots = el("div", "rs2-dots");
     cs.forEach((c, i) => {
       const d = el("span", "");
-      d.addEventListener("click", () => go(i));
+      d.addEventListener("click", () => go(LOOP ? P + wrapD(i - (P % n), n) : i));
       dots.appendChild(d);
     });
     box.appendChild(dots);
     p.appendChild(box);
     function lay(pos, moving) {
       its.forEach((it, i) => {
-        const d = i - pos;
+        const d = wrapD(i - pos, N);
         const ad = Math.abs(d);
         const sg = d < 0 ? -1 : 1;
         const tx = sg * (Math.min(ad, 1) * W * 0.53 + Math.max(ad - 1, 0) * W * 0.26);
@@ -1178,16 +1252,17 @@ export function mountResidence(a) {
         // labels and halos: their own layers, faded by the GPU (no repaint)
         it.querySelector(".rs2-lb").style.opacity = String(Math.max(0, 1 - ad * 1.8).toFixed(3));
         it.querySelector(".rs2-halo").style.opacity = String((Math.max(0, 1 - ad * 1.2) * (it.classList.contains("lit") ? 1 : 0.45)).toFixed(3));
-        it.classList.toggle("cur", i === Math.round(pos) && ad < 0.5);
+        it.classList.toggle("cur", ad < 0.5);
       });
       if (moving) return;
-      glows.forEach((g, i) => (g.style.opacity = String(Math.max(0, 1 - Math.abs(i - pos)).toFixed(3))));
+      glows.forEach((g, i) => (g.style.opacity = String(Math.max(0, 1 - Math.abs(wrapD(i - pos, n))).toFixed(3))));
     }
     function go(i, now) {
-      r2Idx = Math.max(0, Math.min(cs.length - 1, i));
+      P = LOOP ? ((i % N) + N) % N : Math.max(0, Math.min(n - 1, i));
+      IX.i = P % n;
       if (now) box.classList.add("drag");
-      lay(r2Idx);
-      Array.prototype.forEach.call(dots.children, (d, k) => d.classList.toggle("cur", k === r2Idx));
+      lay(P);
+      Array.prototype.forEach.call(dots.children, (d, k) => d.classList.toggle("cur", k === IX.i));
       if (now) {
         void box.offsetWidth; // apply without the spring, then turn it back on
         box.classList.remove("drag");
@@ -1224,8 +1299,8 @@ export function mountResidence(a) {
       raf = requestAnimationFrame(() => {
         raf = 0;
         if (x0 === null) return;
-        const edge = (r2Idx === 0 && dx > 0) || (r2Idx === cs.length - 1 && dx < 0) ? 0.32 : 1;
-        lay(r2Idx - (dx * edge) / SP, true);
+        const edge = !LOOP && ((P === 0 && dx > 0) || (P === n - 1 && dx < 0)) ? 0.32 : 1;
+        lay(P - (dx * edge) / SP, true);
       });
     });
     const end = (ev) => {
@@ -1237,8 +1312,8 @@ export function mountResidence(a) {
         if (ev && ev.type === "pointerup" && !(ev.target.closest && ev.target.closest(".rs2-it"))) {
           const rr = stage.getBoundingClientRect();
           const rel = rr.width ? (wasX - rr.left) / rr.width : 0.5;
-          if (rel < 0.24) go(r2Idx - 1);
-          else if (rel > 0.76) go(r2Idx + 1);
+          if (rel < 0.24) go(P - 1);
+          else if (rel > 0.76) go(P + 1);
         }
         return;
       }
@@ -1248,9 +1323,9 @@ export function mountResidence(a) {
       raf = 0;
       box.classList.remove("drag");
       const v = dx / Math.max(1, Date.now() - t0);
-      if (dx < -SP * 0.22 || v < -1) go(r2Idx + 1);
-      else if (dx > SP * 0.22 || v > 1) go(r2Idx - 1);
-      else go(r2Idx);
+      if (dx < -SP * 0.22 || v < -1) go(P + 1);
+      else if (dx > SP * 0.22 || v > 1) go(P - 1);
+      else go(P);
     };
     stage.addEventListener("pointerup", end);
     stage.addEventListener("pointercancel", end);
@@ -1263,15 +1338,15 @@ export function mountResidence(a) {
       }
     }, true);
     function update(rr) {
-      cs.forEach((c, i) => {
-        its[i].querySelector(".rs2-lb span").textContent = sqStatus(c, rr);
-        its[i].classList.toggle("lit", !!r2Lit(c, rr));
+      ks.forEach((c, i) => {
+        its[i].querySelector(".rs2-lb span").textContent = o && o.status ? o.status(c) : sqStatus(c, rr);
+        its[i].classList.toggle("lit", !!(o && o.lit ? o.lit(c) : r2Lit(c, rr)));
       });
-      if (x0 === null) lay(r2Idx);
+      if (x0 === null) lay(P);
     }
     p.__r2 = { key, box, go, update };
     update(r);
-    go(r2Idx, true);
+    go(P, true);
   }
   // back to the first button when the panel wakes or is left alone
   let sqWasAway = false;
@@ -3134,5 +3209,5 @@ export function mountResidence(a) {
     a.ctx.reportPrefs(r);
   }
   reportSoon();
-  return { settingsOpen: () => !!setEl, roomName, roomOrder, nick, selectMode, cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightTone, lightsPage, clockDesign, decorateCover, paintCover, startRoom: homeRoom, utilCards, utilView };
+  return { settingsOpen: () => !!setEl, roomName, roomOrder, nick, selectMode, cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightTone, lightsPage, clockDesign, decorateCover, paintCover, startRoom: homeRoom, utilCards, utilView, utilHub };
 }

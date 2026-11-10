@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>AR NSPanel Pro</title>
 <link rel="icon" href="data:,">
-<link rel="stylesheet" href="kit.css?v=5.0.8">
-<link rel="stylesheet" href="app.css?v=5.0.8">
-<link rel="preload" href="app.js?v=5.0.8" as="script">
+<link rel="stylesheet" href="kit.css?v=5.0.9">
+<link rel="stylesheet" href="app.css?v=5.0.9">
+<link rel="preload" href="app.js?v=5.0.9" as="script">
 <style>
 /* boot logo (about 6 s, no skip): a rocket bursts into a firework, the logo pops
    out of the burst and holds while the bar fills. The app only starts once the
@@ -34,7 +34,7 @@
   var started=false;
   function go(){ // start the app (downloaded already, see the preload)
     if(started)return;started=true;
-    var sc=document.createElement("script");sc.src="app.js?v=5.0.8";document.body.appendChild(sc);
+    var sc=document.createElement("script");sc.src="app.js?v=5.0.9";document.body.appendChild(sc);
   }
   setTimeout(go,3600); // whatever happens below, the app starts by then
   var b=document.getElementById("boot"),cv=b&&b.querySelector("canvas"),lg=b&&b.querySelector("img");

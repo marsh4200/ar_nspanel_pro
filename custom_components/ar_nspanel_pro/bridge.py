@@ -46,7 +46,7 @@ from homeassistant.helpers.network import NoURLAvailableError, get_url
 from . import panel_config, licensing
 from . import residence_calendar
 from . import residence_watch
-from .residence_media import residence_public
+from .residence_media import async_inline_icons, residence_public
 from .cam_snap import snap_public
 from .const import (
     ELEGANT_STYLES,
@@ -1914,6 +1914,8 @@ class PanelBridge:
         if public_cfg.get("dashboardStyle") == "residence":
             ha_url = self._ha_base_url()
             public_cfg = residence_public(public_cfg, await self._panel_reachable_url(ha_url) if ha_url else None)
+            # uploaded button icons go inside the setup (no download on the panel)
+            public_cfg = await async_inline_icons(self.hass, public_cfg)
             # the clock screens work out sunrise / sunset and the moon on the panel:
             # they need the home's rough location (2 decimals, about a kilometre)
             lat, lon = self.hass.config.latitude, self.hass.config.longitude

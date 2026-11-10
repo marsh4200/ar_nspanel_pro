@@ -1069,6 +1069,35 @@
 .el-root.skin-residence.rs2-on.rs2-tall .rs-off svg{margin-right:18px}
 .el-root.skin-residence.rs2-on.rs2-tall .rs-np{font-size:34px}
 .el-root.skin-residence.rs2-on.rs2-tall .rs2-dots{bottom:30px}
+/* Residence 2 Utilities: the groups carousel (Pool / Irrigation / Geysers) and one group's devices */
+.el-root.skin-residence .rs-uhub,.el-root.skin-residence .rs-ugrp{position:absolute;left:0;top:0;right:0;bottom:0}
+.el-root.skin-residence .rs-uhub.tabbed,.el-root.skin-residence .rs-ugrp.tabbed{top:58px}
+.el-root.skin-residence .rs-ughd{position:absolute;left:26px;right:26px;top:6px;height:96px;display:flex;align-items:center;cursor:pointer;border-radius:28px;padding:0 22px 0 10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.el-root.skin-residence .rs-ugbk{width:64px;height:64px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:32px;border:1.5px solid rgba(255,255,255,.3)}
+.el-root.skin-residence .rs-ugbk svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.el-root.skin-residence .rs-ughd img{width:84px;height:84px;margin:0 16px 0 18px;object-fit:contain;filter:drop-shadow(0 8px 14px rgba(0,0,0,.45))}
+.el-root.skin-residence .rs-ughd b{display:block;font-size:34px;font-weight:500;letter-spacing:.01em}
+.el-root.skin-residence .rs-ughd small{display:block;font-size:20px;opacity:.6;margin-top:2px}
+.el-root.skin-residence .rs-ugrp>.rs-utils,.el-root.skin-residence .rs-ugrp>.rs-uv{top:118px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-ughd{height:150px;border-radius:40px;padding:0 30px 0 16px;top:10px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-ugbk{width:104px;height:104px;border-radius:52px;border-width:2px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-ugbk svg{width:46px;height:46px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-ughd img{width:130px;height:130px;margin:0 22px 0 24px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-ughd b{font-size:56px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-ughd small{font-size:32px;margin-top:6px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-ugrp>.rs-utils,.el-root.skin-residence.rs2-on.rs2-tall .rs-ugrp>.rs-uv{top:184px}
+/* the device tiles on a tall portrait panel: two a row, finger size */
+.el-root.skin-residence.rs2-on.rs2-tall .rs-utils{align-content:flex-start;padding:24px 26px 30px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-util{width:436px;height:400px;margin:12px;border-radius:44px;border-width:2px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-uimg,.el-root.skin-residence.rs2-on.rs2-tall .rs-uimg img{width:190px;height:190px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-uimg::before{left:-30px;right:-30px;top:-30px;bottom:-30px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-util b{margin-top:22px;font-size:40px;max-width:390px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-util small{margin-top:8px;font-size:30px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-usw{top:26px;right:26px;width:84px;height:48px;border-radius:24px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-usw i{top:6px;left:6px;width:36px;height:36px;border-radius:18px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-util.on .rs-usw i{-webkit-transform:translateX(36px);transform:translateX(36px)}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-utils.tabbed .rs-util{height:400px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-utils.tabbed .rs-uimg,.el-root.skin-residence.rs2-on.rs2-tall .rs-utils.tabbed .rs-uimg img{width:190px;height:190px}
 .el-root.skin-residence.rs2-on.rs2-tall .rs2-dots span{width:22px;height:22px;margin:0 26px;border-radius:11px}
 .el-root.skin-residence.rs2-on.rs2-tall .rs2-dots span.cur{width:72px}
 /* Lights page buttons (All on / All off / scenes) */
@@ -1159,6 +1188,13 @@
 .el-root.skin-residence.rs2-on.rs2-tall .rs-scenes .rs-ring>svg{width:96px;height:96px}
 .el-root.skin-residence.rs2-on.rs2-tall .rs-scenes .rs-lbl{font-size:40px;margin-top:20px;max-width:100%}
 .el-root.skin-residence.rs2-on.rs2-tall .rs-empty{font-size:38px}
+/* Security: the alarm code keypad (Away / Home / Night / Disarm on an alarm with a code) */
+.el-root.skin-residence.rs2-on.rs2-tall .el-pin{top:0;left:-26px;right:-26px;bottom:0;background:rgba(0,0,0,.78)}
+.el-root.skin-residence.rs2-on.rs2-tall .el-pinbox{width:880px;max-width:100%;box-sizing:border-box;padding:44px 40px;border-radius:44px;background:rgba(20,21,26,.97)}
+.el-root.skin-residence.rs2-on.rs2-tall .el-pint{font-size:46px;font-weight:500}
+.el-root.skin-residence.rs2-on.rs2-tall .el-pindots{height:90px;line-height:90px;font-size:80px;letter-spacing:22px;margin:16px 0 26px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-pad{grid-gap:24px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-pad .el-key{max-width:none;height:150px;margin:0;border-radius:32px;font-size:62px;font-weight:500}
 /* the bottom bar's what's playing */
 .el-root.skin-residence.rs2-on.rs2-tall .rs-art{width:80px;height:80px;border-radius:18px;margin-right:20px}
 .el-root.skin-residence.rs2-on.rs2-tall .rs-npt b{font-size:34px}
