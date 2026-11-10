@@ -935,10 +935,10 @@ export function mountResidence(a) {
     wrap.appendChild(fl);
     return wrap;
   }
-  // Utilities design "3D slider": the groups (Pool, Irrigation, Geysers, More), each one
+  // Utilities design "3D slider": the sections (Pool, Irrigation, Geysers, Other), each one
   // big 3D icon on a carousel that goes round and round; tap one for its devices
   // (the picture tiles). One group only: straight to the devices.
-  const U_GROUPS = [["pool", "Pool", "r2_pool"], ["irrigation", "Irrigation", "r2_irrigation"], ["geyser", "Geysers", "r2_geyser"], ["more", "More", "r2_utilities"]];
+  const U_GROUPS = [["pool", "Pool", "r2_pool"], ["irrigation", "Irrigation", "r2_irrigation"], ["geyser", "Geysers", "r2_geyser"], ["more", "Other", "r2_utilities"]];
   const UG_GROUP = { pool: "pool", pump: "pool", sprink: "irrigation", flame: "geyser" };
   const U_IX = { i: 0 };
   let uGroup = null;
@@ -948,7 +948,11 @@ export function mountResidence(a) {
   }, true);
   function utilHub(p, list, tap, again, tabbed) {
     if (utilPage() !== "slider") return false;
-    const gs = U_GROUPS.map((g) => ({ key: "u_" + g[0], g: g[0], title: g[1], icon: g[2], list: list.filter((e) => (UG_GROUP[uInfo(e).g] || "more") === g[0]) })).filter((g) => g.list.length);
+    // the sections the installer put each switch in (Device Setup > Whole house > Utilities);
+    // a setup from before sections: worked out from the picture / name
+    const gm = a.cfg.utilGroups && typeof a.cfg.utilGroups === "object" ? a.cfg.utilGroups : null;
+    const secOf = (e) => (gm ? (gm[e] === "pool" || gm[e] === "irrigation" || gm[e] === "geyser" ? gm[e] : "more") : UG_GROUP[uInfo(e).g] || "more");
+    const gs = U_GROUPS.map((g) => ({ key: "u_" + g[0], g: g[0], title: g[1], icon: g[2], list: list.filter((e) => secOf(e) === g[0]) })).filter((g) => g.list.length);
     if (gs.length < 2) return false;
     const cur = gs.filter((g) => g.g === uGroup)[0];
     const running = (g) => g.list.filter((e) => uInfo(e).on).length;

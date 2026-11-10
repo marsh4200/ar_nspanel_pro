@@ -80,9 +80,13 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Utilities in sections (5.0.10)
+
+- Device Setup > Whole house > Utilities is now four sections: **Pool**, **Irrigation**, **Geysers** and **Other**. Add each switch to its section (adding it to another section moves it). The 3D slider shows one icon per section, whatever the switches are called. Stored as `elegant.utilGroups` (`{entity_id: "pool" | "irrigation" | "geyser"}`; not listed = Other); `elegant.utilities` stays the full list. Setups from before sections still sort by picture and name until a section is set.
+
 ## Utilities: 3D slider, and uploaded icons on the S57 (5.0.9)
 
-- Residence Utilities page has a fifth design, **3D slider** (Device Setup > Utilities page, or the customer's Settings > Look > Designs): Pool, Irrigation and Geysers (and More, for anything else) as big 3D icons on a carousel that goes round and round. Tap the front one for its switches (picture tiles); Back returns to the icons. Devices are grouped by name (pool / pump; sprinkler / irrigation / garden / lawn / zone; geyser / heater / boiler). With only one group the switches show straight away. Works on every Residence panel: tall, square and wide.
+- Residence Utilities page has a fifth design, **3D slider** (Device Setup > Utilities page, or the customer's Settings > Look > Designs): Pool, Irrigation and Geysers (and More, for anything else) as big 3D icons on a carousel that goes round and round. Tap the front one for its switches (picture tiles); Back returns to the icons. Devices go in the sections set in Device Setup (5.0.10). With only one group the switches show straight away. Works on every Residence panel: tall, square and wide.
 - New 3D icons in the same chrome-and-glass style as Energy and Comfort: Pool, Water drop (irrigation) and Flame (geyser), also in the icon picker.
 - Uploaded button icons now travel inside the setup sent to the panel (up to 200 KB each), so a panel running its built-in screen (the HDL S57) shows them without downloading them from Home Assistant.
 - Residence 2 on tall screens: the Utilities picture tiles are two a row at finger size.

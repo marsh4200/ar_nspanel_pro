@@ -10672,6 +10672,26 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
       })
     ] }, c.key);
   };
+  // Utilities in sections (elegant.utilGroups {entity: "pool"|"irrigation"|"geyser"};
+  // not in the map = Other). elegant.utilities stays the full list, section by section.
+  // The "3D slider" design shows one 3D icon per section.
+  const U_SECT = [["pool", "Pool", "pool pump, heat pump, pool lights…"], ["irrigation", "Irrigation", "sprinklers, garden zones, drip…"], ["geyser", "Geysers", "geysers, boilers, heaters"], ["more", "Other", "fence, gate, borehole, plugs…"]];
+  const utilSections = () => {
+    const all = elList(cfg.utilities), gm = cfg.utilGroups || {};
+    const sec = (e) => (gm[e] === "pool" || gm[e] === "irrigation" || gm[e] === "geyser" ? gm[e] : "more");
+    const base = EL_HOUSE_CATS.filter((c) => c.key === "utilities")[0];
+    return [
+      ez("div", { key: "uh", style: lbl }, "Utilities, in sections"),
+      ez("div", { key: "uh2", className: "hint" }, "Put each switch in its section. With the Utilities design “3D slider”, each section is one 3D icon on the panel (Pool, Irrigation, Geysers, Other)."),
+      ...U_SECT.map((x) => field({ ...base, key: "util_" + x[0], title: x[1], hint: x[2] }, all.filter((e) => sec(e) === x[0]), (v) => {
+        const lists = U_SECT.map((y) => (y[0] === x[0] ? v : all.filter((e) => sec(e) === y[0] && !v.includes(e))));
+        const next = [].concat.apply([], lists);
+        const m = {};
+        U_SECT.forEach((y, i) => y[0] !== "more" && lists[i].forEach((e) => (m[e] = y[0])));
+        save({ utilities: next.length ? next : void 0, utilGroups: Object.keys(m).length ? m : void 0 });
+      }, -1))
+    ];
+  };
   // Residence 2 is the Residence style with residence.v2 (one big 3D icon per page);
   // the panel only uses it on the NSPanel Pro and the HDL S57, plain Residence elsewhere.
   const rsV2 = style === "residence" && !!(t.residence && t.residence.v2);
@@ -10765,7 +10785,7 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
       /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Whole house (same in every room)" }),
       EL_HOUSE_CATS.filter((c) => c.key !== "utilities").map((c) => field(c, elList(cfg[c.key]), (v) => save({ [c.key]: v.length ? (c.max === 1 ? v[0] : v) : void 0 }), -1)),
       /* @__PURE__ */ a.jsx(et, { title: "Utilities section", sub: "Adds a Utilities page to the panel for pumps, irrigation, geyser and the like.", on: !!cfg.utilitiesOn, onChange: (m) => save({ utilitiesOn: m || void 0 }) }),
-      !!cfg.utilitiesOn && EL_HOUSE_CATS.filter((c) => c.key === "utilities").map((c) => field(c, elList(cfg[c.key]), (v) => save({ [c.key]: v.length ? v : void 0 }), -1)),
+      !!cfg.utilitiesOn && utilSections(),
       !!cfg.utilitiesOn && /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Solar (a Solar tab in Utilities with the live power flow)" }),
       !!cfg.utilitiesOn && EL_SOLAR.map((c) => field(c, cfg.solar && cfg.solar[c.key] ? [cfg.solar[c.key]] : [], (v) => {
         const so = Object.assign({}, cfg.solar || {});
@@ -10853,7 +10873,7 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
       /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Whole house (same in every room)" }),
       EL_HOUSE_CATS.filter((c) => c.key !== "utilities").map((c) => field(c, elList(cfg[c.key]), (v) => save({ [c.key]: v.length ? (c.max === 1 ? v[0] : v) : void 0 }), -1)),
       /* @__PURE__ */ a.jsx(et, { title: "Utilities section", sub: "Adds a Utilities page to the panel for pumps, irrigation, geyser and the like.", on: !!cfg.utilitiesOn, onChange: (m) => save({ utilitiesOn: m || void 0 }) }),
-      !!cfg.utilitiesOn && EL_HOUSE_CATS.filter((c) => c.key === "utilities").map((c) => field(c, elList(cfg[c.key]), (v) => save({ [c.key]: v.length ? v : void 0 }), -1)),
+      !!cfg.utilitiesOn && utilSections(),
       !!cfg.utilitiesOn && /* @__PURE__ */ a.jsx("div", { style: lbl, children: "Solar (a Solar tab in Utilities with the live power flow)" }),
       !!cfg.utilitiesOn && EL_SOLAR.map((c) => field(c, cfg.solar && cfg.solar[c.key] ? [cfg.solar[c.key]] : [], (v) => {
         const so = Object.assign({}, cfg.solar || {});
