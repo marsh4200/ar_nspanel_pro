@@ -744,6 +744,12 @@ export function mountResidence(a) {
   // bar knows when something starts or stops
   let spLook = 0;
   function chrome() {
+    // Residence 2 (NSPanel Pro / HDL S57, small portrait screens): big top bar,
+    // back button, Room Off and page buttons (residence.css, ".rs2-on")
+    root.classList.toggle("rs2-on", r2On());
+    // the big portrait frame and stacked pages: only on tall screens (about 4:3 portrait or taller), not square ones
+    const fit = window.__arFit || {};
+    root.classList.toggle("rs2-tall", r2On() && Math.round(((fit.stageH || 288) * 1000) / 480) >= 1300);
     if (a.spOn && a.sp && a.current() !== "music" && Date.now() - spLook > 15000 && !(window.__arHidden && window.__arHidden())) {
       spLook = Date.now();
       a.sp

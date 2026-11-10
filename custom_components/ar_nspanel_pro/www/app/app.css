@@ -2031,3 +2031,237 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.skin-residence .rs-lttall .rs-ltpc{position:relative;flex:none;margin-left:24px;font-size:52px;font-weight:300;font-variant-numeric:tabular-nums}
 .el-root.skin-residence .rs-lttall.off .rs-ltpc{opacity:.5}
 .el-root.skin-residence .rs-lttall.sel{box-shadow:0 0 0 3px rgba(var(--acc-rgb),.85),0 0 30px -4px rgba(var(--acc-rgb),.85)}
+/* ===== Residence 2: the frame sized for small portrait screens (NSPanel Pro / HDL S57) =====
+   The canvas is 1000 wide but the screen only ~427 px, so Residence's bar sizes came out
+   finger-tip small. Here about double, in two rows like a phone's large title:
+     row 1: clock ........ weather · call · calendar · settings
+     row 2: (back / home)  Title (the page, or the room on the home screen)
+   The alarm chip makes room (the Security icon shows the alarm). Only under .rs2-on:
+   other panels never get it. */
+.el-root.skin-residence.rs2-on.rs2-tall .el-top{height:284px;padding:14px 36px 20px;-webkit-flex-wrap:wrap;flex-wrap:wrap;-webkit-align-content:space-between;align-content:space-between;box-sizing:border-box}
+.el-root.skin-residence.rs2-on.rs2-tall .el-page{top:284px;bottom:176px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-sp{display:none}
+.el-root.skin-residence.rs2-on.rs2-tall .el-status{-webkit-order:0;order:0;width:100%;height:100px;display:flex;align-items:center;justify-content:flex-end;font-size:40px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-clock{-webkit-order:-1;order:-1;margin-right:auto;font-size:68px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-chip{margin-right:28px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-chip svg{width:44px;height:44px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-chip+.el-chip{display:none}
+.el-root.skin-residence.rs2-on.rs2-tall .el-back,.el-root.skin-residence.rs2-on.rs2-tall .el-title,.el-root.skin-residence.rs2-on.rs2-tall .el-roomname{-webkit-order:1;order:1}
+.el-root.skin-residence.rs2-on.rs2-tall .el-title{font-size:64px;padding:0;white-space:nowrap;line-height:1.1}
+.el-root.skin-residence.rs2-on.rs2-tall .el-back{width:116px;height:116px;margin-right:30px;padding:0;justify-content:center;flex:none;border-radius:58px;border:2px solid rgba(255,255,255,.3);background:rgba(10,10,12,.35)}
+.el-root.skin-residence.rs2-on.rs2-tall .el-back svg{width:56px;height:56px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-back:active{background:rgba(255,255,255,.16)}
+.el-root.skin-residence.rs2-on.rs2-tall .el-roomname{margin-left:26px;font-size:28px;-webkit-flex:1 1 0;flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.el-root.skin-residence.rs2-on.rs2-tall.at-home .el-roomname{margin-left:0;font-size:60px;padding-left:146px;min-height:116px}
+.el-root.skin-residence.rs2-on.rs2-tall.at-home .el-roomname::before{width:116px;height:116px;margin-top:-58px;border-radius:58px;border-width:2px;background-size:52px 52px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-callbtn{width:100px;height:100px;margin-right:24px;border-radius:50px;border-width:2px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-callbtn svg{width:46px;height:46px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-calbtn{height:100px;padding:0 28px 0 24px;margin-right:0;border-radius:50px;border-width:2px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-calbtn svg{width:44px;height:44px;margin-right:12px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-calday{font-size:40px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-gear{width:100px;height:100px;margin-left:24px;border-radius:50px;border-width:2px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-gear svg{width:48px;height:48px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-bar{height:176px;padding:0 36px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-pill{height:116px;border-radius:58px;padding:0 44px;font-size:36px;border-width:2px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-pill.rs-round{width:116px;padding:0;justify-content:center}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-pill+.rs-pill{margin-left:26px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-pill svg{width:46px;height:46px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-off svg{margin-right:18px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-np{font-size:34px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs2-dots{bottom:30px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs2-dots span{width:22px;height:22px;margin:0 26px;border-radius:11px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs2-dots span.cur{width:72px}
+/* Lights page buttons (All on / All off / scenes) */
+.el-root.skin-residence.rs2-on.rs2-tall .rs-lt-tall .rs-ltmood{height:120px;border-radius:60px;font-size:42px}
+/* ===== Residence 2: every page laid out for a small portrait screen (NSPanel Pro / HDL S57) =====
+   The pages were made for landscape panels: side-by-side columns and 15 px text on a canvas
+   that's shrunk to ~0.43. Here they stack top to bottom with finger-size buttons
+   (>= ~104 canvas px = 44 screen px) and readable text (>= ~32 canvas px). Only under .rs2-on.rs2-tall. */
+.el-root.skin-residence.rs2-on.rs2-tall .el-page{padding:6px 26px}
+/* Comfort: the dial on top, modes in a 3-wide grid underneath */
+.el-root.skin-residence.rs2-on.rs2-tall .el-climate{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto;grid-gap:26px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-dial{width:600px;height:600px;margin:0 6px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-dial canvas{width:600px;height:600px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-set{font-size:150px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-now{font-size:34px;margin-top:14px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-dialbox .el-round{width:120px;height:120px;border-radius:60px;flex:none}
+.el-root.skin-residence.rs2-on.rs2-tall .el-dialbox .el-round svg{width:52px;height:52px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-modes{padding:26px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-gap:20px;overflow:visible}
+.el-root.skin-residence.rs2-on.rs2-tall .el-modes .el-lbl{grid-column:1/-1;font-size:28px;margin:0}
+.el-root.skin-residence.rs2-on.rs2-tall .el-mode{height:120px;margin:0;padding:0 18px;border-radius:30px;font-size:36px;justify-content:center}
+.el-root.skin-residence.rs2-on.rs2-tall .el-mode svg{width:42px;height:42px;margin-right:14px}
+/* Listen: what's playing on top, then the volume, then the speakers */
+.el-root.skin-residence.rs2-on.rs2-tall .el-music{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);grid-gap:22px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-np{padding:34px 30px 30px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-art{width:400px;height:400px;border-radius:30px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-tt{font-size:50px;margin-top:26px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-ar{font-size:34px;margin-top:6px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-ctl{margin-top:30px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-ctl .el-round{width:124px;height:124px;border-radius:62px;margin:0 22px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-ctl .el-play{width:150px;height:150px;border-radius:75px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-ctl svg{width:54px;height:54px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-vol{height:136px;padding:0 24px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-vol>svg{width:46px;height:46px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-volb{width:104px;height:104px;border-radius:52px;flex:none}
+.el-root.skin-residence.rs2-on.rs2-tall .el-volb svg{width:44px;height:44px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-vol .el-slider{height:70px;border-radius:35px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-volpc{font-size:36px;min-width:90px;text-align:right}
+.el-root.skin-residence.rs2-on.rs2-tall .el-spk{grid-template-columns:1fr;grid-auto-rows:min-content;grid-gap:18px;padding:22px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-spkb{height:124px;padding:0 28px;border-radius:30px;font-size:38px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-spkb svg{width:48px;height:48px;margin-right:24px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-spkb small{font-size:30px}
+/* Watch: TVs full width, one under the other */
+.el-root.skin-residence.rs2-on.rs2-tall .rs-watch{flex-direction:column;align-items:stretch;justify-content:flex-start}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-tv{width:auto;margin:0 0 26px;padding:36px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-tvh{height:auto}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-tvi{width:100px;height:100px;border-radius:50px;flex:none}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-tvi svg{width:48px;height:48px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-tvm{margin:0 26px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-tvm b{font-size:46px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-tvm small{font-size:32px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-pw{width:116px;height:116px;border-radius:58px;flex:none}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-pw svg{width:52px;height:52px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-tvt{height:auto;margin-top:34px;justify-content:center}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-tvt span{width:124px;height:124px;border-radius:62px;margin:0 26px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-tvt span.pp{width:150px;height:150px;border-radius:75px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-tvt svg{width:54px;height:54px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-tvv{height:auto;margin-top:34px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-tvv>svg{width:46px;height:46px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-tvv .el-slider{height:70px;border-radius:35px}
+/* Shades: as many columns as fit, big names and sliders */
+.el-root.skin-residence.rs2-on.rs2-tall .el-cards.top{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-shade{padding:18px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-shade .el-row{margin-top:18px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-shade .el-meta{font-size:36px;padding-right:0}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-shade .el-meta *{font-size:inherit}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-shade .el-meta>:last-child{font-size:28px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-shade .el-slider{height:96px;border-radius:48px;margin-top:18px}
+/* Cameras: one under the other (two wide from four up) */
+.el-root.skin-residence.rs2-on.rs2-tall .el-cams.c1,.el-root.skin-residence.rs2-on.rs2-tall .el-cams.c2,.el-root.skin-residence.rs2-on.rs2-tall .el-cams.c3{grid-template-columns:1fr;grid-template-rows:none;grid-auto-rows:1fr}
+.el-root.skin-residence.rs2-on.rs2-tall .el-cl{left:26px;bottom:22px;font-size:36px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-live{font-size:26px;padding:8px 16px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-camoff{font-size:32px}
+/* Security: the state on top, the four modes 2 x 2 underneath */
+.el-root.skin-residence.rs2-on.rs2-tall .el-sec{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);grid-gap:22px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-armstate{flex-direction:row;align-items:center;padding:36px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-shield{width:150px;height:150px;border-radius:40px;flex:none;margin:0 34px 0 0}
+.el-root.skin-residence.rs2-on.rs2-tall .el-shield svg{width:72px;height:72px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-armstate h3{font-size:58px;margin:0}
+.el-root.skin-residence.rs2-on.rs2-tall .el-armstate p{font-size:34px;margin:8px 0 0}
+.el-root.skin-residence.rs2-on.rs2-tall .el-armb{padding:36px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-armb svg{width:66px;height:66px;margin-bottom:18px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-armb b{font-size:46px}
+.el-root.skin-residence.rs2-on.rs2-tall .el-armb span{font-size:30px;margin-top:6px}
+/* Scenes: two big buttons a row */
+.el-root.skin-residence.rs2-on.rs2-tall .rs-scenes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:min-content;grid-gap:30px;width:auto!important;align-content:center;padding:0 10px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-scenes .rs-btn{width:auto;height:auto;padding:20px 0}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-scenes .rs-ring{width:230px;height:230px;border-radius:115px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-scenes .rs-ring>svg{width:96px;height:96px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-scenes .rs-lbl{font-size:40px;margin-top:20px;max-width:100%}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-empty{font-size:38px}
+/* the bottom bar's what's playing */
+.el-root.skin-residence.rs2-on.rs2-tall .rs-art{width:80px;height:80px;border-radius:18px;margin-right:20px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-npt b{font-size:34px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-npt small{font-size:28px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-npb svg{width:46px;height:46px}
+/* fixes: Watch card full width, Security state text under its title, Scenes grid full width */
+.el-root.skin-residence.rs2-on.rs2-tall .rs-tv{width:100%;box-sizing:border-box}
+.el-root.skin-residence.rs2-on.rs2-tall .el-armstate{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center}
+.el-root.skin-residence.rs2-on.rs2-tall .el-armstate .el-shield{grid-row:1/3}
+.el-root.skin-residence.rs2-on.rs2-tall .el-armstate h3{align-self:end}
+.el-root.skin-residence.rs2-on.rs2-tall .el-armstate p{align-self:start}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-scenes{width:100%!important;box-sizing:border-box}
+/* Settings (gear): full screen, tabs across the top, each label above its options, big chips */
+.el-root.skin-residence.rs2-on.rs2-tall .rs-setbox{top:18px;bottom:18px;left:18px;right:18px;width:auto;max-width:none;-webkit-transform:none;transform:none;padding:20px 30px 26px;border-radius:40px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-seth{height:120px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-seth b{font-size:58px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-setx{width:104px;height:104px;border-radius:52px;border-width:2px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-setx svg{width:48px;height:48px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-setwrap{-webkit-flex-direction:column;flex-direction:column}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-settabs{width:auto;flex:none;display:flex;overflow-x:auto;overflow-y:hidden;touch-action:pan-x;padding:0 0 20px;margin:10px 0 18px;border-right:0;border-bottom:2px solid rgba(255,255,255,.08)}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-settab{height:104px;padding:0 32px;margin:0 14px 0 0;border-radius:52px;font-size:36px;flex:none;white-space:nowrap}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-settab svg{width:44px;height:44px;margin-right:16px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-setrow{min-height:120px;padding:22px 0;border-top-width:2px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-setl{width:100%;font-size:28px;padding:0 0 14px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-setrow.top .rs-setl{padding-top:0}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-setl.s{width:auto;margin:0 20px 0 26px;padding:0}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-chip,.el-root.skin-residence.rs2-on.rs2-tall .rs-chip.big{height:100px;padding:0 34px;border-radius:50px;font-size:34px;border-width:2px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-opts .rs-chip,.el-root.skin-residence.rs2-on.rs2-tall .rs-setrow.foot .rs-chip{margin:8px 16px 8px 0}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-chip svg,.el-root.skin-residence.rs2-on.rs2-tall .rs-chip.big svg{width:40px;height:40px;margin-right:14px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-bri>svg{width:52px;height:52px;margin-right:22px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-brs{height:96px;border-radius:48px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-bri em{width:130px;font-size:36px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-bri .rs-chip{margin:0 0 0 20px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-bg,.el-root.skin-residence.rs2-on.rs2-tall .rs-setwrap .rs-bg{width:196px;margin:0 18px 16px 0}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-bg i{width:196px;height:116px;border-radius:22px;border-width:4px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-bg small{font-size:26px;margin-top:8px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-setrow .rs-step{height:104px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-setrow .rs-step b{min-width:150px;font-size:44px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-sethint{font-size:28px;margin:0 0 16px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-to{margin:0 22px}
+/* Residence 2 settings: rows wrap under their label, and every sub-screen (icons, rooms, keyboard, PIN, panel info) at finger size */
+.el-root.skin-residence.rs2-on.rs2-tall .rs-setrow .rs-opts,.el-root.skin-residence.rs2-on.rs2-tall .rs-setrow .rs-bri,.el-root.skin-residence.rs2-on.rs2-tall .rs-setrow .rs-bgs{-webkit-flex:1 1 100%;flex:1 1 100%;max-width:100%}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-setrow .rs-opts+.rs-opts{margin-left:0}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-icit,.el-root.skin-residence.rs2-on.rs2-tall .rs-lampit{border-radius:28px;margin-bottom:14px;border-width:2px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-ichd,.el-root.skin-residence.rs2-on.rs2-tall .rs-lamphd{height:130px;padding:0 28px 0 18px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-icnow{width:96px;height:96px;border-radius:48px;border-width:2px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-icnow svg{width:50px;height:50px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-icnow img{width:66px;height:66px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-icnow.fill img{border-radius:48px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-ichd b,.el-root.skin-residence.rs2-on.rs2-tall .rs-lamphd b{font-size:38px;margin-left:24px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-ichd small,.el-root.skin-residence.rs2-on.rs2-tall .rs-lamphd small{font-size:28px;margin-left:18px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-lampch{margin-left:18px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-lampch svg{width:36px;height:36px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-lampic{-webkit-transform:scale(1.8);transform:scale(1.8);margin:0 18px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-lampit .rs-setrow{padding:12px 26px 20px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-iccats{padding:4px 22px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-iccats .rs-chip{height:80px;padding:0 28px;font-size:30px;margin:6px 12px 6px 0}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-icgrid{gap:18px;padding:8px 22px 24px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-icgrp{font-size:24px;margin:6px 0 0}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-ictile{width:192px;height:206px;border-radius:28px;border-width:2px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-icimg{width:100px;height:100px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-icimg img{max-width:100px;max-height:100px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-icimg img.up{width:80px;height:80px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-icimg svg{width:60px;height:60px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-ictile span:last-child{font-size:24px;margin-top:10px;max-height:56px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-rmrow{-webkit-flex-wrap:wrap;flex-wrap:wrap;min-height:130px;padding:14px 0;border-top-width:2px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-rmmv{margin-right:14px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-rmmv .rs-sb{width:84px;height:84px;border-radius:42px;margin-right:12px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-rmmv .rs-sb svg{width:40px;height:40px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-rmnm{padding:6px 12px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-rmnm b{font-size:40px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-rmnm small{font-size:26px;margin-top:4px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-rmact{-webkit-flex:1 1 100%;flex:1 1 100%;-webkit-justify-content:flex-end;justify-content:flex-end;margin-top:10px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-rmact .rs-chip,.el-root.skin-residence.rs2-on.rs2-tall .rs-rmlt .rs-chip{margin:0 0 0 16px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-rmlights{margin:0 0 16px 60px;border-left-width:4px;padding-left:24px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-rmlt{min-height:120px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-rmlt b{font-size:34px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-rmlt small{font-size:24px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-kbt{font-size:38px;margin-bottom:18px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-kbv{min-width:80%;height:110px;border-radius:24px;font-size:46px;padding:0 30px;border-width:2px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-kbv i{width:4px;height:56px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-kbo{font-size:26px;margin:12px 0 18px;min-height:32px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-kbr{margin-bottom:14px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-kk{min-width:76px;height:104px;margin:0 4px;border-radius:20px;font-size:40px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-kk.wide{min-width:124px;font-size:30px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-kk.space{min-width:420px;font-size:28px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-kbf{margin-top:12px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-kbf .rs-chip{margin:0 10px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-locked{padding:60px 30px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-locked>svg{width:90px;height:90px;margin-bottom:22px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-locked b{font-size:42px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-locked>span{font-size:28px;margin:12px 0 30px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-pin>b{font-size:44px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-pind{height:80px;line-height:80px;font-size:56px;margin:12px 0 18px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-pind.bad{font-size:30px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-pinp{width:620px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-pk{width:176px;height:116px;margin:8px;border-radius:28px;font-size:48px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-pk svg{width:44px;height:44px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-pinx{margin-top:20px;padding:20px 40px;font-size:32px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-info{border-radius:26px;padding:8px 28px;border-width:2px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-infor{min-height:88px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-infor span{width:300px;font-size:24px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-infor b{font-size:32px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-kchip i{width:30px;height:30px;border-radius:15px;margin-right:14px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-bggrp{font-size:24px;margin:16px 0 10px}
+.el-root.skin-residence.rs2-on.rs2-tall .rs-rmmv .rs-sb{background:rgba(255,255,255,.1)}

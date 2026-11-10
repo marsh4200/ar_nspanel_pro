@@ -38,7 +38,7 @@ PANEL_ELEMENT = "ar-nspanel-pro-config"
 #: 97: added the TDX panel type (Rockchip RK3566, 1920x1080) to Setup.
 #: 121: added the HDL S57 panel type (Android 6, Chrome) to Setup.
 #: 122: Residence 2 style (NSPanel Pro / S57), Minimal tall lights, 3D icon set.
-PANEL_VERSION = "122"
+PANEL_VERSION = "123"
 
 _WWW_DIR = Path(__file__).parent / "www"
 _BUNDLE = "ar-nspanel-pro-config.js"

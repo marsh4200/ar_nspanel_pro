@@ -80,6 +80,13 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Residence 2: bigger everything on portrait screens (5.0.5)
+
+- On tall portrait panels (HDL S57, portrait NSPanel Pro) with Residence 2 on, the top bar is two rows: clock, call, calendar and settings on top; a big back (or home) button and the page or room title underneath. Room Off, home and what's playing in the bottom bar are about twice the size.
+- Every page stacks top to bottom for a portrait screen: Comfort (dial, then modes 3-wide), Listen, Watch, Shades, Cameras, Security (state, then modes 2 × 2) and Scenes (two a row), with finger-size buttons and readable text.
+- Settings opens full screen with the tabs across the top, each label above its options, and big chips, sliders, icon picker, room list, rename keyboard, PIN pad and panel info.
+- Square and landscape panels, plain Residence and every other panel model are unchanged.
+
 ## Residence 2 swipes smoothly on the HDL S57 (5.0.4)
 
 - While a finger moves, Residence 2 now only moves icons that are already drawn, which is GPU work. Labels, halos and the background glow change once, when the swipe settles. In a 6× CPU-slowed test, the drawing work during one swipe dropped from 548 ms to 13 ms.
