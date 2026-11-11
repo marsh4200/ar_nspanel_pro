@@ -80,6 +80,14 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Residence 2: nothing is redrawn during a swipe (5.0.15)
+
+- The icon carousel (home screen and Utilities 3D slider) no longer makes the panel draw anything while you swipe or as you land on an icon:
+  - the built-in icons are turned once into ready pictures at the size shown (they were drawings with gradients, redrawn as an icon grew or shrank);
+  - the coloured light behind the front icon and its name are fixed layers in the middle that only fade (they rode on the icons and were redrawn as those changed size); the full-screen glow layer per icon is gone;
+  - icons out of sight stay drawn instead of being thrown away and drawn again as they come back;
+  - the icons are no longer re-ordered front to back during a swipe (they never overlap).
+
 ## Residence 2: smoother fast swipes (5.0.14)
 
 - The icon carousel (home screen and the Utilities 3D slider) does less work per frame: the page dots change at once (their width fade re-laid-out and repainted the page on every frame while the icons were still gliding, which is what a fast second swipe ran into), icons out of sight are skipped, and a style is only written when it changed. The glide after a swipe is shorter (0.46 s, was 0.68 s).

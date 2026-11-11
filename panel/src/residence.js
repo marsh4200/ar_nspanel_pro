@@ -1227,10 +1227,19 @@ export function mountResidence(a) {
     const slow = /sc3859q/i.test(navigator.userAgent || "");
     const box = el("div", "rs2" + (rc.v2Reflect === false || (slow && rc.v2Reflect !== true) ? " norefl" : "") + (slow ? " rs2-lo" : ""));
     box.style.setProperty("--s", S + "px");
-    const glows = cs.map((c) => {
-      const g = el("div", "rs2-glow");
+    // No full-screen glow layer per icon any more: each one was a whole screen for the
+    // panel's graphics chip to hold and blend, and fading one in as you landed on an icon
+    // is where a swipe hitched. The coloured light is the icon's own halo now (bigger),
+    // drawn once with the icon and moved with it.
+    // The coloured light behind the front icon and its name: one of each per page, fixed
+    // in the middle and only faded in and out. (They used to ride on the icons, so they
+    // changed size during a swipe and the panel had to redraw them as it went.)
+    const cy = Math.round(H * 0.47 - S * 0.12);
+    const halos = cs.map((c) => {
+      const g = el("div", "rs2-halo");
       const col = R2_GLOW[c.key] || "243,217,164";
-      g.style.background = "radial-gradient(120% 62% at 50% 42%,rgba(" + col + ",.3),rgba(" + col + ",0) 62%)";
+      g.style.background = "radial-gradient(circle,rgba(" + col + ",.5),rgba(" + col + ",.2) 36%,rgba(" + col + ",0) 70%)";
+      g.style.top = cy + "px";
       box.appendChild(g);
       return g;
     });
@@ -1238,10 +1247,7 @@ export function mountResidence(a) {
     stage.style.webkitPerspective = stage.style.perspective = Math.round(W * 2.1) + "px";
     box.appendChild(stage);
     const its = ks.map((c, i) => {
-      const it = el("div", "rs2-it rs2-k-" + c.key, '<div class="rs2-halo"></div><div class="rs2-ic">' + (o && o.icon ? o.icon(c) : r2Icon(c.key)) + '</div><div class="rs2-sh"></div><div class="rs2-lb"><b></b><span></span></div>');
-      const col = R2_GLOW[c.key] || "243,217,164";
-      it.querySelector(".rs2-halo").style.background = "radial-gradient(circle,rgba(" + col + ",.5),rgba(" + col + ",0) 62%)";
-      it.querySelector("b").textContent = c.title;
+      const it = el("div", "rs2-it rs2-k-" + c.key, '<div class="rs2-ic">' + (o && o.icon ? o.icon(c) : r2Icon(c.key)) + '</div><div class="rs2-sh"></div>');
       it.style.left = Math.round(W / 2 - S * 0.6) + "px";
       it.style.top = Math.round(H * 0.47 - S * 0.62) + "px";
       it.addEventListener("click", (ev) => {
@@ -1259,6 +1265,36 @@ export function mountResidence(a) {
       if (i === P) (o && o.open ? o.open(ks[i]) : a.go(ks[i].key));
       else go(LOOP ? P + wrapD(i - P, N) : i);
     }
+    // The built-in icons are drawings (shapes and gradients). Each is turned once into a
+    // ready picture at the size it is shown, so whenever the panel redraws an icon (it
+    // does as an icon grows or shrinks in a swipe) it copies a picture instead of drawing.
+    {
+      const rr0 = root.getBoundingClientRect();
+      const px = Math.max(96, Math.min(640, Math.ceil(S * (rr0.width ? rr0.width / 1000 : 0.5) * (window.devicePixelRatio || 1))));
+      its.forEach((it) => {
+        const im = it.querySelector(".rs2-ic img");
+        const src = im ? im.getAttribute("src") || "" : "";
+        if (src.indexOf("data:image/svg+xml;charset=utf-8,") !== 0) return;
+        let svg = "";
+        try {
+          svg = decodeURIComponent(src.slice(33));
+        } catch (e) {
+          return;
+        }
+        if (svg.indexOf("<svg ") !== 0) return;
+        const key = "r2:" + px + ":" + svg.length + ":" + svg.slice(-160);
+        const got = thumbFor(key, "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.replace("<svg ", '<svg width="' + px + '" height="' + px + '" ')), px, px, false);
+        if (got) im.src = got;
+        else im.setAttribute("data-th", thAttr(key));
+      });
+    }
+    const lbs = cs.map((c) => {
+      const l = el("div", "rs2-lb", "<b></b><span></span>");
+      l.querySelector("b").textContent = c.title;
+      l.style.top = Math.round(H * 0.47 + S * 0.54) + "px";
+      box.appendChild(l);
+      return l;
+    });
     const dots = el("div", "rs2-dots");
     cs.forEach((c, i) => {
       const d = el("span", "");
@@ -1275,25 +1311,32 @@ export function mountResidence(a) {
         const tx = sg * (Math.min(ad, 1) * W * 0.53 + Math.max(ad - 1, 0) * W * 0.26);
         const ry = Math.max(-62, Math.min(62, -d * 46));
         const sc = Math.max(0.2, 1 - Math.min(ad, 1) * 0.4 - Math.max(ad - 1, 0) * 0.12);
-        // each style is written only when it changed: an icon out of sight costs nothing
-        const vis = ad > 2.6 ? "hidden" : "";
-        if (it.__v !== vis) it.style.visibility = it.__v = vis;
-        if (!vis || !moving) {
+        // each style is written only when it changed: an icon out of sight costs nothing.
+        // Icons out of sight stay drawn (not visibility:hidden): hiding one threw its
+        // picture away, and it was drawn again mid-swipe as it came back into view.
+        const far = ad > 2.6;
+        if (!far || !moving || it.__op !== "0") {
           const tf = "translate3d(" + tx.toFixed(1) + "px,0," + (-ad * W * 0.4).toFixed(1) + "px) rotateY(" + ry.toFixed(1) + "deg) scale(" + sc.toFixed(3) + ")";
           if (it.__tf !== tf) it.style.webkitTransform = it.style.transform = it.__tf = tf;
           const op = ad > 2.3 ? "0" : String(Math.round((1 - Math.max(ad - 0.9, 0) * 0.75) * 100) / 100);
           if (it.__op !== op) it.style.opacity = it.__op = op;
-          const z = String(20 - Math.round(ad * 4));
-          if (it.__z !== z) it.style.zIndex = it.__z = z;
+          // no z-index juggling: the icons never overlap, and re-ordering them made the
+          // panel re-sort and redraw its layers several times in every swipe
         }
         if (moving) return;
-        // labels and halos: their own layers, faded by the GPU (no repaint)
-        it.querySelector(".rs2-lb").style.opacity = String(Math.max(0, 1 - ad * 1.8).toFixed(3));
-        it.querySelector(".rs2-halo").style.opacity = String((Math.max(0, 1 - ad * 1.2) * (it.classList.contains("lit") ? 1 : 0.45)).toFixed(3));
         it.classList.toggle("cur", ad < 0.5);
       });
       if (moving) return;
-      glows.forEach((g, i) => (g.style.opacity = String(Math.max(0, 1 - Math.abs(wrapD(i - pos, n))).toFixed(3))));
+      // names and halos: fixed layers, faded by the GPU (no repaint). Never quite 0
+      // (0.004 can't be seen): a layer at 0 is dropped and drawn again when it fades in.
+      for (let j = 0; j < n; j++) {
+        const ad = Math.abs(wrapD(j - pos, n));
+        const lo = String(Math.max(0.004, 1 - ad * 1.8).toFixed(3));
+        if (lbs[j].__o !== lo) lbs[j].style.opacity = lbs[j].__o = lo;
+        lbs[j].classList.toggle("cur", ad < 0.5);
+        const ho = String(Math.max(0.004, Math.max(0, 1 - ad * 1.2) * (its[j].classList.contains("lit") ? 1 : 0.45)).toFixed(3));
+        if (halos[j].__o !== ho) halos[j].style.opacity = halos[j].__o = ho;
+      }
     }
     function go(i, now) {
       P = LOOP ? ((i % N) + N) % N : Math.max(0, Math.min(n - 1, i));
@@ -1393,7 +1436,7 @@ export function mountResidence(a) {
     }, true);
     function update(rr) {
       ks.forEach((c, i) => {
-        its[i].querySelector(".rs2-lb span").textContent = o && o.status ? o.status(c) : sqStatus(c, rr);
+        if (i < n) setTxt(lbs[i].querySelector("span"), o && o.status ? o.status(c) : sqStatus(c, rr));
         its[i].classList.toggle("lit", !!(o && o.lit ? o.lit(c) : r2Lit(c, rr)));
       });
       if (x0 === null) lay(P);
