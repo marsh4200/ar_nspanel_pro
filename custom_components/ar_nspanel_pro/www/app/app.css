@@ -1991,7 +1991,7 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.skin-residence .rs2{position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden}
 .el-root.skin-residence .rs2-glow{position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;-webkit-transition:opacity .6s ease;transition:opacity .6s ease}
 .el-root.skin-residence .rs2-stage{position:absolute;left:0;top:0;right:0;bottom:0;-webkit-perspective-origin:50% 40%;perspective-origin:50% 40%;touch-action:pan-y}
-.el-root.skin-residence .rs2-it{position:absolute;width:calc(var(--s) * 1.2);height:calc(var(--s) * 1.6);-webkit-transform-origin:50% 40%;transform-origin:50% 40%;cursor:pointer;-webkit-transition:-webkit-transform .68s cubic-bezier(.18,1.12,.3,1),opacity .5s ease;transition:transform .68s cubic-bezier(.18,1.12,.3,1),opacity .5s ease;--lit:.45}
+.el-root.skin-residence .rs2-it{position:absolute;width:calc(var(--s) * 1.2);height:calc(var(--s) * 1.6);-webkit-transform-origin:50% 40%;transform-origin:50% 40%;cursor:pointer;-webkit-transition:-webkit-transform .46s cubic-bezier(.2,1.06,.3,1),opacity .36s ease;transition:transform .46s cubic-bezier(.2,1.06,.3,1),opacity .36s ease;--lit:.45}
 .el-root.skin-residence .rs2-it.lit{--lit:1}
 /* each icon is one GPU layer drawn once at full size: a swipe only moves it (no re-drawing the SVG at every size) */
 .el-root.skin-residence .rs2-it{will-change:transform,opacity;-webkit-backface-visibility:hidden;backface-visibility:hidden}
@@ -2014,7 +2014,8 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
 .el-root.skin-residence .rs2-lb b{font-size:calc(var(--s) * .145);font-weight:500;letter-spacing:.01em;line-height:1.15;white-space:nowrap}
 .el-root.skin-residence .rs2-lb span{margin-top:6px;font-size:calc(var(--s) * .072);opacity:.72;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .el-root.skin-residence .rs2-dots{position:absolute;left:0;right:0;bottom:22px;display:flex;justify-content:center;align-items:center}
-.el-root.skin-residence .rs2-dots span{width:16px;height:16px;margin:0 22px;border-radius:8px;background:rgba(245,243,238,.32);cursor:pointer;-webkit-transition:width .4s cubic-bezier(.2,.9,.3,1),background .3s;transition:width .4s cubic-bezier(.2,.9,.3,1),background .3s}
+.el-root.skin-residence .rs2-dots span{width:16px;height:16px;margin:0 22px;border-radius:8px;background:rgba(245,243,238,.32);cursor:pointer;}
+/* the dots change at once: a width fade re-laid-out and repainted the page every frame while the icons were still gliding */
 .el-root.skin-residence .rs2-dots span.cur{width:56px;background:rgb(var(--acc-rgb))}
 /* Minimal tall lights (Residence 2): scenes / All on / All off on top, a full-width row per light */
 .el-root.skin-residence.tall .rs-lt-tall{-webkit-flex-direction:column-reverse;flex-direction:column-reverse}

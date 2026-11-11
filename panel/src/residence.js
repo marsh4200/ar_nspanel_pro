@@ -1275,11 +1275,17 @@ export function mountResidence(a) {
         const tx = sg * (Math.min(ad, 1) * W * 0.53 + Math.max(ad - 1, 0) * W * 0.26);
         const ry = Math.max(-62, Math.min(62, -d * 46));
         const sc = Math.max(0.2, 1 - Math.min(ad, 1) * 0.4 - Math.max(ad - 1, 0) * 0.12);
-        const tf = "translate3d(" + tx.toFixed(1) + "px,0," + (-ad * W * 0.4).toFixed(1) + "px) rotateY(" + ry.toFixed(1) + "deg) scale(" + sc.toFixed(3) + ")";
-        it.style.webkitTransform = it.style.transform = tf;
-        it.style.opacity = ad > 2.3 ? "0" : String(Math.round((1 - Math.max(ad - 0.9, 0) * 0.75) * 1000) / 1000);
-        it.style.zIndex = String(20 - Math.round(ad * 4));
-        it.style.visibility = ad > 2.6 ? "hidden" : "";
+        // each style is written only when it changed: an icon out of sight costs nothing
+        const vis = ad > 2.6 ? "hidden" : "";
+        if (it.__v !== vis) it.style.visibility = it.__v = vis;
+        if (!vis || !moving) {
+          const tf = "translate3d(" + tx.toFixed(1) + "px,0," + (-ad * W * 0.4).toFixed(1) + "px) rotateY(" + ry.toFixed(1) + "deg) scale(" + sc.toFixed(3) + ")";
+          if (it.__tf !== tf) it.style.webkitTransform = it.style.transform = it.__tf = tf;
+          const op = ad > 2.3 ? "0" : String(Math.round((1 - Math.max(ad - 0.9, 0) * 0.75) * 100) / 100);
+          if (it.__op !== op) it.style.opacity = it.__op = op;
+          const z = String(20 - Math.round(ad * 4));
+          if (it.__z !== z) it.style.zIndex = it.__z = z;
+        }
         if (moving) return;
         // labels and halos: their own layers, faded by the GPU (no repaint)
         it.querySelector(".rs2-lb").style.opacity = String(Math.max(0, 1 - ad * 1.8).toFixed(3));

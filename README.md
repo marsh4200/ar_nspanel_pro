@@ -80,6 +80,10 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Residence 2: smoother fast swipes (5.0.14)
+
+- The icon carousel (home screen and the Utilities 3D slider) does less work per frame: the page dots change at once (their width fade re-laid-out and repainted the page on every frame while the icons were still gliding, which is what a fast second swipe ran into), icons out of sight are skipped, and a style is only written when it changed. The glide after a swipe is shorter (0.46 s, was 0.68 s).
+
 ## Residence 2: quicker pages, cleaner lights (5.0.13)
 
 - Page changes are instant: the wallpaper's 0.4 s dimming fade repainted the whole screen every frame, the slowest thing on the NSPanel Pro and HDL S57.
