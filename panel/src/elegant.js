@@ -800,6 +800,9 @@ export function buildElegant(cfg, ctx, skin) {
   function selModeNow() {
     const m = RX && RX.selectMode ? RX.selectMode() : "";
     if (m) return m;
+    // Residence 2 (NSPanel Pro / HDL S57: no knob to pick a light for): one tap switches,
+    // unless "dimmable" is set in the setup or the customer picks a mode in Settings
+    if (root.classList.contains("rs2-on") && cfg.selectMode !== "dimmable") return "off";
     return cfg.selectMode === "off" || cfg.selectMode === "dimmable" ? cfg.selectMode : "full";
   }
   function selShows(c) {

@@ -2276,7 +2276,7 @@ export function mountResidence(a) {
       }
       const sm = row("Tap to select");
       const SEL = [["full", "Highlight"], ["dimmable", "Dimmable lights only"], ["off", "Off: tap switches"]];
-      const instSel = a.cfg.selectMode === "off" || a.cfg.selectMode === "dimmable" ? a.cfg.selectMode : "full";
+      const instSel = a.cfg.selectMode === "off" || a.cfg.selectMode === "dimmable" ? a.cfg.selectMode : r2On() ? "off" : "full";
       sm.appendChild(chipRow(SEL, selectMode() || instSel, (v) => ((PREF.select = v === instSel ? undefined : v), savePref(), again())));
       body.appendChild(sm);
       body.appendChild(txt("div", "rs-sethint", "Highlight: the first tap picks a light (the knob then dims it) and shows a ring around it; a second tap switches it. Off: every tap switches straight away."));

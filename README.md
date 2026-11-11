@@ -80,6 +80,12 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Residence 2: quicker pages, cleaner lights (5.0.13)
+
+- Page changes are instant: the wallpaper's 0.4 s dimming fade repainted the whole screen every frame, the slowest thing on the NSPanel Pro and HDL S57.
+- Lights (Minimal tall): no band of light along the card; only the round lamp on the left goes on / off, and nothing animates while dimming (about half the work per drag).
+- One tap switches a light. The tap-to-select highlight (first tap picks, second switches) is for knob panels, so Residence 2 defaults to off; the customer can still turn it on in Settings > Display, and a setup with "dimmable" keeps that.
+
 ## Carousel taps right after a swipe (5.0.12)
 
 - Residence 2 home screen and the Utilities 3D slider: a tap on an icon right after a swipe, while the icons are still gliding into place, was lost (the panel only got a click when the finger went down and up on the same spot), so it took a second tap or a wait. The tap is now taken from where the finger went down, as soon as it lifts.

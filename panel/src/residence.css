@@ -1069,6 +1069,15 @@
 .el-root.skin-residence.rs2-on.rs2-tall .rs-off svg{margin-right:18px}
 .el-root.skin-residence.rs2-on.rs2-tall .rs-np{font-size:34px}
 .el-root.skin-residence.rs2-on.rs2-tall .rs2-dots{bottom:30px}
+/* Residence 2, speed: the wallpaper's dimming on a page change is instant (the 0.4 s fade
+   repainted the whole screen every frame, the slowest thing on these panels) */
+.el-root.skin-residence.rs2-on .el-room,.el-root.skin-residence.rs2-on .el-room::after{-webkit-transition:none;transition:none}
+/* Residence 2 lights (Minimal tall): no band of light along the card, only the round lamp
+   on the left goes on / off; nothing animates while dimming */
+.el-root.skin-residence.rs2-on .rs-lttall .rs-ltfill{display:none}
+.el-root.skin-residence.rs2-on .rs-lttd{box-shadow:0 0 22px rgba(var(--lc),.7);-webkit-transition:none;transition:none}
+.el-root.skin-residence.rs2-on .rs-lttall.off .rs-lttd{box-shadow:none}
+.el-root.skin-residence.rs2-on .rs-lttall.sel{box-shadow:0 0 0 3px rgba(var(--acc-rgb),.85)}
 /* Residence 2 Utilities: the groups carousel (Pool / Irrigation / Geysers) and one group's devices */
 .el-root.skin-residence .rs-uhub,.el-root.skin-residence .rs-ugrp{position:absolute;left:0;top:0;right:0;bottom:0}
 .el-root.skin-residence .rs-uhub.tabbed,.el-root.skin-residence .rs-ugrp.tabbed{top:58px}
