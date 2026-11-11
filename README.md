@@ -80,6 +80,10 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Residence 2: carousel icons fixed on the HDL S57 (5.0.16)
+
+- 5.0.15 turned the built-in icon drawings into ready pictures on the panel, and on the HDL S57 some came out as a green square or empty (its graphics chip returns rubbish from a large canvas). The picture is now made in ordinary memory, and it is only used after it has been compared with the drawing itself, both when made and after loading it back; anything wrong and the drawing is shown as before.
+
 ## Residence 2: nothing is redrawn during a swipe (5.0.15)
 
 - The icon carousel (home screen and Utilities 3D slider) no longer makes the panel draw anything while you swipe or as you land on an icon:

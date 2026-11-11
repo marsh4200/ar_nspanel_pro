@@ -1185,6 +1185,80 @@ export function mountResidence(a) {
   // size / icons; Home Assistant updates only repaint the status lines and glows,
   // so a swipe or the floating icon never jumps.
   const R2_GLOW = { lights: "255,180,90", climate: "88,204,238", music: "168,128,255", watch: "128,150,255", shades: "120,184,255", cameras: "170,184,204", utilities: "250,204,80", u_pool: "70,190,255", u_irrigation: "96,214,120", u_geyser: "255,138,64", u_more: "250,204,80", security: "70,214,146", scenes: "150,140,255", calendar: "255,128,108" };
+  // A ready picture (PNG) of a built-in icon drawing, px wide. Some panels' graphics
+  // chips return rubbish from a large canvas (HDL S57: green or empty squares), so the
+  // picture is compared with the drawing itself, small, before it is used, and compared
+  // again after it has been loaded back. Anything wrong: no picture, the drawing stays.
+  const R2PIC = {}; // key -> url, "" = failed; R2WAIT[key] = callbacks while it is made
+  const R2WAIT = {};
+  const r2Q = [];
+  let r2Busy = false;
+  function r2Pic(svg, px, cb) {
+    const key = px + ":" + svg.length + ":" + svg.slice(-200);
+    if (R2PIC[key] !== undefined) return cb(R2PIC[key]);
+    if (R2WAIT[key]) return void R2WAIT[key].push(cb);
+    R2WAIT[key] = [cb];
+    r2Q.push([key, svg, px]);
+    r2Run();
+  }
+  function r2Run() {
+    if (r2Busy || !r2Q.length) return;
+    r2Busy = true;
+    const [key, svg, px] = r2Q.shift();
+    const done = (url) => {
+      R2PIC[key] = url || "";
+      (R2WAIT[key] || []).forEach((f) => f(R2PIC[key]));
+      delete R2WAIT[key];
+      r2Busy = false;
+      setTimeout(r2Run, 30); // one at a time, between frames
+    };
+    const cv = (n) => {
+      const c = document.createElement("canvas");
+      c.width = c.height = n;
+      // willReadFrequently: kept in ordinary memory, not on the graphics chip
+      return [c, c.getContext("2d", { willReadFrequently: true })];
+    };
+    const T = 40; // the small size both are compared at
+    const same = (a, b) => {
+      let d = 0, ink = 0;
+      for (let k = 0; k < a.length; k += 4) {
+        const aa = a[k + 3] / 255, ba = b[k + 3] / 255;
+        d += Math.abs(a[k] * aa - b[k] * ba) + Math.abs(a[k + 1] * aa - b[k + 1] * ba) + Math.abs(a[k + 2] * aa - b[k + 2] * ba) + Math.abs(a[k + 3] - b[k + 3]);
+        if (a[k + 3] > 40) ink++;
+      }
+      return ink > T * T * 0.03 && d / (a.length / 4) < 45;
+    };
+    const im = new Image();
+    im.onerror = () => done("");
+    im.onload = () => {
+      try {
+        const [big, bg] = cv(px);
+        bg.drawImage(im, 0, 0, px, px);
+        const [r, rg] = cv(T);
+        rg.drawImage(im, 0, 0, T, T); // the drawing itself, small: what it must look like
+        const ref = rg.getImageData(0, 0, T, T).data;
+        const [c1, g1] = cv(T);
+        g1.drawImage(big, 0, 0, T, T);
+        if (!same(ref, g1.getImageData(0, 0, T, T).data)) return done("");
+        const url = big.toDataURL("image/png");
+        const back = new Image();
+        back.onerror = () => done("");
+        back.onload = () => {
+          try {
+            const [c2, g2] = cv(T);
+            g2.drawImage(back, 0, 0, T, T);
+            done(back.naturalWidth === px && same(ref, g2.getImageData(0, 0, T, T).data) ? url : "");
+          } catch (e) {
+            done("");
+          }
+        };
+        back.src = url;
+      } catch (e) {
+        done("");
+      }
+    };
+    im.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.replace("<svg ", '<svg width="' + px + '" height="' + px + '" '));
+  }
   function r2Icon(k) {
     const mineI = PREF.icons && PREF.icons[k];
     const ic = rc.icons && rc.icons[k];
@@ -1268,6 +1342,7 @@ export function mountResidence(a) {
     // The built-in icons are drawings (shapes and gradients). Each is turned once into a
     // ready picture at the size it is shown, so whenever the panel redraws an icon (it
     // does as an icon grows or shrinks in a swipe) it copies a picture instead of drawing.
+    // The picture is only used once it has been checked against the drawing (r2Pic).
     {
       const rr0 = root.getBoundingClientRect();
       const px = Math.max(96, Math.min(640, Math.ceil(S * (rr0.width ? rr0.width / 1000 : 0.5) * (window.devicePixelRatio || 1))));
@@ -1282,10 +1357,9 @@ export function mountResidence(a) {
           return;
         }
         if (svg.indexOf("<svg ") !== 0) return;
-        const key = "r2:" + px + ":" + svg.length + ":" + svg.slice(-160);
-        const got = thumbFor(key, "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.replace("<svg ", '<svg width="' + px + '" height="' + px + '" ')), px, px, false);
-        if (got) im.src = got;
-        else im.setAttribute("data-th", thAttr(key));
+        r2Pic(svg, px, (url) => {
+          if (url && im.isConnected) im.src = url;
+        });
       });
     }
     const lbs = cs.map((c) => {
