@@ -260,6 +260,41 @@ export function mountResidence(a) {
     return src;
   }
   const libUrl = (k) => (LIB[k] ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(LIB[k].svg) : "");
+  // --- Live Photos (optional, per room; Device Setup > Live Photos) --------------
+  // device.elegant.rooms[i].livePhoto = {on, mode: "quick" | "layers", base, ar,
+  //   lights: {entity: {img, pts: [[x%, y%]], spread, glow}}}
+  // Drawn by rsPhoto in elegant.js. A room without one (or with it switched off
+  // in the setup) is not touched: livePhoto() is null and nothing changes.
+  const LP = {};
+  function livePhoto(i) {
+    if (LP[i] !== undefined) return LP[i];
+    const s = (raw[i] || {}).livePhoto;
+    let o = null;
+    if (s && typeof s === "object" && s.on && typeof s.base === "string" && url(s.base)) {
+      const ar = Number(s.ar);
+      o = { mode: s.mode === "layers" ? "layers" : "quick", base: url(s.base), ar: ar >= 0.4 && ar <= 3 ? ar : 4 / 3, lights: {} };
+      const L = s.lights && typeof s.lights === "object" ? s.lights : {};
+      Object.keys(L).forEach((e) => {
+        const c = L[e];
+        if (!c || typeof c !== "object") return;
+        const pts = (Array.isArray(c.pts) ? c.pts : [])
+          .filter((q) => Array.isArray(q) && q.length === 2 && q.every((n) => typeof n === "number" && n >= 0 && n <= 100))
+          .slice(0, 8);
+        const sp = Number(c.spread);
+        o.lights[e] = { img: typeof c.img === "string" ? url(c.img) : "", pts: pts, spread: sp >= 5 && sp <= 80 ? Math.round(sp) : 40, glow: !!c.glow };
+      });
+    }
+    return (LP[i] = o);
+  }
+  // the customer's own choice, per room: "List view" in Moods puts the normal layout back
+  const livePhotoOff = (i) => !!(PREF.lpOff && typeof PREF.lpOff === "object" && PREF.lpOff[i]);
+  function livePhotoShow(i, show) {
+    const m = PREF.lpOff && typeof PREF.lpOff === "object" ? PREF.lpOff : {};
+    if (show) delete m[i];
+    else m[i] = 1;
+    PREF.lpOff = m;
+    savePref();
+  }
   // --- Settings pictures: small ready-made copies -------------------------------
   // The built-in icons are drawings with blur and gradients: slow for the panel to
   // draw, and Settings draws dozens of them again on every tap. Each one is drawn
@@ -3380,5 +3415,5 @@ export function mountResidence(a) {
     a.ctx.reportPrefs(r);
   }
   reportSoon();
-  return { settingsOpen: () => !!setEl, roomName, roomOrder, nick, selectMode, cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightTone, lightsPage, clockDesign, decorateCover, paintCover, startRoom: homeRoom, utilCards, utilView, utilHub };
+  return { settingsOpen: () => !!setEl, roomName, roomOrder, nick, selectMode, cats, title, intercept, renderHome, onRoom, chrome: chromeAll, lightType, lightTone, lightsPage, livePhoto, livePhotoOff, livePhotoShow, clockDesign, decorateCover, paintCover, startRoom: homeRoom, utilCards, utilView, utilHub };
 }

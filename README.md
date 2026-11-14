@@ -80,6 +80,18 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Live Photos: a room photo that lights up with its lights (5.1.0)
+
+Optional, Residence only, and per room. Nothing changes for a room, a panel or a setup that doesn't use it.
+
+- **What it is.** The room's Lights page shows a photo of the room. Each light's part of the photo fades in with that light's level, and a tap on the light in the photo switches it. The bar under the photo dims the light that was tapped (the knob dims it too). Lights with no place on the photo are listed under it. Moods (scenes, All on, All off) stay where they are.
+- **Where to set it up.** Device Setup has a new **Live Photos** tab (shown for the Residence style). Pick a room, switch on "Use a Live Photo", upload the photos and mark where each light is. Every room has its own photos.
+- **Two ways to photograph a room.**
+  - *One photo (quick)*: one photo with the lights on. The panel shows it dark and lights up the area around each light (Spread sets how far). A light that was off in the photo can get a soft glow instead.
+  - *Photo per light (best)*: one photo with every light off, then one photo with only each light on, all from the same spot (tripod, at night, curtains closed). The panel lays them over each other, so it is the real light on the real walls. A light without its own photo shows a soft glow at its tap zone.
+- **On the panel.** A room with a Live Photo opens on it. "List view" under Moods goes back to the Lights layout that was picked (and "Live Photo" returns); the choice is kept per room on that panel. Whole Home and rooms without a photo show the normal layout. If the photo can't be loaded, the room shows the normal layout.
+- **Stored as** `elegant.rooms[i].livePhoto` = `{on, mode: "quick" | "layers", base, ar, lights: {entity: {img, pts, spread, glow}}}`. Photos are uploaded like room backgrounds (made at most 1000 px, kept in `ar_nspanel_pro_media`) and the panel loads them from Home Assistant.
+
 ## Residence 2: carousel icons fixed on the HDL S57 (5.0.16)
 
 - 5.0.15 turned the built-in icon drawings into ready pictures on the panel, and on the HDL S57 some came out as a green square or empty (its graphics chip returns rubbish from a large canvas). The picture is now made in ordinary memory, and it is only used after it has been compared with the drawing itself, both when made and after loading it back; anything wrong and the drawing is shown as before.

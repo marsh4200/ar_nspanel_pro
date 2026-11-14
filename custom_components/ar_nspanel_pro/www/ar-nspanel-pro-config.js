@@ -10901,6 +10901,190 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
     ] })
   ] });
 }
+// ---- Live Photos (optional, 5.1.0) -------------------------------------------------
+// A photo of a room that lights up where its lights are (Residence only). Stored per
+// room: device.elegant.rooms[i].livePhoto = {on, mode: "quick" | "layers", base, ar,
+// lights: {entity: {img, pts: [[x%, y%]], spread, glow}}}. A room without one keeps
+// its normal Lights page, and nothing else in the setup reads this.
+// a room photo for the panel: at most 1000 px, JPEG; also its shape (width / height)
+async function rsLpPhoto(file) {
+  const im = await rsLoad(file);
+  const k = Math.min(1, 1000 / Math.max(im.width, im.height));
+  const c = document.createElement("canvas");
+  c.width = Math.round(im.width * k);
+  c.height = Math.round(im.height * k);
+  const x = c.getContext("2d");
+  x.imageSmoothingQuality = "high";
+  x.drawImage(im, 0, 0, c.width, c.height);
+  return { b64: c.toDataURL("image/jpeg", 0.8).split(",")[1], ar: Math.round((c.width / c.height) * 1000) / 1000 };
+}
+const RS_LP_CSS = ".lpx .lprooms{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px}.lpx .lpseg{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:6px 0 4px}.lpx .lpseg button{text-align:left;font:inherit;color:inherit;cursor:pointer;padding:10px 12px;border-radius:11px;border:2px solid transparent;background:var(--surface)}.lpx .lpseg button.on{border-color:var(--accent)}.lpx .lpseg b{display:block;font-size:13px}.lpx .lpseg small{font-size:12px;opacity:.75}.lpx .lph{font-size:12px;font-weight:700;opacity:.7;letter-spacing:.04em;text-transform:uppercase;margin:18px 0 6px}.lpx .lpstage{position:relative;width:100%;max-width:640px;border-radius:12px;overflow:hidden;background:#000;user-select:none;-webkit-user-select:none}.lpx .lpstage.placing{cursor:crosshair;outline:3px dashed var(--accent);outline-offset:-3px}.lpx .lpstage img,.lpx .lpstage .g{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}.lpx .lpstage.quick img.b{filter:brightness(.2) saturate(.7)}.lpx .lpstage .l{transition:opacity .25s}.lpx .lpstage .x{mix-blend-mode:lighten}.lpx .lpstage .g{mix-blend-mode:screen}.lpx .lpstage .h{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;border:2px solid rgba(255,255,255,.85);background:rgba(0,0,0,.35);cursor:pointer;padding:0}.lpx .lpstage .h.on{background:#f3d9a4}.lpx .lpstage.placing .h{pointer-events:none}.lpx .lprow{padding:10px 0;border-top:1px solid var(--divider,rgba(127,127,127,.3))}.lpx .lpn{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}.lpx .lpn b{font-weight:600}.lpx .lpc{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;font-size:13px}.lpx .lpc .btn{padding:7px 12px}.lpx .lpc label{display:inline-flex;align-items:center;gap:6px}.lpx .lpup{position:relative;overflow:hidden}.lpx .lpup input{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer}.lpx .lpth{width:64px;height:44px;border-radius:7px;background-size:cover;background-position:center;flex:none}";
+function RsLivePhotosCard({ hass: h, device: t, onChange: r }) {
+  const cfg = t.elegant ?? {}, rooms = elRooms(cfg);
+  const [sel, setSel] = M.useState(0), [busy, setBusy] = M.useState(""), [err, setErr] = M.useState("");
+  const [placing, setPlacing] = M.useState(null); // the light whose tap zone is being placed
+  const [pv, setPv] = M.useState({}); // preview only: lights switched off in the picture here
+  const [sp, setSp] = M.useState({}); // a Spread slider while it is dragged
+  const cur = Math.min(sel, Math.max(0, rooms.length - 1)), x = rooms[cur] || {};
+  const lights = elList(x.lights);
+  const lp = x.livePhoto && typeof x.livePhoto === "object" ? x.livePhoto : {};
+  const L = lp.lights && typeof lp.lights === "object" ? lp.lights : {};
+  const mode = lp.mode === "layers" ? "layers" : "quick";
+  const states = h?.states ?? {}, names = cfg.names || {};
+  const pname = (id) => (typeof names[id] === "string" && names[id].trim()) || states[id]?.attributes?.friendly_name || id;
+  const rname = (y, n) => y.name || "Room " + (n + 1);
+  const saveRoom = (m) => {
+    const next = { ...lp, ...m };
+    if (next.lights) {
+      // only lights that are (still) in this room are kept
+      const o = {};
+      lights.forEach((id) => {
+        const c = next.lights[id];
+        if (!c) return;
+        const d = { ...c };
+        Object.keys(d).forEach((k) => (d[k] === void 0 || d[k] === !1 || (Array.isArray(d[k]) && !d[k].length)) && delete d[k]);
+        if (Object.keys(d).length) o[id] = d;
+      });
+      next.lights = Object.keys(o).length ? o : void 0;
+    }
+    Object.keys(next).forEach((k) => next[k] === void 0 && delete next[k]);
+    const keep = next.on || next.base || next.lights;
+    const nr = rooms.map((y, n) => {
+      if (n !== cur) return y;
+      const z = { ...y };
+      if (keep) z.livePhoto = next;
+      else delete z.livePhoto;
+      return z;
+    });
+    // stored the way Device Setup > Dashboard stores rooms
+    const el2 = { ...cfg, rooms: nr, start: Math.min(cfg.start ?? 0, Math.max(0, nr.length - 1)) };
+    ["title", "lights", "climate", "music", "shades", "scenes"].forEach((k) => delete el2[k]);
+    r({ elegant: el2 });
+  };
+  const setLight = (id, m) => saveRoom({ lights: { ...L, [id]: { ...(L[id] || {}), ...m } } });
+  // uploads finish later: they must write into the setup as it is by then
+  const live = M.useRef({});
+  live.current = { saveRoom, setLight, ar: lp.ar, room: cur };
+  const upload = async (key, f, done) => {
+    if (!f) return;
+    const room = cur;
+    setBusy(key);
+    setErr("");
+    try {
+      const p = await rsLpPhoto(f);
+      const u = await rsUpload(h, p.b64, "jpg");
+      if (live.current.room === room) done(u, p.ar);
+    } catch (e) {
+      setErr(e && e.message ? e.message : String(e));
+    }
+    setBusy("");
+  };
+  const upBtn = (key, label, done) => ez("label", { className: "btn ghost lpup" }, busy === key ? "Uploading…" : label,
+    ez("input", { type: "file", accept: "image/*", disabled: !!busy, onChange: (m) => (upload(key, m.target.files && m.target.files[0], done), (m.target.value = "")) }));
+  const isOn = (id) => pv[id] !== !1;
+  const spreadOf = (id) => (sp[id] !== void 0 ? sp[id] : Number((L[id] || {}).spread) || 40);
+  const glowOf = (id) => (mode === "quick" ? !!(L[id] || {}).glow : !(L[id] || {}).img);
+  const ptsOf = (id) => (Array.isArray((L[id] || {}).pts) ? L[id].pts : []);
+  const pick = (v) => {
+    setSel(v);
+    setPlacing(null);
+    setPv({});
+    setSp({});
+    setErr("");
+  };
+  let amb = 0;
+  if (mode === "quick") lights.forEach((id) => isOn(id) && !glowOf(id) && ptsOf(id).length && (amb = Math.max(amb, spreadOf(id) > 30 ? 1 : 0.6)));
+  const layer = (id) => {
+    const pts = ptsOf(id), o = isOn(id) ? 1 : 0;
+    if (glowOf(id)) {
+      if (!pts.length) return null;
+      return ez("div", { key: "l" + id, className: "l g", style: { opacity: o, background: pts.map((q) => "radial-gradient(ellipse 13% 19% at " + q[0] + "% " + q[1] + "%,rgba(255,220,160,.9) 0,rgba(255,220,160,.4) 35%,rgba(255,220,160,0) 100%)").join(",") } });
+    }
+    if (mode === "layers") return ez("img", { key: "l" + id, className: "l x", alt: "", src: rsSrc(L[id].img), style: { opacity: o } });
+    if (!pts.length) return null;
+    const s = spreadOf(id), mk = pts.map((q) => "radial-gradient(ellipse " + s + "% " + Math.round(s * 1.4) + "% at " + q[0] + "% " + q[1] + "%,#000 25%,transparent 100%)").join(",");
+    return ez("img", { key: "l" + id, className: "l", alt: "", src: rsSrc(lp.base), style: { opacity: o, WebkitMaskImage: mk, maskImage: mk } });
+  };
+  const stage = lp.base && ez("div", {
+    className: "lpstage" + (mode === "quick" ? " quick" : "") + (placing ? " placing" : ""),
+    style: { aspectRatio: String(lp.ar || 1.333) },
+    onClick: (m) => {
+      if (!placing) return;
+      const b = m.currentTarget.getBoundingClientRect();
+      const q = [Math.round(((m.clientX - b.left) / b.width) * 1000) / 10, Math.round(((m.clientY - b.top) / b.height) * 1000) / 10];
+      setLight(placing, { pts: ptsOf(placing).concat([q]).slice(0, 8) });
+      setPv({ ...pv, [placing]: !0 });
+      setPlacing(null);
+    }
+  },
+    ez("img", { className: "b", alt: "", src: rsSrc(lp.base) }),
+    mode === "quick" && ez("img", { className: "l", alt: "", src: rsSrc(lp.base), style: { opacity: amb * 0.32 } }),
+    lights.map(layer),
+    lights.map((id) => ptsOf(id).map((q, n) => ez("button", { key: id + n, type: "button", className: "h" + (isOn(id) ? " on" : ""), title: pname(id), "aria-label": pname(id), style: { left: q[0] + "%", top: q[1] + "%" }, onClick: (m) => (m.stopPropagation(), setPv({ ...pv, [id]: !isOn(id) })) })))
+  );
+  const lightRow = (id) => {
+    const c = L[id] || {}, n = ptsOf(id).length;
+    const status = (mode === "layers" ? (c.img ? "Photo added" : "No photo yet: shows a soft glow") + " · " : "") + (n ? n + " tap zone" + (n > 1 ? "s" : "") : "No tap zone: listed under the photo");
+    return ez("div", { className: "lprow", key: id },
+      ez("div", { className: "lpn" }, ez("b", null, pname(id)), ez("span", { className: "hint" }, status)),
+      ez("div", { className: "lpc" },
+        mode === "layers" && c.img && ez("span", { className: "lpth", style: { backgroundImage: "url(" + rsSrc(c.img) + ")" } }),
+        mode === "layers" && upBtn("l:" + id, c.img ? "Replace photo" : "Add photo: only this light on", (u, ar) => {
+          const base = live.current.ar;
+          if (base && Math.abs(ar - base) / base > 0.03) setErr("That photo is a different shape from the room photo. Take every photo of a room from the same spot, the same way up.");
+          live.current.setLight(id, { img: u });
+        }),
+        mode === "layers" && c.img && ez("button", { className: "btn ghost", onClick: () => setLight(id, { img: void 0 }) }, "Remove photo"),
+        ez("button", { className: "btn " + (placing === id ? "primary" : "ghost"), disabled: !lp.base || (placing !== id && n >= 8), onClick: () => setPlacing(placing === id ? null : id) }, placing === id ? "Now tap the photo…" : "Add tap zone"),
+        n > 0 && ez("button", { className: "btn ghost", onClick: () => setLight(id, { pts: void 0 }) }, "Clear zones"),
+        mode === "quick" && n > 0 && !c.glow && ez("label", { title: "How much of the room this light brightens" }, "Spread",
+          ez("input", { type: "range", min: 10, max: 70, step: 1, value: spreadOf(id), onChange: (m) => setSp({ ...sp, [id]: Number(m.target.value) }),
+            ...["onMouseUp", "onTouchEnd", "onKeyUp", "onBlur"].reduce((o, k) => ((o[k] = () => {
+              if (sp[id] === void 0) return;
+              setLight(id, { spread: sp[id] });
+              setSp((s) => {
+                const z = { ...s };
+                delete z[id];
+                return z;
+              });
+            }), o), {}) })),
+        mode === "quick" && ez("label", { title: "For a light that was off when the photo was taken" }, ez("input", { type: "checkbox", checked: !!c.glow, onChange: (m) => setLight(id, { glow: m.target.checked || void 0 }) }), "Was off in the photo (add a glow)"),
+        lp.base && ez("button", { className: "btn ghost", onClick: () => setPv({ ...pv, [id]: !isOn(id) }) }, isOn(id) ? "Preview: on" : "Preview: off")
+      ));
+  };
+  const used = rooms.filter((y) => y.livePhoto && y.livePhoto.on).length;
+  return ez("div", { className: "card dev-card lpx" },
+    ez("style", null, RS_LP_CSS),
+    ez("h3", null, a.jsx(j, { d: N.camera, size: 20, style: { color: "var(--accent)" } }), "Live Photos"),
+    ez("div", { className: "sub" }, "Optional. A photo of a room that lights up where its lights are: tap a light on the photo to switch it. Each room has its own photos. A room without one keeps its normal Lights page, and nothing else on the panel changes."),
+    !rooms.length && ez("div", { className: "hint" }, "Add your rooms first (Dashboard tab), then come back here."),
+    rooms.length > 0 && ez("div", { className: "hint" }, used + " of " + rooms.length + " rooms use a Live Photo."),
+    rooms.length > 0 && ez("div", { className: "lprooms" }, rooms.map((y, n) => ez("button", { key: n, type: "button", className: "btn " + (n === cur ? "primary" : "ghost"), onClick: () => pick(n) }, rname(y, n) + (y.livePhoto && y.livePhoto.on ? " ●" : "")))),
+    rooms.length > 0 && a.jsx(et, { title: "Use a Live Photo in " + rname(x, cur), sub: "Off: this room keeps its normal Lights page.", on: !!lp.on, onChange: (v) => (saveRoom({ on: v || void 0 }), setPlacing(null)) }),
+    rooms.length > 0 && !!lp.on && !lights.length && ez("div", { className: "hint", style: { marginTop: 8 } }, "This room has no lights yet. Add them on the Dashboard tab."),
+    rooms.length > 0 && !!lp.on && lights.length > 0 && ez("div", null,
+      ez("div", { className: "lph" }, "1. How will you photograph it?"),
+      ez("div", { className: "lpseg" },
+        ez("button", { type: "button", className: mode === "quick" ? "on" : "", onClick: () => saveRoom({ mode: "quick" }) }, ez("b", null, "One photo (quick)"), ez("small", null, "One photo with the lights on. The panel darkens it and lights up the area around each light.")),
+        ez("button", { type: "button", className: mode === "layers" ? "on" : "", onClick: () => saveRoom({ mode: "layers" }) }, ez("b", null, "Photo per light (best)"), ez("small", null, "One photo with every light off, then one with only each light on. The real light on the real walls."))),
+      ez("div", { className: "lph" }, mode === "quick" ? "2. Room photo, lights on" : "2. Room photo, every light off"),
+      ez("div", { className: "hint", style: { marginBottom: 8 } }, mode === "quick" ? "Landscape works best. The photo is made smaller for the panel when you upload it." : "Use a tripod or a fixed spot, at night with the curtains closed, and take every photo of this room without moving the camera."),
+      ez("div", { className: "lpc", style: { marginTop: 0 } },
+        upBtn("base", lp.base ? "Replace room photo" : "Upload room photo", (u, ar) => live.current.saveRoom({ base: u, ar: ar })),
+        lp.base && ez("button", { className: "btn ghost", onClick: () => (saveRoom({ base: void 0, ar: void 0 }), setPlacing(null)) }, "Remove")),
+      err && ez("div", { className: "hint", style: { color: "#ff8f80", marginTop: 6 } }, err),
+      lp.base && ez("div", { className: "lph" }, "Preview" + (placing ? ": tap where “" + pname(placing) + "” is" : "")),
+      stage,
+      lp.base && ez("div", { className: "lpc" },
+        ez("button", { className: "btn ghost", onClick: () => setPv({}) }, "Preview all on"),
+        ez("button", { className: "btn ghost", onClick: () => setPv(lights.reduce((o, id) => ((o[id] = !1), o), {})) }, "Preview all off"),
+        ez("span", { className: "hint" }, "The preview only changes this picture, not your lights.")),
+      ez("div", { className: "lph" }, "3. Lights in this room"),
+      ez("div", { className: "hint", style: { marginBottom: 4 } }, mode === "quick" ? "Mark where each light is on the photo. Spread sets how much of the room it lights up. A light that switches several fittings can have several tap zones." : "Add each light's own photo, then mark where to tap. A light without a photo shows a soft glow at its tap zone."),
+      lights.map(lightRow),
+      ez("div", { className: "hint", style: { marginTop: 12 } }, "Save & push sends it to the panel. There, this room's Lights page shows the photo, and “List view” under Moods goes back to the normal layout."))
+  );
+}
 function kA(e) {
   const { device: t } = e, r = (m) => e.onChangeDevice({ ...t, ...m }), n = t.screensaver ?? {}, l = (m) => r({ screensaver: { ...n, ...m } }), i = n.proximity?.on ?? id, s = (m) => {
     const x = Eo(m);
@@ -11358,7 +11542,8 @@ function kA(e) {
         ] })
       ] });
     })(),
-    /* @__PURE__ */ a.jsx(ArPrefsBackupCard, { hass: e.hass, device: t, onChange: r })
+    /* @__PURE__ */ a.jsx(ArPrefsBackupCard, { hass: e.hass, device: t, onChange: r }),
+    t.dashboardStyle === "residence" && /* @__PURE__ */ a.jsx(RsLivePhotosCard, { hass: e.hass, device: t, onChange: r })
   ] });
 }
 // ---- Customer settings backup (4.8.1) ---------------------------------------------
@@ -11462,6 +11647,7 @@ function ArPrefsBackupCard({ hass: h, device: t, onChange: r }) {
 // 9 Customer settings (backup / restore of the gear choices)
 const AR_DEV_TABS = [
   { key: "dash", title: "Dashboard", cards: [6] },
+  { key: "live", title: "Live Photos", cards: [10] }, // Residence only (optional, 5.1.0)
   { key: "screen", title: "Screen", cards: [4, 0, 5] },
   { key: "music", title: "Music", cards: [7, 8] },
   { key: "sensors", title: "Sensors", cards: [1] },
@@ -11476,7 +11662,8 @@ function ArDevTabs({ children: c }) {
       return "dash";
     }
   });
-  const cur = AR_DEV_TABS.find((x) => x.key === tab) || AR_DEV_TABS[0];
+  const tabs = AR_DEV_TABS.filter((x) => x.key !== "live" || c[10]);
+  const cur = tabs.find((x) => x.key === tab) || tabs[0];
   const pick = (k) => {
     setTab(k);
     try {
@@ -11485,7 +11672,7 @@ function ArDevTabs({ children: c }) {
     }
   };
   return /* @__PURE__ */ a.jsxs("div", { className: "dev-wrap", children: [
-    /* @__PURE__ */ a.jsx("div", { className: "dev-tabs", role: "tablist", children: AR_DEV_TABS.map((x) => /* @__PURE__ */ a.jsx("button", { role: "tab", "aria-selected": x.key === cur.key, className: "dev-tab" + (x.key === cur.key ? " on" : ""), onClick: () => pick(x.key), children: x.title }, x.key)) }),
+    /* @__PURE__ */ a.jsx("div", { className: "dev-tabs", role: "tablist", children: tabs.map((x) => /* @__PURE__ */ a.jsx("button", { role: "tab", "aria-selected": x.key === cur.key, className: "dev-tab" + (x.key === cur.key ? " on" : ""), onClick: () => pick(x.key), children: x.title }, x.key)) }),
     /* @__PURE__ */ a.jsx("div", { className: "dev-stack", children: cur.cards.map((i) => c[i]).filter(Boolean) })
   ] });
 }

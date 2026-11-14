@@ -558,17 +558,25 @@ export function buildElegant(cfg, ctx, skin) {
   const FLAT = LITE || GSAFE;
   function rsLights(p) {
     const list = ents.lights || [];
-    const lay = RX.lightsPage();
+    const lp = lpNow();
+    const lay = lp && !RX.livePhotoOff(roomIdx) ? "photo" : RX.lightsPage();
     const tall = root.classList.contains("tall");
     const W = Math.max(300, (p.clientWidth || 1000) - 52 - (tall ? 0 : 204));
     const H = Math.max(260, (p.clientHeight || 436) - 6 - (tall ? 76 : 0));
     const sc = clientScenes();
-    const key = lay + "|" + list.join(",") + "|" + W + "x" + H + "|" + sc.map((s) => s.entity).join(",") + "|" + whole + (lay === "fourc" ? "|" + fcTab + fcFilter : "");
+    const key = lay + "|" + list.join(",") + "|" + W + "x" + H + "|" + sc.map((s) => s.entity).join(",") + "|" + whole + (lay === "fourc" ? "|" + fcTab + fcFilter : "") + (lp ? "|lp" + roomIdx : "");
     if (p.__rsLt !== key) {
       p.__rsLt = key;
       p.innerHTML = "";
       const wrap = el("div", "rs-lt rs-lt-" + lay);
       const main = el("div", "rs-ltmain");
+      if (lay === "photo") {
+        rsPhoto(main, p, list, lp, W, H);
+        wrap.appendChild(main);
+        wrap.appendChild(rsMoods(p, list));
+        p.appendChild(wrap);
+        return rsLightsPaint(p);
+      }
       if (lay === "fourc") {
         rs4c(main, p, list);
         wrap.appendChild(main);
@@ -665,6 +673,11 @@ export function buildElegant(cfg, ctx, skin) {
       ft.appendChild(b);
     });
     ft.appendChild(el("i", "rs-4csp"));
+    if (lpNow()) {
+      const ph = txt("span", "", "Live Photo");
+      ph.addEventListener("click", () => lpSwitch(p, true));
+      ft.appendChild(ph);
+    }
     const off = txt("span", "", "All off");
     off.addEventListener("click", () => {
       shown.forEach((e) => {
@@ -708,7 +721,159 @@ export function buildElegant(cfg, ctx, skin) {
       rsLightsPaint(p);
       toast("All lights off");
     });
+    const lp = lpNow();
+    if (lp) {
+      const showing = !RX.livePhotoOff(roomIdx);
+      mood(showing ? "List view" : "Live Photo", "radial-gradient(circle at 40% 35%,#fff,#9fc4ff)", () => lpSwitch(p, !showing));
+    }
     return moods;
+  }
+  // Live Photo (optional, per room: Device Setup > Live Photos). A photo of the
+  // room; each light's part of it fades in with that light's level.
+  //   layers  one photo per light, taken with only that light on, laid over
+  //           the photo taken with every light off
+  //   quick   one photo taken with the lights on: shown dark, and lit again
+  //           around each fitting
+  // Tap a light on the photo to switch it; the bar under the photo dims the one
+  // picked (the knob too). A room without a Live Photo, and Whole Home, keep the
+  // layout picked for the Lights page, and "List view" in Moods goes back to it.
+  const lpFail = {}; // rooms whose photo didn't load: they show the normal layout
+  const lpNow = () => (!whole && RX && RX.livePhoto && !lpFail[roomIdx] ? RX.livePhoto(roomIdx) : null);
+  function lpSwitch(p, show) {
+    RX.livePhotoShow(roomIdx, show);
+    p.__rsLt = null;
+    rsLights(p);
+  }
+  function rsPhoto(main, p, list, lp, W, H) {
+    const box = el("div", "rs-lpbox");
+    const rest = list.filter((e) => !(lp.lights[e] && lp.lights[e].pts.length));
+    const big = root.classList.contains("rs2-tall"); // Residence 2 on a tall panel: everything double size
+    const avail = Math.max(120, H - (big ? 136 : 84) - (rest.length ? (big ? 92 : 56) : 0));
+    const sw = Math.round(Math.min(W, avail * lp.ar));
+    const st = el("div", "rs-lp" + (lp.mode === "quick" ? " quick" : ""));
+    st.style.width = sw + "px";
+    st.style.height = Math.round(sw / lp.ar) + "px";
+    const img = (cls, src) => {
+      const im = document.createElement("img");
+      im.className = cls;
+      im.draggable = false;
+      im.src = src;
+      return im;
+    };
+    const base = img("rs-lpb", lp.base);
+    const here = roomIdx;
+    base.onerror = () => {
+      lpFail[here] = true;
+      if (roomIdx === here && !whole) {
+        p.__rsLt = null;
+        rsLights(p);
+      }
+    };
+    st.appendChild(base);
+    // quick: the whole photo comes up a little with the brightest light, as a room does
+    const amb = lp.mode === "quick" ? st.appendChild(img("rs-lpl", lp.base)) : null;
+    const at = (c, f) => c.pts.map(f).join(",");
+    const layers = [];
+    list.forEach((e) => {
+      const c = lp.lights[e];
+      if (!c) return;
+      const glow = lp.mode === "quick" ? c.glow : !c.img;
+      let n;
+      if (glow || lp.mode === "quick") {
+        if (!c.pts.length) return;
+        if (glow) {
+          // no photo of this light on: a soft glow in the light's own colour where it is
+          n = el("div", "rs-lpl rs-lpg");
+          n.style.background = at(c, (q) => "radial-gradient(ellipse 13% 19% at " + q[0] + "% " + q[1] + "%,rgba(var(--lc,255,220,160),.9) 0,rgba(var(--lc,255,220,160),.4) 35%,rgba(var(--lc,255,220,160),0) 100%)");
+        } else {
+          n = img("rs-lpl", lp.base);
+          const m = at(c, (q) => "radial-gradient(ellipse " + c.spread + "% " + Math.round(c.spread * 1.4) + "% at " + q[0] + "% " + q[1] + "%,#000 25%,transparent 100%)");
+          n.style.webkitMaskImage = m;
+          n.style.maskImage = m;
+        }
+      } else n = img("rs-lpl rs-lpx", c.img);
+      st.appendChild(n);
+      layers.push({ e: e, n: n, glow: glow, amb: lp.mode === "quick" && !glow ? (c.spread > 30 ? 1 : 0.6) : 0 });
+    });
+    const tap = (e, i) => {
+      selLight = i;
+      patch(e, { on: !get(e).on });
+      send("toggle", { entity: e });
+      paint();
+    };
+    const spots = [];
+    list.forEach((e, i) => {
+      const c = lp.lights[e];
+      if (!c) return;
+      c.pts.forEach((q) => {
+        const h = el("div", "rs-lph");
+        h.style.left = q[0] + "%";
+        h.style.top = q[1] + "%";
+        h.addEventListener("click", () => tap(e, i));
+        st.appendChild(h);
+        spots.push({ e: e, i: i, n: h });
+      });
+    });
+    box.appendChild(st);
+    // the light picked: its name, level, a slider (dimmable) and a power button
+    const barBox = el("div", "rs-lpbarbox");
+    barBox.style.width = Math.max(sw, Math.min(W, 520)) + "px";
+    const bar = (i) => {
+      const e = list[i];
+      barBox.innerHTML = "";
+      if (!e) return;
+      const c = rsItem("rs-lpbar", e, i, '<div class="rs-lptx"><div class="rs-ltnm"></div><div class="rs-ltpc"></div></div>' + (dimOk(e) ? '<div class="rs-ltks"><i></i><b></b></div>' : '<div class="rs-lpsp"></div>') + '<span class="rs-4cpw rs-noop">' + svg("u_power") + "</span>");
+      c.__lp = paint;
+      c.querySelector(".rs-4cpw").addEventListener("click", () => rsToggle(c, e, i));
+      const ks = c.querySelector(".rs-ltks");
+      if (ks) rsDim(c, e, i, { axis: "x", tapSets: true, zone: ks, area: () => ks });
+      barBox.appendChild(c);
+    };
+    box.appendChild(barBox);
+    // lights of this room that have no place on the photo: a tap switches them
+    const pills = [];
+    if (rest.length) {
+      const more = el("div", "rs-lpmore");
+      more.style.width = barBox.style.width;
+      rest.forEach((e) => {
+        const i = list.indexOf(e);
+        const b = txt("div", "rs-lpp", lightLabel(e));
+        b.addEventListener("click", () => tap(e, i));
+        more.appendChild(b);
+        pills.push({ e: e, n: b });
+      });
+      box.appendChild(more);
+    }
+    let painting = false;
+    function paint() {
+      if (painting) return;
+      painting = true;
+      let a = 0;
+      layers.forEach((L) => {
+        const v = lvlOf(L.e);
+        L.n.style.opacity = String(Math.round(v * 100) / 100);
+        if (L.amb) a = Math.max(a, v * L.amb);
+        if (L.glow) {
+          const t = toneOf(L.e);
+          if (t) L.n.style.setProperty("--lc", t.join(","));
+          else L.n.style.removeProperty("--lc");
+        }
+      });
+      if (amb) amb.style.opacity = String(Math.round(a * 32) / 100);
+      spots.forEach((s) => {
+        s.n.classList.toggle("on", lvlOf(s.e) > 0);
+        s.n.classList.toggle("sel", s.i === selLight);
+      });
+      pills.forEach((s) => s.n.classList.toggle("on", lvlOf(s.e) > 0));
+      // the bar follows the light picked (a tap on the photo, or the knob's light)
+      const i = list[selLight] ? selLight : 0;
+      const c = barBox.firstChild;
+      if (!dragging && (!c || c.__i !== i)) bar(i);
+      if (barBox.firstChild) rsPaintOne(barBox.firstChild);
+      painting = false;
+    }
+    st.__paint = paint;
+    main.appendChild(box);
   }
   function rsToggle(c, e, i) {
     selLight = i;
@@ -1097,8 +1262,11 @@ export function buildElegant(cfg, ctx, skin) {
       if (ln.lastChild !== ln.firstChild) ln.lastChild.style.left = full;
     }
     c.style.setProperty("--lv", on ? String(Math.max(0.15, v)) : "0");
+    if (c.__lp) c.__lp(); // Live Photo: its bar moved, so the photo follows
   }
   function rsLightsPaint(p) {
+    const ph = p.querySelector(".rs-lp");
+    if (ph && ph.__paint) return ph.__paint();
     Array.prototype.forEach.call(p.querySelectorAll(".rs-ltcol,.rs-lttile,.rs-ltbub,.rs-ltkey,.rs-ltgc,.rs-ltdr,.rs-4crow,.rs-ltpill,.rs-ltplate,.rs-ltmin,.rs-lttall"), rsPaintOne);
     const dm = p.querySelector(".rs-ltdm");
     if (dm) rsPaintDial(dm, ents.lights || []);
