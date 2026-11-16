@@ -59,16 +59,22 @@ export function wifiSection(parent, native) {
     const t0 = Date.now();
     poll = setInterval(() => {
       const w = native.wifiInfo() || {};
-      if (w.ssid === ssid && w.ip) {
+      // "joined": the app's own check, for when Android hides the network's name
+      if (w.ip && (w.ssid === ssid || (how === "ok" && w.joined === true))) {
         clearInterval(poll);
-        if (w.direct !== false) {
-          native.wifiKeepOnly(ssid);
-          info.textContent = "Wi-Fi: connected to " + ssid + " · " + w.ip + ". The old network is forgotten.";
-        } else info.textContent = "Wi-Fi: connected to " + ssid + " · " + w.ip + ".";
+        const on = "Wi-Fi: connected to " + ssid + " · " + w.ip + ".";
+        if (how !== "ok" || w.direct === false) info.textContent = on;
+        else if (native.wifiKeepOnly(ssid)) info.textContent = on + " The old network is forgotten.";
+        else info.textContent = on + " Android still has the old network saved: remove it in Android Wi-Fi settings if the panel must not use it.";
       } else if (Date.now() - t0 > limit) {
         clearInterval(poll);
-        info.textContent = how === "ok" ? "Wi-Fi: couldn't join " + ssid + ". Check the password and try again." : "Wi-Fi: not on " + ssid + " yet. Check the password, or finish in Android Wi-Fi settings.";
-        showInfo();
+        if (how === "ok") {
+          // put the panel back on the network it was on
+          const back = native.wifiRollback();
+          info.textContent = "Wi-Fi: couldn't join " + ssid + ". Check the password and try again." + (back ? " Going back to the previous network." : "");
+        } else {
+          info.textContent = "Wi-Fi: not on " + ssid + " yet. Check the password, or finish in Android Wi-Fi settings.";
+        }
       }
     }, 1500);
   };
@@ -95,6 +101,10 @@ export function wifiSection(parent, native) {
       connect(n, pass.value);
     });
     form.appendChild(h("label", null, askName ? "Other network" : ssid));
+    const cur = native.wifiInfo() || {};
+    if (!askName && cur.ssid === ssid && cur.ip) {
+      form.appendChild(h("div.hint", null, "The panel is on this network now. Connecting again replaces its saved password: a wrong one takes the panel off Wi-Fi until the right one is typed."));
+    }
     if (askName) form.appendChild(name);
     if (secure || askName) {
       form.appendChild(h("div.wf-pw", null, pass, show));
@@ -127,10 +137,10 @@ export function wifiSection(parent, native) {
         "div.wf-net" + (n.ssid === now ? ".cur" : ""),
         null,
         h("span.wf-name", null, n.ssid),
-        h("span.wf-tag", null, n.ssid === now ? "Connected" : n.enterprise ? "Not supported" : n.secure ? "Password" : "Open"),
+        h("span.wf-tag", null, n.ssid === now ? "Connected" : n.enterprise ? "Not supported" : n.wpa3only ? "WPA3 only: not supported" : n.secure ? "Password" : "Open"),
         bars(n.rssi),
       );
-      if (!n.enterprise) row.addEventListener("click", () => askPassword(n.ssid, n.secure, false));
+      if (!n.enterprise && !n.wpa3only) row.addEventListener("click", () => askPassword(n.ssid, n.secure, false));
       list.appendChild(row);
     });
   };

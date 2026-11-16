@@ -134,6 +134,7 @@ class MainActivity : Activity(), SensorEventListener {
         StartupGuard.stage(this, "engine created; network and services")
         // LAN cable first: with a cable in, everything goes over it, not Wi-Fi
         LanFirst.start(this, { brokerHost() }) { via -> emit("network", "{\"via\":\"$via\"}") }
+        Wifi.hold(this) // Wi-Fi radio out of power-save: no late answers that look like a drop
         grantMic()
         AkuOff.run(this) // Akubela taken over: stop its own services again
         BootTweaks.run() // "Optimise panel": stop what the boot files start again
@@ -221,6 +222,7 @@ class MainActivity : Activity(), SensorEventListener {
         hideReturnButton()
         sensors?.unregisterListener(this)
         LanFirst.stop(this)
+        Wifi.release()
         if (::engine.isInitialized) engine.destroy()
         super.onDestroy()
     }

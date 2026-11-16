@@ -119,7 +119,11 @@ class NativeBridge(private val activity: MainActivity) {
     fun wifiConnect(ssid: String, pass: String): Boolean = Wifi.connect(activity, ssid, pass)
 
     @JavascriptInterface
-    fun wifiKeepOnly(ssid: String) = Wifi.keepOnly(activity, ssid)
+    fun wifiKeepOnly(ssid: String): Boolean = Wifi.keepOnly(activity, ssid)
+
+    /** The join didn't work: back to the network the panel was on before. */
+    @JavascriptInterface
+    fun wifiRollback(): Boolean = Wifi.rollback(activity)
 
     /** Join on any panel: "ok" | "dialog" | "settings" | "fail" (see Wifi.join). */
     @JavascriptInterface

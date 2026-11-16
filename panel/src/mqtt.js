@@ -9,14 +9,15 @@
 // retained topics replay, which is how the panel reconciles its state.
 //
 // Dead links (Wi-Fi blip, access-point roam, broker restart) are found fast:
-// a ping every 10 s and the link counts as dead after 15 s of silence, well
+// a ping every 10 s and the link counts as dead after 25 s of silence (two
+// pings unanswered, so one late answer on busy Wi-Fi isn't a drop), well
 // before the broker's own 45 s timeout marks the panel offline. A dead socket
 // is dropped on the spot (a polite close would wait about a minute for an
 // answer that never comes), and a connection attempt that gets no answer in
 // 10 s is given up and retried.
 
 const PING_MS = 10000; // send a ping this often
-const DEAD_MS = 15000; // nothing heard for this long: the link is dead
+const DEAD_MS = 25000; // nothing heard for this long: the link is dead
 const CONNECT_MS = 10000; // no CONNACK within this: try again
 const CHECK_MS = 5000;
 

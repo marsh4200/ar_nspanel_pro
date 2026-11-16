@@ -264,8 +264,13 @@ export function wifiList() {
 export function wifiConnect(ssid, pass) {
   return call("wifiConnect", ssid, pass || "") === true;
 }
+/** Forget the other saved networks. False: Android kept one (older apps: nothing to tell). */
 export function wifiKeepOnly(ssid) {
-  call("wifiKeepOnly", ssid);
+  return call("wifiKeepOnly", ssid) !== false;
+}
+/** The join didn't work: back to the network the panel was on before. */
+export function wifiRollback() {
+  return call("wifiRollback") === true;
 }
 /** Join on any panel: "ok" | "dialog" | "settings" | "fail"; older apps: "ok"/"fail" via wifiConnect. */
 export function wifiJoin(ssid, pass) {
