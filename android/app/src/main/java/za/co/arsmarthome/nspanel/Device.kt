@@ -28,6 +28,16 @@ object Device {
     }
 
     /**
+     * Shelly Wall Display: every model is "SAWD-…" (X2i = SAWD-5A1XX10EU0,
+     * X1i, XL, U1, D1, …). The X2i is Android 11 on a Rockchip RK3326,
+     * 1440x720. Only the Shelly rescue (Shelly.kt) looks at this.
+     */
+    val isShellyWallDisplay: Boolean by lazy {
+        (Build.MODEL ?: "").uppercase().startsWith("SAWD-") ||
+            (Build.MANUFACTURER ?: "").contains("shelly", ignoreCase = true)
+    }
+
+    /**
      * A general-purpose Android tablet acting as a panel, as opposed to a
      * wall-panel appliance. Today that is only the Tab A7 Lite; add future
      * tablets here so the rest of the app needs no new branches.
@@ -43,6 +53,7 @@ object Device {
     val hardwareTag: String?
         get() = when {
             isGalaxyTabA7Lite -> "galaxy_tab_a7_lite"
+            isShellyWallDisplay -> "shelly_wall_display"
             else -> null
         }
 }

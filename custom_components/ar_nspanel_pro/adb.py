@@ -272,6 +272,186 @@ KIOSK_ADMIN = f"{APP_PACKAGE}/.KioskAdmin"
 _KIOSK_CTRL = f"{APP_PACKAGE}/.KioskControl"
 
 
+#: Shelly Wall Display X2i ("Jenna", SAWD-5A1XX10EU0): 6.9" 1440x720, Rockchip
+#: RK3326, Android 11. Every Shelly Wall Display model is SAWD-…. Shelly's
+#: software is one app, Stargate: its Home screen, and on start it switches
+#: debugging off and puts its own settings back, so it is switched off for
+#: good when the AR app takes over. Other cloud.shelly.* packages are left on.
+#:
+#: The way back never depends on Home Assistant (Shelly.kt in the app): when
+#: Android lets the app be device owner, Stargate is only HIDDEN and the app
+#: un-hides it itself; otherwise Stargate is disabled and the app switches it
+#: on through the panel's own ADB (127.0.0.1), after "Always allow" once.
+SHELLY_APP = "cloud.shelly.stargate"
+_SHELLY_CTRL = f"{APP_PACKAGE}/.ShellyControl"
+_SHELLY_ACT = "za.co.arsmarthome.nspanel.SHELLY_"
+
+
+def _is_shelly(device: Any) -> bool:
+    """A Shelly Wall Display: model SAWD-…, or Stargate on it (even hidden)."""
+    model = (device.shell("getprop ro.product.model") or "").strip().upper()
+    if model.startswith("SAWD-"):
+        return True
+    out = device.shell(f"pm list packages -u {SHELLY_APP}") or ""
+    return any(ln.strip() == f"package:{SHELLY_APP}" for ln in out.splitlines())
+
+
+def _shelly_state(device: Any) -> str:
+    """Stargate: "on", "disabled", "hidden" (device owner) or "missing"."""
+    listed = device.shell(f"pm list packages -u {SHELLY_APP}") or ""
+    if f"package:{SHELLY_APP}" not in listed:
+        return "missing"
+    if not _installed(device, SHELLY_APP):
+        return "hidden"
+    disabled = device.shell(f"pm list packages -d {SHELLY_APP}") or ""
+    return "disabled" if f"package:{SHELLY_APP}" in disabled else "on"
+
+
+def _shelly_home(device: Any) -> str | None:
+    """Stargate's Home activity (only while it is on), or None."""
+    res = (
+        device.shell(
+            "cmd package resolve-activity --brief -a android.intent.action.MAIN "
+            f"-c android.intent.category.HOME {SHELLY_APP}"
+        )
+        or ""
+    ).strip().splitlines()
+    last = res[-1].strip() if res else ""
+    return last if "/" in last and last.startswith(SHELLY_APP) else None
+
+
+def _broadcast_data(out: str | None) -> str:
+    """The data="…" of an ``am broadcast`` result ('' if none)."""
+    m = re.search(r'data="(.*)"', out or "", re.S)
+    return m.group(1) if m else ""
+
+
+def _shelly_keep_adb(device: Any, port: int) -> str:
+    """Network ADB on the same port after a reboot, where the panel lets the
+    shell set it (root / userdebug builds). One line for the log."""
+    cur = (device.shell("getprop service.adb.tcp.port") or "").strip()
+    want = cur if cur.isdigit() and int(cur) > 0 else str(port)
+    device.shell(f"setprop persist.adb.tcp.port {want} 2>/dev/null; su 0 setprop persist.adb.tcp.port {want} 2>/dev/null")
+    if (device.shell("getprop persist.adb.tcp.port") or "").strip() == want:
+        return f"Network ADB stays on port {want} after reboots ✓."
+    return (
+        f"Network ADB (port {want}) may be off after a reboot (this panel doesn't let the shell keep it). "
+        "The panel's own “Back to Shelly screen” still works."
+    )
+
+
+def _shelly_takeover(device: Any, port: int) -> list[str]:
+    """Shelly Wall Display: the AR app becomes Home and Stargate goes off.
+
+    1. the app becomes device owner when Android allows it (no accounts on the
+       panel), without the kiosk lock: Stargate is then only hidden, which the
+       app can undo by itself;
+    2. the app is told what is switched off and what Shelly's Home is, so its
+       "Back to Shelly screen" works with no Home Assistant;
+    3. Stargate off LAST (hidden, else disabled), our app Home, saved."""
+    if not _installed(device, APP_PACKAGE) or not _app_on_storage(device):
+        raise AdbError("not_installed", "Install the app first, then take the panel over.")
+    state = _shelly_state(device)
+    if state == "missing":
+        raise AdbError("no_shelly", "Shelly's app (cloud.shelly.stargate) isn't on this panel.")
+    model = (device.shell("getprop ro.product.model") or "").strip()
+    log = [f"Shelly Wall Display {model or ''} · Android {(device.shell('getprop ro.build.version.release') or '').strip()}"]
+    log.append(_shelly_keep_adb(device, port))
+    device.shell("settings put global adb_enabled 1")
+    device.shell(f"pm grant {APP_PACKAGE} android.permission.WRITE_SECURE_SETTINGS")
+    home = _shelly_home(device) if state == "on" else None
+    if home:
+        log.append(f"Shelly's Home: {home}")
+    # 1. device owner (owner only: no lock, so Shelly's screen can always come back)
+    owner = _kiosk_owner(device)
+    if owner and owner != APP_PACKAGE:
+        log.append(f"Not device owner ({owner} is): the panel's way back will use its own ADB.")
+    elif owner != APP_PACKAGE:
+        out = (device.shell(f"dpm set-device-owner {KIOSK_ADMIN}") or "").strip()
+        if "Success" in out:
+            log.append("AR app is device owner ✓ (Shelly can be put back from the panel itself).")
+        else:
+            low = out.lower()
+            why = "an account is signed in on the panel" if "account" in low else (out.splitlines()[-1] if out else "Android refused")
+            log.append(f"Not device owner ({why}): the panel's way back will use its own ADB.")
+    if _kiosk_owner(device) == APP_PACKAGE:
+        device.shell(f"am broadcast -a za.co.arsmarthome.nspanel.KIOSK_OWNER_ONLY -n {_KIOSK_CTRL}")
+    # 2. our app Home and opening at boot
+    log.append(_set_home(device, f"{APP_PACKAGE}/{APP_ACTIVITY}", APP_PACKAGE, strict=False))
+    device.shell(f"pm enable {_BOOT_RECEIVER}")
+    device.shell("settings put global device_provisioned 1; settings put secure user_setup_complete 1")
+    # 3. tell the app, hide Stargate (owner) -- else disable it
+    extra = f" --es home {home}" if home else ""
+    res = _broadcast_data(
+        device.shell(f"am broadcast -a {_SHELLY_ACT}OFF -n {_SHELLY_CTRL} --es pkgs {SHELLY_APP}{extra}")
+    )
+    if not res:
+        raise AdbError(
+            "app_too_old",
+            "The app on the panel didn't answer (no Shelly support yet): install the latest app, then try again. Shelly was left on.",
+        )
+    device.shell(f"am force-stop {SHELLY_APP}")
+    if SHELLY_APP in res.split(":", 1)[-1].split(","):
+        log.append(f"{SHELLY_APP}: hidden ✓")
+    else:
+        log.append(f"{SHELLY_APP}: " + (device.shell(f"pm disable-user --user 0 {SHELLY_APP}") or "").strip())
+    others = [
+        ln.split(":", 1)[1].strip()
+        for ln in (device.shell("pm list packages cloud.shelly") or "").splitlines()
+        if ln.startswith("package:") and ln.split(":", 1)[1].strip() != SHELLY_APP
+    ]
+    if others:
+        log.append("Left on: " + ", ".join(others))
+    log.append(_set_home(device, f"{APP_PACKAGE}/{APP_ACTIVITY}", APP_PACKAGE, strict=False))
+    device.shell(f"am start -n {APP_PACKAGE}/{APP_ACTIVITY}")
+    # the panel's own ADB route: its "Allow USB debugging?" prompt, now, while someone is there
+    if _kiosk_owner(device) != APP_PACKAGE:
+        device.shell(f"am broadcast -a {_SHELLY_ACT}ADB_PAIR -n {_SHELLY_CTRL}")
+        log.append(
+            "ON THE PANEL: if “Allow USB debugging?” appears (key ar-panel@localhost), tick "
+            "“Always allow” and tap Allow. That is what lets the panel put Shelly back by itself."
+        )
+    try:
+        log.append(_home_and_save(device))
+    except Exception as err:  # noqa: BLE001
+        log.append(f"Couldn't check Home / save ({type(err).__name__}): run “Boot check” before rebooting.")
+    log.append("Way back: panel setup screen → “Back to Shelly screen”, or hold the top-right corner for 8 s.")
+    return log
+
+
+def _shelly_back(device: Any) -> list[str]:
+    """Shelly Wall Display: Stargate on again and Home, the AR app no longer
+    opens at boot; Shelly's screen opens. The AR app stays (and stays device
+    owner, so "Use AR app" can take over again)."""
+    log = []
+    for cmd in (f"pm enable {SHELLY_APP}", f"pm unhide {SHELLY_APP}", f"pm install-existing --user 0 {SHELLY_APP}"):
+        out = (device.shell(f"{cmd} 2>&1") or "").strip()
+        if "new state" in out or "installed" in out.lower():
+            log.append(f"{SHELLY_APP}: {out}")
+    if _installed(device, APP_PACKAGE) and _shelly_state(device) == "hidden":
+        if _kiosk_owner(device) == APP_PACKAGE:
+            res = device.shell(f"am broadcast -a {_SHELLY_ACT}ON -n {_SHELLY_CTRL}", read_timeout_s=120) or ""
+            log.append("AR app: " + (_broadcast_data(res).splitlines() or ["(no answer)"])[0])
+        else:
+            log.append("Shelly's app is hidden, but the AR app is no longer device owner: it can't be shown again from here.")
+    state = _shelly_state(device)
+    log.append(f"{SHELLY_APP}: {state}")
+    home = _shelly_home(device)
+    if home:
+        log.append(_set_home(device, home, SHELLY_APP, strict=False))
+    if _installed(device, APP_PACKAGE):
+        device.shell(f"pm disable {_BOOT_RECEIVER}")
+    device.shell("settings put global adb_enabled 1; sync")
+    if home:
+        device.shell(f"am start -a android.intent.action.MAIN -c android.intent.category.HOME -n {home}")
+    else:
+        device.shell("input keyevent 3")
+    if state != "on":
+        raise AdbError("shelly_still_off", "\n".join(log + ["Shelly's app is still off. On the panel: setup screen → “Back to Shelly screen”."]))
+    log.append("Shelly's screen is back, and opens at boot again.")
+    return log
+
+
 def _kiosk_owner(device: Any) -> str | None:
     """Package of the panel's device owner (None if there is none)."""
     out = device.shell("dumpsys device_policy") or ""
@@ -321,6 +501,9 @@ def _kiosk_unlock(device: Any) -> str | None:
         _navbar_show(device)
     if _kiosk_owner(device) != APP_PACKAGE:
         return None
+    if _is_shelly(device) and _shelly_state(device) == "hidden":
+        # only the device owner can show Shelly's app again: keep it until then
+        return "Kept device owner: Shelly's app is hidden by the AR app (use “Back to Shelly screen” first)."
     device.shell(f"am broadcast -a za.co.arsmarthome.nspanel.KIOSK_UNLOCK -n {_KIOSK_CTRL}")
     import time as _t
 
@@ -676,6 +859,8 @@ class PanelAdb:
             hdl = found is not None
             size = (device.shell("wm size") or "").strip().split(":")[-1].strip()
             s57 = not found and _is_s57(device)
+            shelly = not found and not s57 and _is_shelly(device)
+            shelly_state = _shelly_state(device) if shelly else None
             return {
                 "model": model or None,
                 "android": android or None,
@@ -691,12 +876,16 @@ class PanelAdb:
                 "kiosk": _kiosk_owner(device) == APP_PACKAGE
                 and "mLockTaskModeState=NONE" not in (device.shell("dumpsys activity activities | grep mLockTaskModeState") or "mLockTaskModeState=NONE"),
                 "hdl_disabled": (bool(found) and f"package:{found[1]}" in disabled)
-                or (s57 and f"package:{S57_APP}" in disabled),
+                or (s57 and f"package:{S57_APP}" in disabled)
+                or (shelly and shelly_state in ("disabled", "hidden")),
+                # Shelly Wall Display: Stargate on / disabled / hidden (device owner)
+                "shelly": shelly_state,
                 # HDL S57: the panel screen runs in Chrome (None = not installed)
                 "chrome": _parse_version_name(device.shell(f"dumpsys package {CHROME_PKG} | grep versionName")) if s57 else None,
                 "webview": _s57_webview(device) if s57 else None,
                 "panel_type": ("source10" if found[1] == HDL_LAUNCHER else "source7") if found
                 else "s57" if s57
+                else "shelly" if shelly
                 else "akubela" if _installed(device, AKUBELA_APP)
                 else "tdx" if _is_tdx(device)
                 else "samsung" if _is_galaxy_tab(model)
@@ -846,6 +1035,15 @@ class PanelAdb:
 
         def fn(d: Any) -> dict[str, Any]:
             found = _vendor(d)
+            if not found and _is_shelly(d):
+                if _shelly_state(d) != "on":
+                    raise AdbError("vendor_off", "Shelly's app is switched off on this panel (“Use AR app” did that): use “Back to Shelly screen” instead.")
+                home = _shelly_home(d)
+                if not home:
+                    raise AdbError("no_hdl", "Couldn't find Shelly's Home screen.")
+                out = _set_home(d, home, SHELLY_APP)
+                d.shell("input keyevent 3")
+                return {"output": out}
             if not found:
                 raise AdbError("no_hdl", "This panel has no HDL screen to go back to.")
             name, _pkgs, home = found
@@ -873,6 +1071,8 @@ class PanelAdb:
         def fn(d: Any) -> dict[str, Any]:
             if not _hdl(d) and _is_s57(d):
                 return {"output": "\n".join(_s57_takeover(d, port))}
+            if not _hdl(d) and _is_shelly(d):
+                return {"output": "\n".join(_shelly_takeover(d, port))}
             if not _installed(d, APP_PACKAGE) or not _app_on_storage(d):
                 raise AdbError("not_installed", "Install the app first, then take the panel over.")
             log = []
@@ -942,6 +1142,8 @@ class PanelAdb:
         def fn(d: Any) -> dict[str, Any]:
             if not _hdl(d) and _is_s57(d):
                 return {"output": "\n".join(_s57_back(d))}
+            if not _hdl(d) and _is_shelly(d):
+                return {"output": "\n".join(_shelly_back(d))}
             found = _vendor(d)
             if not found:
                 raise AdbError("no_hdl", "This panel has no HDL or Akubela software to go back to.")
@@ -1044,8 +1246,10 @@ class PanelAdb:
         signer = await self._get_signer()
 
         def fn(d: Any) -> dict[str, Any]:
+            # Shelly: Stargate on again first (while the app is still device owner)
+            log = _shelly_back(d) if (not _hdl(d) and not _is_s57(d) and _is_shelly(d)) else []
             # a device-owner app can't be uninstalled: release the lock first
-            log = [m for m in [_kiosk_unlock(d)] if m]
+            log += [m for m in [_kiosk_unlock(d)] if m]
             found = _vendor(d)
             if not found and _is_s57(d):
                 log += _s57_back(d)
@@ -1119,6 +1323,12 @@ class PanelAdb:
         def fn(d: Any) -> dict[str, Any]:
             if not _installed(d, APP_PACKAGE):
                 raise AdbError("not_installed", "The app isn't installed on this panel.")
+            if _is_shelly(d) and _shelly_state(d) == "hidden":
+                raise AdbError(
+                    "shelly_hidden",
+                    "Shelly's app is hidden by the AR app on this panel: run “Back to Shelly screen” first, "
+                    "or use “Reset for a new site” on the panel's setup screen.",
+                )
             was_locked = _kiosk_unlock(d) is not None  # a locked app's data can't be cleared
             out = (d.shell(f"pm clear {APP_PACKAGE}") or "").strip()
             if "Success" not in out:
@@ -1790,6 +2000,13 @@ class PanelAdb:
                     notes.append(_home_and_save(device))
                 elif _is_s57(device):
                     notes += _s57_after_install(device)
+                elif _is_shelly(device):
+                    if _shelly_state(device) == "on":
+                        device.shell(f"pm disable {_BOOT_RECEIVER}")
+                        notes.append("Shelly stays in charge: the AR app doesn't open itself at boot (“Use AR app (Shelly off)” does that).")
+                    else:
+                        device.shell(f"pm enable {_BOOT_RECEIVER}")
+                        notes.append(_home_and_save(device))
             except Exception as err:  # noqa: BLE001 - never fails the install
                 notes.append(f"Home not set: {err}")
             try:  # best-effort: launch the app so the panel comes up ready

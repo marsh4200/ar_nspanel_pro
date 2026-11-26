@@ -190,6 +190,19 @@ export function openAdbSettings() {
   return !!call("openAdbSettings");
 }
 
+// --- Shelly Wall Display: back to Shelly's own screen (native only) ------------
+/** {shelly, owner, pkgs, off, adbPaired}; null on other panels / older apps. */
+export function shellyState() {
+  if (!N || typeof N.shellyState !== "function") return null;
+  return parse(call("shellyState"), null);
+}
+/** Opens the app's own "Back to Shelly screen" page (plain Android, with a log). */
+export function shellyRescue() {
+  if (!N || typeof N.shellyRescue !== "function") return false;
+  call("shellyRescue");
+  return true;
+}
+
 // --- over-the-air app update (no ADB; see Updater.kt) -----------------------------
 /** Can this app build update itself? (older APKs can't) */
 export function canUpdate() {

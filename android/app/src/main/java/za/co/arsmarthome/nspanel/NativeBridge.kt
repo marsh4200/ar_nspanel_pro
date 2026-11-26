@@ -100,6 +100,18 @@ class NativeBridge(private val activity: MainActivity) {
         activity.runOnUiThread { Kiosk.unlock(activity, activity) }
     }
 
+    // --- Shelly Wall Display: the way back to Shelly's own screen ---------------------
+
+    /** {shelly, owner, pkgs, off, adbPaired} (shelly=false on every other panel). */
+    @JavascriptInterface
+    fun shellyState(): String = toJson(Shelly.state(activity))
+
+    /** Open the native "Back to Shelly screen" page (it does the work, with a log). */
+    @JavascriptInterface
+    fun shellyRescue() {
+        activity.runOnUiThread { Shelly.showRescue(activity) }
+    }
+
     /** Wipe the panel to factory state. Device owner (locked Source 7) only. */
     @JavascriptInterface
     fun factoryReset(): Boolean = Kiosk.wipe(activity)

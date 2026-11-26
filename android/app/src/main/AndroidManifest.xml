@@ -34,6 +34,12 @@
         <package android:name="com.spotify.music" />
         <!-- Akubela panel: is this one (AkuOff) -->
         <package android:name="com.akubela.panel" />
+        <!-- Shelly Wall Display: its own app, and its Home screen (Shelly.kt rescue) -->
+        <package android:name="cloud.shelly.stargate" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
     </queries>
 
     <application
@@ -86,6 +92,19 @@
                 <action android:name="za.co.arsmarthome.nspanel.KIOSK_LOCK" />
                 <action android:name="za.co.arsmarthome.nspanel.KIOSK_UNLOCK" />
                 <action android:name="za.co.arsmarthome.nspanel.KIOSK_OWNER_ONLY" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Shelly Wall Display: HA's "Use AR app (Shelly off)" / "Back to Shelly screen"
+             over ADB. DUMP = only the ADB shell / system can send. -->
+        <receiver
+            android:name=".ShellyControl"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="za.co.arsmarthome.nspanel.SHELLY_OFF" />
+                <action android:name="za.co.arsmarthome.nspanel.SHELLY_ON" />
+                <action android:name="za.co.arsmarthome.nspanel.SHELLY_ADB_PAIR" />
             </intent-filter>
         </receiver>
 

@@ -80,6 +80,39 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Shelly Wall Display X2i (5.10.0)
+
+The Shelly Wall Display X2i (SAWD-5A1XX10EU0: 6.9" 1440 × 720, Rockchip RK3326, Android 11) is a new
+panel type in **Device Setup** (**Shelly X2i**). It gets the standard APK. In portrait it is the same
+1:2 shape as the HDL S57, so Residence 2 works on it.
+
+- **Before you start.** In Shelly's Android settings, switch on Developer options and ADB (port 5555),
+  then **Connect**. The panel is detected as a Shelly Wall Display.
+- **Install** works like on an NSPanel Pro. Shelly stays on, and the AR app doesn't open by itself at boot.
+- **Use AR app (Shelly off)** switches off Shelly's own app (`cloud.shelly.stargate`; other
+  `cloud.shelly.*` packages are left on). The AR app becomes Home and opens at boot. When Android allows
+  it (no account on the panel), the AR app becomes device owner (no kiosk lock) and Shelly's app is only
+  *hidden*. Otherwise Shelly's app is disabled, and the panel asks **"Allow USB debugging?"** for the
+  key `ar-panel@localhost`: tick **Always allow**.
+- **Back to Shelly screen** (Device Setup) switches Shelly's app back on and makes it Home. The AR app
+  no longer opens at boot but stays installed. **Uninstall** does this first.
+- **The way back needs no Home Assistant and no computer.** On the panel, open the setup screen (hold
+  the top-left corner for 3 s) and tap **Back to Shelly screen**, or hold the **top-right corner for
+  8 s** from any page. The second way is native Android, so it works even if the panel page is blank. It
+  is also on the start-up crash screen. The app puts Shelly back by itself, in this order:
+  1. device owner: it un-hides Shelly's app and pins it as Home;
+  2. otherwise: it connects to the panel's own ADB (127.0.0.1:5555) and runs `pm enable` / set Home
+     as the shell user;
+  3. if neither works: buttons open Android Settings on Shelly's app (**Enable**) and on
+     **Default apps → Home app**.
+- While Shelly's app is off, the **built-in relay and the wall-switch input don't work**: Shelly's app
+  drives them.
+- **Reset app** and the kiosk **Unlock** never give up device owner while Shelly's app is hidden by it.
+  Only the device owner can show Shelly's app again.
+- The app changes are in `Shelly.kt` (rescue screen and restore), `LocalAdb.kt` (ADB client for the
+  panel's own adbd) and `Device.kt`, plus the `ShellyControl` receiver. The Home Assistant side is in
+  `adb.py` (`_shelly_*`).
+
 ## Live Photos: a room photo that lights up with its lights (5.1.0)
 
 Optional, Residence only, and per room. Nothing changes for a room, a panel or a setup that doesn't use it.

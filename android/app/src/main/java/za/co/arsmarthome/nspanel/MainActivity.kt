@@ -287,6 +287,35 @@ class MainActivity : Activity(), SensorEventListener {
         else -> false
     }
 
+    // --- Shelly Wall Display: hold the top-right corner for 8 s = rescue screen ------------
+    // Native, so it works even when the panel page is blank or broken.
+
+    private val shellyHold = Runnable { Shelly.showRescue(this) }
+    private var shellyHolding = false
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (Shelly.isShelly(this)) {
+            val corner = Shelly.CORNER_DP * resources.displayMetrics.density
+            val w = window.decorView.width
+            val inCorner = ev.pointerCount == 1 && ev.x >= w - corner && ev.y <= corner
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN -> if (inCorner) {
+                    shellyHolding = true
+                    main.postDelayed(shellyHold, Shelly.HOLD_MS)
+                }
+                MotionEvent.ACTION_MOVE -> if (shellyHolding && !inCorner) {
+                    shellyHolding = false
+                    main.removeCallbacks(shellyHold)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_POINTER_DOWN -> if (shellyHolding) {
+                    shellyHolding = false
+                    main.removeCallbacks(shellyHold)
+                }
+            }
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
     /** Rotary encoders (and scroll wheels) report turns as scroll motion. */
     override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
         if (ev.action == MotionEvent.ACTION_SCROLL && !ev.isFromSource(InputDevice.SOURCE_TOUCHSCREEN)) {

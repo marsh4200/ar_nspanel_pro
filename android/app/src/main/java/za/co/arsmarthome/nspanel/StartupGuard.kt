@@ -165,6 +165,15 @@ object StartupGuard {
             topMargin = pad / 2
             gravity = Gravity.CENTER_HORIZONTAL
         })
+        // Shelly Wall Display: the way back to Shelly's own screen, even when this app can't start
+        if (Shelly.isShelly(a)) {
+            col.addView(Button(a).apply {
+                text = "Back to Shelly screen"
+                setOnClickListener { Shelly.showRescue(a) }
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = pad / 2
+            })
+        }
         a.setContentView(col)
     }
 }
