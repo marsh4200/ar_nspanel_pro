@@ -1629,14 +1629,14 @@ function openSettings() {
     }
     // Shelly Wall Display: the way back to Shelly's own screen, with no Home
     // Assistant and no computer. The work is done by the app itself (Shelly.kt):
-    // this only opens its page. Same page: hold the top-right corner for 8 s.
+    // this only opens its page. Same page: keep holding the top-left corner 10 s.
     const sh = native.shellyState();
     if (sh && sh.shelly) {
       const shInfo = h(
         "div.kv",
         null,
         (sh.off && sh.off.length ? "Shelly's own app is switched off (" + sh.off.join(", ") + "). " : "Shelly's own app is on. ") +
-          "If anything goes wrong, this puts the Shelly screen back. You can also hold the top-right corner of the screen for 8 seconds, from any page.",
+          "If anything goes wrong, this puts the Shelly screen back. If this setup screen ever doesn't open, keep holding the top-left corner for 10 seconds: the app opens its own Back to Shelly page.",
       );
       const shBtn = h("button.danger", null, "Back to Shelly screen");
       shBtn.addEventListener("click", () => {

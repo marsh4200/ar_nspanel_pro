@@ -32,8 +32,8 @@ import android.widget.TextView
  * packages it switched off and what Shelly's Home screen is (ShellyControl,
  * SHELLY_OFF), so the panel can undo it BY ITSELF later:
  *
- *  "Back to Shelly screen" (setup screen, start-up report, or hold the top-right
- *  corner for 8 s) puts Shelly back without Home Assistant or a computer:
+ *  "Back to Shelly screen" (setup screen = hold the top-left corner; keep holding
+ *  10 s for this app's own rescue page; or the start-up report) puts Shelly back without Home Assistant or a computer:
  *   1. device owner (set by Home Assistant when Android allows it): Shelly's app
  *      was only *hidden*, so the app un-hides it and pins Shelly as Home itself;
  *   2. otherwise the app connects to the panel's own ADB (LocalAdb, 127.0.0.1)
@@ -66,11 +66,15 @@ object Shelly {
     private fun savedHome(c: Context): String? = prefs(c).getString("home", null)?.takeIf { "/" in it }
 
     /** HA switched Shelly off: remember what, so the panel can undo it alone. */
-    fun remember(c: Context, pkgs: List<String>, home: String?) {
-        val e = prefs(c).edit().putString("pkgs", pkgs.joinToString(","))
+    fun remember(c: Context, pkgs: List<String>, home: String?, overlays: List<String> = emptyList()) {
+        val e = prefs(c).edit().putString("pkgs", pkgs.joinToString(",")).putString("overlays", overlays.joinToString(","))
         if (!home.isNullOrBlank() && "/" in home) e.putString("home", home)
         e.commit()
     }
+
+    /** Other apps whose "draw over apps" right HA took (Shelly's floating button). */
+    fun overlayPackages(c: Context): List<String> =
+        (prefs(c).getString("overlays", null) ?: "").split(',').map { it.trim() }.filter { Regex("[A-Za-z0-9_.]+").matches(it) }
 
     fun adbPaired(c: Context): Boolean = prefs(c).getBoolean("adbPaired", false)
 
@@ -192,7 +196,8 @@ object Shelly {
             sb.append("pm unhide $p >/dev/null 2>&1; pm install-existing --user 0 $p >/dev/null 2>&1; ")
             sb.append("echo \"$p: $(pm enable $p 2>&1)\"; ")
         }
-        sb.append("settings put global adb_enabled 1; ")
+        for (p in overlayPackages(c)) sb.append("appops set $p SYSTEM_ALERT_WINDOW default; ")
+        sb.append("rm -f /data/local/tmp/ar_shelly_overlays.txt; settings put global adb_enabled 1; ")
         if (home != null) {
             val h = home.flattenToShortString()
             sb.append("r=$(cmd package set-home-activity $h 2>&1); case \"\$r\" in *uccess*) echo \"Home: ${home.packageName}\";; ")
@@ -239,11 +244,11 @@ object Shelly {
             }
         }
         val stillOff = pkgs.filter { isEnabled(app, it) == false || isHidden(app, it) }
-        if (stillOff.isNotEmpty() || !homeDone) {
+        if (stillOff.isNotEmpty() || !homeDone || overlayPackages(app).isNotEmpty()) {
             say("Asking the panel's own ADB… (if “Allow USB debugging?” appears, tap “Always allow”)")
             val r = LocalAdb.shell(app.filesDir, restoreScript(app, pkgs, shellyHome(app, pkgs)), adbPorts())
             if (r.ok) {
-                prefs(app).edit().putBoolean("adbPaired", true).commit()
+                prefs(app).edit().putBoolean("adbPaired", true).remove("overlays").commit()
                 r.output.lines().filter { it.isNotBlank() }.forEach { say(it.trim()) }
                 homeDone = true
             } else {
@@ -411,8 +416,8 @@ object Shelly {
         dlg.show()
     }
 
-    /** Hold the top-right corner for this long to open the rescue screen. */
-    const val HOLD_MS = 8000L
+    /** Keep holding the top-left corner (past the setup screen's 3 s) this long: rescue page. */
+    const val HOLD_MS = 10000L
     /** Corner size (dp). */
     const val CORNER_DP = 110
 }
@@ -430,7 +435,8 @@ class ShellyControl : BroadcastReceiver() {
         when (intent.action) {
             Shelly.ACTION_OFF -> {
                 val pkgs = (intent.getStringExtra("pkgs") ?: Shelly.STOCK_APP).split(',').map { it.trim() }.filter { it.isNotEmpty() }
-                Shelly.remember(app, pkgs, intent.getStringExtra("home"))
+                val overlays = (intent.getStringExtra("overlays") ?: "").split(',').map { it.trim() }.filter { it.isNotEmpty() }
+                Shelly.remember(app, pkgs, intent.getStringExtra("home"), overlays)
                 Shelly.setBootStart(app, true)
                 val hidden = Shelly.hideAll(app, pkgs)
                 resultData = if (Kiosk.isOwner(app)) "hidden:" + hidden.joinToString(",") else "not_owner"

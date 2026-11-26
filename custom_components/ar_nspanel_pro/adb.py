@@ -307,6 +307,12 @@ def _shelly_state(device: Any) -> str:
     return "disabled" if f"package:{SHELLY_APP}" in disabled else "on"
 
 
+def _shelly_any_hidden(device: Any) -> bool:
+    """Any Shelly package hidden by the device owner (not listed without -u)."""
+    shown = device.shell("pm list packages cloud.shelly") or ""
+    return any(f"package:{p}" not in shown.split() for p in _shelly_pkgs(device))
+
+
 def _shelly_home(device: Any) -> str | None:
     """Stargate's Home activity (only while it is on), or None."""
     res = (
@@ -318,6 +324,31 @@ def _shelly_home(device: Any) -> str | None:
     ).strip().splitlines()
     last = res[-1].strip() if res else ""
     return last if "/" in last and last.startswith(SHELLY_APP) else None
+
+
+#: Packages whose "draw over apps" right the takeover took (for "Back to Shelly").
+_SHELLY_OVERLAYS = "/data/local/tmp/ar_shelly_overlays.txt"
+#: Never switched off or stopped from drawing: Android itself.
+_SYSTEM_PKGS = ("android", "com.android.systemui", "com.android.settings", "com.android.shell")
+
+
+def _shelly_pkgs(device: Any) -> list[str]:
+    """Every Shelly package on the panel (hidden ones too), Stargate last."""
+    out = device.shell("pm list packages -u cloud.shelly") or ""
+    pkgs = sorted({ln.split(":", 1)[1].strip() for ln in out.splitlines() if ln.startswith("package:cloud.shelly")})
+    return [p for p in pkgs if p != SHELLY_APP] + ([SHELLY_APP] if SHELLY_APP in pkgs or not pkgs else [])
+
+
+def _overlay_owners(device: Any) -> list[str]:
+    """Apps with a window drawn over other apps right now (Shelly's floating
+    logo / back button), from ``dumpsys window windows``."""
+    out = device.shell("dumpsys window windows") or ""
+    found: list[str] = []
+    for m in re.finditer(r"package=(\S+)\s+appop=SYSTEM_ALERT_WINDOW", out):
+        p = m.group(1)
+        if p not in found and p != APP_PACKAGE and p not in _SYSTEM_PKGS:
+            found.append(p)
+    return found
 
 
 def _broadcast_data(out: str | None) -> str:
@@ -380,32 +411,42 @@ def _shelly_takeover(device: Any, port: int) -> list[str]:
     log.append(_set_home(device, f"{APP_PACKAGE}/{APP_ACTIVITY}", APP_PACKAGE, strict=False))
     device.shell(f"pm enable {_BOOT_RECEIVER}")
     device.shell("settings put global device_provisioned 1; settings put secure user_setup_complete 1")
-    # 3. tell the app, hide Stargate (owner) -- else disable it
+    # 3. what Shelly runs: every cloud.shelly.* package (Stargate last), and
+    # anything else drawing over the screen (Shelly's floating logo / back
+    # button). Overlays of other apps lose their "draw over apps" right only.
+    pkgs = _shelly_pkgs(device)
+    overlays = [p for p in _overlay_owners(device) if p not in pkgs]
+    if overlays:
+        device.shell(f"echo '{','.join(overlays)}' > {_SHELLY_OVERLAYS}")
+    # 4. tell the app, hide them (owner) -- else disable them
     extra = f" --es home {home}" if home else ""
+    if overlays:
+        extra += f" --es overlays {','.join(overlays)}"
     res = _broadcast_data(
-        device.shell(f"am broadcast -a {_SHELLY_ACT}OFF -n {_SHELLY_CTRL} --es pkgs {SHELLY_APP}{extra}")
+        device.shell(f"am broadcast -a {_SHELLY_ACT}OFF -n {_SHELLY_CTRL} --es pkgs {','.join(pkgs)}{extra}")
     )
     if not res:
         raise AdbError(
             "app_too_old",
             "The app on the panel didn't answer (no Shelly support yet): install the latest app, then try again. Shelly was left on.",
         )
-    device.shell(f"am force-stop {SHELLY_APP}")
-    if SHELLY_APP in res.split(":", 1)[-1].split(","):
-        log.append(f"{SHELLY_APP}: hidden ✓")
-    else:
-        log.append(f"{SHELLY_APP}: " + (device.shell(f"pm disable-user --user 0 {SHELLY_APP}") or "").strip())
-    others = [
-        ln.split(":", 1)[1].strip()
-        for ln in (device.shell("pm list packages cloud.shelly") or "").splitlines()
-        if ln.startswith("package:") and ln.split(":", 1)[1].strip() != SHELLY_APP
-    ]
-    if others:
-        log.append("Left on: " + ", ".join(others))
+    hidden = res.split(":", 1)[-1].split(",") if res.startswith("hidden:") else []
+    for pkg in pkgs:
+        device.shell(f"am force-stop {pkg}")
+        if pkg in hidden:
+            log.append(f"{pkg}: hidden ✓")
+        else:
+            log.append(f"{pkg}: " + (device.shell(f"pm disable-user --user 0 {pkg}") or "").strip())
+    for pkg in overlays:
+        device.shell(f"appops set {pkg} SYSTEM_ALERT_WINDOW deny; am force-stop {pkg}")
+        log.append(f"{pkg}: may no longer draw over the screen ✓")
+    left = [p for p in _overlay_owners(device) if p != APP_PACKAGE]
+    if left:
+        log.append("Still drawing over the screen: " + ", ".join(left) + " (send me this line).")
     log.append(_set_home(device, f"{APP_PACKAGE}/{APP_ACTIVITY}", APP_PACKAGE, strict=False))
     device.shell(f"am start -n {APP_PACKAGE}/{APP_ACTIVITY}")
     # the panel's own ADB route: its "Allow USB debugging?" prompt, now, while someone is there
-    if _kiosk_owner(device) != APP_PACKAGE:
+    if _kiosk_owner(device) != APP_PACKAGE or overlays:
         device.shell(f"am broadcast -a {_SHELLY_ACT}ADB_PAIR -n {_SHELLY_CTRL}")
         log.append(
             "ON THE PANEL: if “Allow USB debugging?” appears (key ar-panel@localhost), tick "
@@ -415,7 +456,7 @@ def _shelly_takeover(device: Any, port: int) -> list[str]:
         log.append(_home_and_save(device))
     except Exception as err:  # noqa: BLE001
         log.append(f"Couldn't check Home / save ({type(err).__name__}): run “Boot check” before rebooting.")
-    log.append("Way back: panel setup screen → “Back to Shelly screen”, or hold the top-right corner for 8 s.")
+    log.append("Way back: hold the top-left corner (setup screen) → “Back to Shelly screen”. Keep holding for 10 s if the setup screen doesn't open.")
     return log
 
 
@@ -424,11 +465,17 @@ def _shelly_back(device: Any) -> list[str]:
     opens at boot; Shelly's screen opens. The AR app stays (and stays device
     owner, so "Use AR app" can take over again)."""
     log = []
-    for cmd in (f"pm enable {SHELLY_APP}", f"pm unhide {SHELLY_APP}", f"pm install-existing --user 0 {SHELLY_APP}"):
-        out = (device.shell(f"{cmd} 2>&1") or "").strip()
-        if "new state" in out or "installed" in out.lower():
-            log.append(f"{SHELLY_APP}: {out}")
-    if _installed(device, APP_PACKAGE) and _shelly_state(device) == "hidden":
+    for pkg in _shelly_pkgs(device):
+        for cmd in (f"pm enable {pkg}", f"pm unhide {pkg}", f"pm install-existing --user 0 {pkg}"):
+            out = (device.shell(f"{cmd} 2>&1") or "").strip()
+            if "new state" in out or "installed" in out.lower():
+                log.append(f"{pkg}: {out}")
+    for pkg in (device.shell(f"cat {_SHELLY_OVERLAYS} 2>/dev/null") or "").strip().split(","):
+        if re.fullmatch(r"[A-Za-z0-9_.]+", pkg.strip()):
+            device.shell(f"appops set {pkg.strip()} SYSTEM_ALERT_WINDOW default")
+            log.append(f"{pkg.strip()}: may draw over the screen again.")
+    device.shell(f"rm -f {_SHELLY_OVERLAYS}")
+    if _installed(device, APP_PACKAGE) and _shelly_any_hidden(device):
         if _kiosk_owner(device) == APP_PACKAGE:
             res = device.shell(f"am broadcast -a {_SHELLY_ACT}ON -n {_SHELLY_CTRL}", read_timeout_s=120) or ""
             log.append("AR app: " + (_broadcast_data(res).splitlines() or ["(no answer)"])[0])
@@ -501,7 +548,7 @@ def _kiosk_unlock(device: Any) -> str | None:
         _navbar_show(device)
     if _kiosk_owner(device) != APP_PACKAGE:
         return None
-    if _is_shelly(device) and _shelly_state(device) == "hidden":
+    if _is_shelly(device) and _shelly_any_hidden(device):
         # only the device owner can show Shelly's app again: keep it until then
         return "Kept device owner: Shelly's app is hidden by the AR app (use “Back to Shelly screen” first)."
     device.shell(f"am broadcast -a za.co.arsmarthome.nspanel.KIOSK_UNLOCK -n {_KIOSK_CTRL}")
@@ -1323,7 +1370,7 @@ class PanelAdb:
         def fn(d: Any) -> dict[str, Any]:
             if not _installed(d, APP_PACKAGE):
                 raise AdbError("not_installed", "The app isn't installed on this panel.")
-            if _is_shelly(d) and _shelly_state(d) == "hidden":
+            if _is_shelly(d) and _shelly_any_hidden(d):
                 raise AdbError(
                     "shelly_hidden",
                     "Shelly's app is hidden by the AR app on this panel: run “Back to Shelly screen” first, "

@@ -80,7 +80,7 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
-## Shelly Wall Display X2i (5.10.0)
+## Shelly Wall Display X2i (5.10.1)
 
 The Shelly Wall Display X2i (SAWD-5A1XX10EU0: 6.9" 1440 × 720, Rockchip RK3326, Android 11) is a new
 panel type in **Device Setup** (**Shelly X2i**). It gets the standard APK. In portrait it is the same
@@ -89,16 +89,18 @@ panel type in **Device Setup** (**Shelly X2i**). It gets the standard APK. In po
 - **Before you start.** In Shelly's Android settings, switch on Developer options and ADB (port 5555),
   then **Connect**. The panel is detected as a Shelly Wall Display.
 - **Install** works like on an NSPanel Pro. Shelly stays on, and the AR app doesn't open by itself at boot.
-- **Use AR app (Shelly off)** switches off Shelly's own app (`cloud.shelly.stargate`; other
-  `cloud.shelly.*` packages are left on). The AR app becomes Home and opens at boot. When Android allows
+- **Use AR app (Shelly off)** switches off every Shelly package (`cloud.shelly.*`, Stargate last).
+  Any other app that draws over the screen (Shelly's floating logo and back button) loses its
+  "draw over apps" right, and gets it back with Back to Shelly screen. The AR app becomes Home and opens at boot. When Android allows
   it (no account on the panel), the AR app becomes device owner (no kiosk lock) and Shelly's app is only
   *hidden*. Otherwise Shelly's app is disabled, and the panel asks **"Allow USB debugging?"** for the
   key `ar-panel@localhost`: tick **Always allow**.
 - **Back to Shelly screen** (Device Setup) switches Shelly's app back on and makes it Home. The AR app
   no longer opens at boot but stays installed. **Uninstall** does this first.
 - **The way back needs no Home Assistant and no computer.** On the panel, open the setup screen (hold
-  the top-left corner for 3 s) and tap **Back to Shelly screen**, or hold the **top-right corner for
-  8 s** from any page. The second way is native Android, so it works even if the panel page is blank. It
+  the top-left corner for 3 s) and tap **Back to Shelly screen**. If the setup screen doesn't open,
+  keep holding the top-left corner for **10 s**: the app opens its own Back to Shelly page (native
+  Android, so it works even if the panel page is blank). It
   is also on the start-up crash screen. The app puts Shelly back by itself, in this order:
   1. device owner: it un-hides Shelly's app and pins it as Home;
   2. otherwise: it connects to the panel's own ADB (127.0.0.1:5555) and runs `pm enable` / set Home
