@@ -190,6 +190,19 @@ export function openAdbSettings() {
   return !!call("openAdbSettings");
 }
 
+// --- Shelly Wall Display: the built-in relay (native ShellyRelay.kt) -----------
+/** Hand the relay settings (device.shellyRelay) to the app; returns its state, or null. */
+export function shellyRelayConfig(cfg) {
+  if (!N || typeof N.shellyRelayConfig !== "function") return null;
+  return parse(call("shellyRelayConfig", JSON.stringify(cfg || null)), null);
+}
+/** cmd/relay: {on: bool} | {toggle: true}. The app answers with a "relay" event. */
+export function shellyRelay(p) {
+  if (!N || typeof N.shellyRelay !== "function") return false;
+  call("shellyRelay", JSON.stringify(p || {}));
+  return true;
+}
+
 // --- Shelly Wall Display: back to Shelly's own screen (native only) ------------
 /** {shelly, owner, pkgs, off, adbPaired}; null on other panels / older apps. */
 export function shellyState() {

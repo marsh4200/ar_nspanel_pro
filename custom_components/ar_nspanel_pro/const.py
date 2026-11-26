@@ -270,6 +270,11 @@ def signal_screenshot(device_id: str) -> str:
     return f"{DOMAIN}_{device_id}_screenshot"
 
 
+def signal_relay(device_id: str) -> str:
+    """Shelly Wall Display built-in relay state (``sys/relay``)."""
+    return f"{DOMAIN}_{device_id}_relay"
+
+
 def signal_avail(device_id: str) -> str:
     return f"{DOMAIN}_{device_id}_avail"
 

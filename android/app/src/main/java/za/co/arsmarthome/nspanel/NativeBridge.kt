@@ -112,6 +112,22 @@ class NativeBridge(private val activity: MainActivity) {
         activity.runOnUiThread { Shelly.showRescue(activity) }
     }
 
+    // --- Shelly Wall Display: the built-in relay (ShellyRelay.kt) -------------------
+
+    /** Settings from Home Assistant (device.shellyRelay, JSON or null): returns the state. */
+    @JavascriptInterface
+    fun shellyRelayConfig(json: String?): String = ShellyRelay.configure(activity, json)
+
+    /** cmd/relay from Home Assistant: {on: bool} or {toggle: true}. Answers with a "relay" event. */
+    @JavascriptInterface
+    fun shellyRelay(json: String?) {
+        ShellyRelay.command(activity, json)
+    }
+
+    /** {enabled, on, ok, method, error, wall, watching, lastInput} */
+    @JavascriptInterface
+    fun shellyRelayState(): String = ShellyRelay.state(activity)
+
     /** Wipe the panel to factory state. Device owner (locked Source 7) only. */
     @JavascriptInterface
     fun factoryReset(): Boolean = Kiosk.wipe(activity)

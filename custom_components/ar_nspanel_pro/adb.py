@@ -332,6 +332,58 @@ _SHELLY_OVERLAYS = "/data/local/tmp/ar_shelly_overlays.txt"
 _SYSTEM_PKGS = ("android", "com.android.systemui", "com.android.settings", "com.android.shell")
 
 
+#: Android screen settings the takeover changes, and where their old values are kept.
+_SHELLY_SETTINGS = "/data/local/tmp/ar_shelly_settings.txt"
+_SCREEN_SETTINGS = (
+    # (namespace, key, value while the AR app runs)
+    ("system", "screen_brightness_mode", "0"),  # no Android auto-brightness: the AR app sets it
+    ("system", "screen_off_timeout", "2147483647"),  # Android never dims / sleeps the screen
+    ("global", "stay_on_while_plugged_in", "7"),  # wall powered: stay on
+    ("secure", "screensaver_enabled", "0"),  # no Android screensaver (daydream)
+)
+
+
+def _screen_hold(device: Any) -> list[str]:
+    """The AR app alone sets the brightness and when the screen sleeps: Android's
+    auto-brightness, sleep timer and screensaver off. Old values kept for
+    "Back to Shelly". The app may also write these itself (WRITE_SETTINGS), so
+    it can put them right again if anything changes them."""
+    have = (device.shell(f"cat {_SHELLY_SETTINGS} 2>/dev/null") or "").strip()
+    if not have:
+        old = []
+        for ns, key, _v in _SCREEN_SETTINGS:
+            cur = (device.shell(f"settings get {ns} {key}") or "").strip()
+            old.append(f"{ns} {key} {cur if cur and cur != 'null' else 'delete'}")
+        device.shell(f"echo '{';'.join(old)}' > {_SHELLY_SETTINGS}")
+    for ns, key, val in _SCREEN_SETTINGS:
+        device.shell(f"settings put {ns} {key} {val}")
+    device.shell(f"appops set {APP_PACKAGE} WRITE_SETTINGS allow")
+    return ["Screen: Android auto-brightness, sleep timer and screensaver off; the AR app sets the brightness ✓"]
+
+
+def _screen_release(device: Any) -> list[str]:
+    """Put back the screen settings _screen_hold changed."""
+    saved = (device.shell(f"cat {_SHELLY_SETTINGS} 2>/dev/null") or "").strip()
+    if not saved:
+        return []
+    for item in saved.split(";"):
+        parts = item.split()
+        if len(parts) == 3 and parts[0] in ("system", "global", "secure") and re.fullmatch(r"[a-z_]+", parts[1]):
+            ns, key, val = parts
+            if val == "delete":
+                device.shell(f"settings delete {ns} {key}")
+            elif re.fullmatch(r"-?\d+", val):
+                device.shell(f"settings put {ns} {key} {val}")
+    device.shell(f"rm -f {_SHELLY_SETTINGS}")
+    return ["Screen settings (auto-brightness, sleep timer, screensaver) back as they were."]
+
+
+def _shelly_running(device: Any) -> list[str]:
+    """Shelly processes still running (they can change the backlight themselves)."""
+    out = device.shell("ps -A -o NAME 2>/dev/null | grep -i shelly") or ""
+    return sorted({ln.strip() for ln in out.splitlines() if ln.strip() and "grep" not in ln})
+
+
 def _shelly_pkgs(device: Any) -> list[str]:
     """Every Shelly package on the panel (hidden ones too), Stargate last."""
     out = device.shell("pm list packages -u cloud.shelly") or ""
@@ -443,6 +495,10 @@ def _shelly_takeover(device: Any, port: int) -> list[str]:
     left = [p for p in _overlay_owners(device) if p != APP_PACKAGE]
     if left:
         log.append("Still drawing over the screen: " + ", ".join(left) + " (send me this line).")
+    log += _screen_hold(device)
+    running = _shelly_running(device)
+    if running:
+        log.append("Shelly still running: " + ", ".join(running) + " (send me this line: it may change the brightness).")
     log.append(_set_home(device, f"{APP_PACKAGE}/{APP_ACTIVITY}", APP_PACKAGE, strict=False))
     device.shell(f"am start -n {APP_PACKAGE}/{APP_ACTIVITY}")
     # the panel's own ADB route: its "Allow USB debugging?" prompt, now, while someone is there
@@ -475,6 +531,7 @@ def _shelly_back(device: Any) -> list[str]:
             device.shell(f"appops set {pkg.strip()} SYSTEM_ALERT_WINDOW default")
             log.append(f"{pkg.strip()}: may draw over the screen again.")
     device.shell(f"rm -f {_SHELLY_OVERLAYS}")
+    log += _screen_release(device)
     if _installed(device, APP_PACKAGE) and _shelly_any_hidden(device):
         if _kiosk_owner(device) == APP_PACKAGE:
             res = device.shell(f"am broadcast -a {_SHELLY_ACT}ON -n {_SHELLY_CTRL}", read_timeout_s=120) or ""
@@ -1058,6 +1115,17 @@ class PanelAdb:
             sh("Home now", "cmd package resolve-activity --brief -a android.intent.action.MAIN "
                "-c android.intent.category.HOME | tail -1; cmd role get-role-holders android.app.role.HOME")
             sh("disabled apps", "pm list packages -d")
+            sh("screen / brightness (who sets it)",
+               "for k in screen_brightness_mode screen_brightness screen_off_timeout; do echo \"system $k=$(settings get system $k)\"; done; "
+               "echo \"global stay_on_while_plugged_in=$(settings get global stay_on_while_plugged_in)\"; "
+               "echo \"secure screensaver_enabled=$(settings get secure screensaver_enabled)\"; "
+               "dumpsys power | grep -E 'mWakefulness=|mStayOn=|mScreenBrightnessOverrideFromWindowManager|mScreenBrightnessSetting|mScreenOffTimeoutSetting|mUserActivityTimeoutOverrideFromWindowManager|mHoldingDisplaySuspendBlocker|mAutomaticBrightness'; "
+               "for f in /sys/class/backlight/*/brightness /sys/class/backlight/*/actual_brightness /sys/class/leds/lcd-backlight/brightness; do [ -r \"$f\" ] && echo \"$f=$(cat $f)\"; done; "
+               "echo '-- writes to the backlight / brightness setting by app:'; "
+               "logcat -d -b main,system,events 2>/dev/null | grep -iE 'brightness|backlight|screen_off|goToSleep|userActivity' | grep -v ' D/' | tail -40",
+               limit=70)
+            sh("Shelly apps running / drawing over the screen",
+               "ps -A -o NAME 2>/dev/null | grep -i shelly; dumpsys window windows | grep -E 'appop=SYSTEM_ALERT_WINDOW' | grep -oE 'package=[^ ]+' | sort -u")
             sh("HDL apps", "pm list packages com.hdl; ps -A -o NAME 2>/dev/null | grep -i hdl || ps | grep -i hdl")
             sh("HDL apps allowed to remove/install apps",
                "for p in $(pm list packages com.hdl | cut -d: -f2); do "

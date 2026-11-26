@@ -80,6 +80,43 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Shelly Wall Display X2i: the built-in relay (5.11.0)
+
+The relay on the back of a Shelly Wall Display, and the wall switch wired to its SW terminal, work while
+Shelly's own app is off. Turn it on in the panel's **Device → Relay** tab (shown only for Shelly
+panels), then **Save & push**:
+
+- **Use the relay** adds `switch.<panel>_relay` to Home Assistant, so automations, dashboards and
+  voice can use it like any switch.
+- **Name**: what it switches, e.g. "Ceiling light".
+- **First light in Lights** (Residence / Elegant, on by default) shows it first in the chosen
+  **Room**'s Lights, like any other light. Your saved rooms aren't changed: Home Assistant adds it when
+  it sends the setup to the panel.
+- **Wall switch**: **Toggles the relay** (default), **Only sends an event**, or **Does nothing**.
+  Either way, a press is the `press` (push button) or `on` / `off` (rocker) event of the new **Wall
+  switch** event entity, unless set to Does nothing.
+- **After a power cut**: **Back as it was** (default), **Off** or **On**. The panel applies this
+  itself at start-up, before Home Assistant is back.
+
+Shelly doesn't document how its software switches the relay, so the app tries every known way and
+remembers the first that works. It tries writing `/sys/class/strelay/relay1` itself, then the same
+through the panel's own ADB, then `setprop shelly.relay.N.state`. The first models' `leds/red_enable`
+path is tried only where `strelay` doesn't exist. The switch's **method** attribute shows which way is
+used. If none works, the state is unknown and the **error** attribute says why. The wall switch is
+read through the panel's own ADB (`getevent`), and its **lastInput** attribute shows which key it
+sends.
+
+## Shelly Wall Display X2i: brightness stays where you set it (5.10.2)
+
+- Taking a Shelly over now also switches off Android's own auto-brightness, sleep timer and screensaver
+  (it dimmed the screen and then switched it off, whatever the panel's brightness was). The panel app
+  sets the brightness and decides when the screen sleeps. The app keeps these settings right while it
+  has the panel, if Shelly's software changes them again. **Back to Shelly screen** puts the old
+  values back.
+- The takeover log lists any Shelly process still running.
+- **Boot check** has a new "screen / brightness" section: Android's brightness and sleep settings, what
+  the power manager is using, the backlight level, and recent log lines about brightness.
+
 ## Shelly Wall Display X2i (5.10.1)
 
 The Shelly Wall Display X2i (SAWD-5A1XX10EU0: 6.9" 1440 × 720, Rockchip RK3326, Android 11) is a new

@@ -90,6 +90,9 @@ async def async_setup_entry(
             ["rotate_cw", "rotate_ccw", "press", "long_press", "key"],
         )
     )
+    # Shelly Wall Display: the wall switch on the SW terminal (with the built-in relay)
+    if bridge.relay_enabled:
+        entities.append(ARButtonEvent(bridge, "wallswitch", "Wall switch", ["press", "on", "off"]))
     async_add_entities(entities)
 
 

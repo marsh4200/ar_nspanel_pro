@@ -155,6 +155,93 @@ object LocalAdb {
         return Result(false, "", last)
     }
 
+    /**
+     * Run a long-lived [command] (e.g. `getevent -l`) and hand each output line
+     * to [onLine] until it ends, [keepGoing] turns false, or the connection
+     * drops. Returns why it stopped. Blocking: call it on its own thread.
+     */
+    fun stream(dir: File, command: String, ports: List<Int>, keepGoing: () -> Boolean, onLine: (String) -> Unit): String {
+        val kp = try {
+            keyPair(dir)
+        } catch (e: Exception) {
+            return "no key: ${e.message}"
+        }
+        var last = "ADB isn't listening on this panel"
+        for (port in ports.distinct()) {
+            try {
+                Socket().use { s ->
+                    s.connect(InetSocketAddress("127.0.0.1", port), 800)
+                    s.tcpNoDelay = true
+                    val err = connect(s, kp, 60_000)
+                    if (err != null) return err
+                    val out = s.getOutputStream()
+                    val inp = s.getInputStream()
+                    s.soTimeout = 2000 // wake up now and then to check keepGoing
+                    val localId = 1
+                    write(out, A_OPEN, localId, 0, "shell:$command\u0000".toByteArray())
+                    val pending = StringBuilder()
+                    while (keepGoing()) {
+                        val p = try {
+                            read(inp)
+                        } catch (e: SocketTimeoutException) {
+                            continue
+                        } ?: return "ADB closed the connection"
+                        when (p.cmd) {
+                            A_WRTE -> {
+                                write(out, A_OKAY, localId, p.arg0, ByteArray(0))
+                                pending.append(String(p.data, Charsets.UTF_8))
+                                var nl = pending.indexOf("\n")
+                                while (nl >= 0) {
+                                    onLine(pending.substring(0, nl).trimEnd('\r'))
+                                    pending.delete(0, nl + 1)
+                                    nl = pending.indexOf("\n")
+                                }
+                            }
+                            A_CLSE -> return "the command ended"
+                        }
+                    }
+                    return "stopped"
+                }
+            } catch (e: java.net.ConnectException) {
+                continue
+            } catch (e: Exception) {
+                last = "port $port: ${e.javaClass.simpleName}: ${e.message}"
+            }
+        }
+        return last
+    }
+
+    /** Handshake + auth on a fresh socket; null when connected, else why not. */
+    private fun connect(s: Socket, kp: KeyPair, authWaitMs: Int): String? {
+        val out = s.getOutputStream()
+        val inp = s.getInputStream()
+        s.soTimeout = 5000
+        write(out, A_CNXN, VERSION, MAX_DATA, "host::\u0000".toByteArray())
+        var sentSig = false
+        var sentKey = false
+        while (true) {
+            val p = read(inp) ?: return "ADB closed the connection"
+            when (p.cmd) {
+                A_CNXN -> return null
+                A_STLS -> return "tls"
+                A_AUTH -> {
+                    if (p.arg0 != AUTH_TOKEN) return "unexpected AUTH ${p.arg0}"
+                    if (!sentSig) {
+                        sentSig = true
+                        write(out, A_AUTH, AUTH_SIGNATURE, 0, sign(kp.private as RSAPrivateKey, p.data))
+                    } else if (!sentKey) {
+                        sentKey = true
+                        write(out, A_AUTH, AUTH_RSAPUBLICKEY, 0, publicKeyBlob(kp.public as RSAPublicKey))
+                        s.soTimeout = authWaitMs
+                    } else {
+                        return "the panel refused this app's ADB key"
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
     private fun runOn(s: Socket, kp: KeyPair, command: String, authWaitMs: Int, readMs: Int): Result {
         val out = s.getOutputStream()
         val inp = s.getInputStream()

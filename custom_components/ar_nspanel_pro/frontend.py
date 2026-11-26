@@ -39,7 +39,8 @@ PANEL_ELEMENT = "ar-nspanel-pro-config"
 #: 121: added the HDL S57 panel type (Android 6, Chrome) to Setup.
 #: 122: Residence 2 style (NSPanel Pro / S57), Minimal tall lights, 3D icon set.
 #: 135: Shelly Wall Display (X2i) panel type in Setup.
-PANEL_VERSION = "135"
+#: 136: Shelly built-in relay (Device > Relay tab).
+PANEL_VERSION = "136"
 
 _WWW_DIR = Path(__file__).parent / "www"
 _BUNDLE = "ar-nspanel-pro-config.js"

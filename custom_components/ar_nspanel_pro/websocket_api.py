@@ -122,6 +122,8 @@ def ws_list(
                 # Notify tab needs to print a copyable example.
                 "ha_device_id": getattr(bridge, "ha_device_id", None),
                 "model": info.get("model"),
+                # e.g. "shelly_wall_display": the editor shows that panel's own options
+                "hardware": info.get("hardware"),
                 "sw_version": info.get("version"),
                 # Hardware serial (ro.serialno) — what a licence is issued
                 # against, so the GUI must be able to show it even when the panel

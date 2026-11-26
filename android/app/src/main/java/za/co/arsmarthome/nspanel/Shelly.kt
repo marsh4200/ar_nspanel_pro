@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.database.ContentObserver
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
@@ -110,6 +111,66 @@ object Shelly {
         )
     }
 
+    // --- the screen: only this app sets brightness and sleep -----------------------------
+
+    private var screenObs: ContentObserver? = null
+
+    /** Taken over (HA's "Use AR app (Shelly off)") and not put back since. */
+    fun takenOver(c: Context): Boolean = prefs(c).contains("pkgs") && !prefs(c).getBoolean("restored", false)
+
+    /**
+     * While this app has the panel: Android's auto-brightness off and no sleep
+     * timer (it dims, then switches the screen off), and put right again
+     * whenever something (Shelly's software) changes them. The panel page sets
+     * the brightness itself. Needs WRITE_SETTINGS, which HA's takeover allows.
+     */
+    fun holdScreen(c: Context) {
+        val app = c.applicationContext
+        if (!takenOver(app)) return
+        if (Build.VERSION.SDK_INT >= 23 && !Settings.System.canWrite(app)) return
+        enforceScreen(app)
+        if (screenObs != null) return
+        val obs = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                if (takenOver(app)) enforceScreen(app)
+            }
+        }
+        try {
+            val cr = app.contentResolver
+            cr.registerContentObserver(Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS_MODE), false, obs)
+            cr.registerContentObserver(Settings.System.getUriFor(Settings.System.SCREEN_OFF_TIMEOUT), false, obs)
+            screenObs = obs
+        } catch (e: Exception) {
+            Log.w(TAG, "screen observer", e)
+        }
+    }
+
+    private fun enforceScreen(c: Context) {
+        try {
+            val cr = c.contentResolver
+            if (Settings.System.getInt(cr, Settings.System.SCREEN_BRIGHTNESS_MODE, 0) != Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL) {
+                Settings.System.putInt(cr, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
+                Log.i(TAG, "auto-brightness was switched on again: off")
+            }
+            if (Settings.System.getInt(cr, Settings.System.SCREEN_OFF_TIMEOUT, 0) < Int.MAX_VALUE) {
+                Settings.System.putInt(cr, Settings.System.SCREEN_OFF_TIMEOUT, Int.MAX_VALUE)
+                Log.i(TAG, "sleep timer was set again: off")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "enforce screen", e)
+        }
+    }
+
+    private fun releaseScreen(c: Context) {
+        screenObs?.let {
+            try {
+                c.applicationContext.contentResolver.unregisterContentObserver(it)
+            } catch (e: Exception) {
+            }
+        }
+        screenObs = null
+    }
+
     // --- take over (from Home Assistant, over ADB) ---------------------------------------
 
     /** Device owner: hide Shelly's packages and pin this app as Home. Hidden ones listed. */
@@ -197,6 +258,9 @@ object Shelly {
             sb.append("echo \"$p: $(pm enable $p 2>&1)\"; ")
         }
         for (p in overlayPackages(c)) sb.append("appops set $p SYSTEM_ALERT_WINDOW default; ")
+        // the screen settings HA's takeover changed (saved by HA as "ns key value;…")
+        sb.append("f=/data/local/tmp/ar_shelly_settings.txt; if [ -f \$f ]; then tr ';' '\\n' < \$f | while read ns k v; do ")
+        sb.append("case \"\$v\" in delete) settings delete \$ns \$k;; *) settings put \$ns \$k \$v;; esac; done; rm -f \$f; echo 'Screen settings back as they were.'; fi; ")
         sb.append("rm -f /data/local/tmp/ar_shelly_overlays.txt; settings put global adb_enabled 1; ")
         if (home != null) {
             val h = home.flattenToShortString()
@@ -214,6 +278,8 @@ object Shelly {
     fun restore(c: Context, say: (String) -> Unit): Boolean {
         val app = c.applicationContext
         val pkgs = offPackages(app)
+        releaseScreen(app)
+        prefs(app).edit().putBoolean("restored", true).commit() // stop holding the screen settings
         say("Switching Shelly back on: ${pkgs.joinToString()}")
         if (AdbHelper.enable(app, false)) say("ADB switched on (so Home Assistant can reach the panel again).")
         val owner = Kiosk.isOwner(app)
@@ -437,6 +503,8 @@ class ShellyControl : BroadcastReceiver() {
                 val pkgs = (intent.getStringExtra("pkgs") ?: Shelly.STOCK_APP).split(',').map { it.trim() }.filter { it.isNotEmpty() }
                 val overlays = (intent.getStringExtra("overlays") ?: "").split(',').map { it.trim() }.filter { it.isNotEmpty() }
                 Shelly.remember(app, pkgs, intent.getStringExtra("home"), overlays)
+                app.getSharedPreferences("shelly", Context.MODE_PRIVATE).edit().remove("restored").commit()
+                Shelly.holdScreen(app)
                 Shelly.setBootStart(app, true)
                 val hidden = Shelly.hideAll(app, pkgs)
                 resultData = if (Kiosk.isOwner(app)) "hidden:" + hidden.joinToString(",") else "not_owner"

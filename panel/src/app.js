@@ -794,6 +794,18 @@ native.on("light", (d) => {
   }
 });
 
+// Shelly Wall Display: the built-in relay. The app does the switching
+// (ShellyRelay.kt); this only carries it to and from Home Assistant.
+let relayWasOn = false;
+function relayConfig() {
+  const st = native.shellyRelayConfig(device.shellyRelay || null);
+  if (st && (st.enabled || relayWasOn)) publish("sys/relay", st, true);
+  relayWasOn = !!(st && st.enabled);
+}
+native.on("relay", (d) => publish("sys/relay", d, true));
+// the wall switch on the SW terminal: HA's "Wall switch" event entity
+native.on("wallswitch", (d) => publish("event", { button: "wallswitch", action: (d && d.action) || "press", value: d && d.value, page: null }, false));
+
 native.on("proximity", (d) => {
   const value = Number(d.value);
   const max = Number(d.max) || 0;
@@ -844,6 +856,7 @@ function info() {
     uiVersion: VERSION,
     fwVersion: i.fwVersion,
     serial: i.serial,
+    hardware: i.hardware || null, // e.g. "shelly_wall_display": Setup shows that panel's own options
     serverId: i.serverId,
     ip: i.ip,
     net: i.net,
@@ -1237,6 +1250,10 @@ function handleCmd(name, p) {
     case "siren":
       setSiren("ha", !!p.on, p.tone);
       break;
+    case "relay":
+      // Shelly Wall Display: the built-in relay (the app answers on sys/relay)
+      native.shellyRelay(p);
+      break;
     case "notify":
       showNotification(p);
       break;
@@ -1362,6 +1379,7 @@ function onMessage(topic, payload) {
     deviceRaw = parseJson(payload);
     native.cacheSet("device", deviceRaw);
     device = withLocal(deviceRaw);
+    relayConfig();
     const maCfg = device.musicAssistant || {};
     if (maCfg.enabled === false) ma.configure(null);
     else if (maCfg.url && (!ma.cfg || ma.cfg.url !== maCfg.url)) ma.configure({ url: maCfg.url, username: ma.cfg && ma.cfg.username, password: ma.cfg && ma.cfg.password });

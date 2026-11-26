@@ -11543,7 +11543,37 @@ function kA(e) {
       ] });
     })(),
     /* @__PURE__ */ a.jsx(ArPrefsBackupCard, { hass: e.hass, device: t, onChange: r }),
-    t.dashboardStyle === "residence" && /* @__PURE__ */ a.jsx(RsLivePhotosCard, { hass: e.hass, device: t, onChange: r })
+    t.dashboardStyle === "residence" && /* @__PURE__ */ a.jsx(RsLivePhotosCard, { hass: e.hass, device: t, onChange: r }),
+    /* Shelly Wall Display only: the built-in relay (device.shellyRelay) */
+    (/^SAWD-/i.test(e.panel?.model || "") || e.panel?.hardware === "shelly_wall_display" || !!t.shellyRelay) && (() => {
+      const sr = t.shellyRelay ?? {}, srv = (m) => r({ shellyRelay: { ...sr, ...m } }), rooms = (t.elegant?.rooms ?? []).filter((x) => x && typeof x === "object"), elStyle = t.dashboardStyle === "residence" || t.dashboardStyle === "elegant";
+      return /* @__PURE__ */ a.jsxs("div", { className: "card dev-card", children: [
+        /* @__PURE__ */ a.jsxs("h3", { children: [
+          /* @__PURE__ */ a.jsx(j, { d: N.vPower, size: 20, style: V }),
+          "Built-in relay"
+        ] }),
+        /* @__PURE__ */ a.jsx("div", { className: "sub", children: "Shelly Wall Display: the relay on the back, and the wall switch wired to it. Works while Shelly's own app is off (“Use AR app (Shelly off)”)." }),
+        /* @__PURE__ */ a.jsxs("div", { className: "dev-fields", children: [
+          /* @__PURE__ */ a.jsx(et, { title: "Use the relay", sub: "Adds a switch for it to Home Assistant after Save & push", on: !!sr.enabled, onChange: (m) => srv({ enabled: m }) }),
+          sr.enabled && /* @__PURE__ */ a.jsxs(a.Fragment, { children: [
+            /* @__PURE__ */ a.jsx(X, { label: "Name", hint: "What it switches, e.g. the ceiling light", children: /* @__PURE__ */ a.jsx("input", { className: "inp", maxLength: 40, value: sr.name ?? "", placeholder: "Relay", onChange: (m) => srv({ name: m.target.value || void 0 }) }) }),
+            elStyle && /* @__PURE__ */ a.jsx(et, { title: "First light in Lights", sub: "Shown first in the room's Lights, like any other light", on: sr.firstLight !== false, onChange: (m) => srv({ firstLight: m }) }),
+            elStyle && sr.firstLight !== false && rooms.length > 1 && /* @__PURE__ */ a.jsx(X, { label: "Room", children: /* @__PURE__ */ a.jsx("select", { className: "inp", value: sr.room ?? 0, onChange: (m) => srv({ room: Number(m.target.value) }), children: rooms.map((rm, i) => /* @__PURE__ */ a.jsx("option", { value: i, children: rm.name || "Room " + (i + 1) }, i)) }) }),
+            /* @__PURE__ */ a.jsx(X, { label: "Wall switch", hint: "The switch wired to the SW terminal", children: /* @__PURE__ */ a.jsxs("select", { className: "inp", value: sr.wall ?? "toggle", onChange: (m) => srv({ wall: m.target.value }), children: [
+              /* @__PURE__ */ a.jsx("option", { value: "toggle", children: "Toggles the relay" }),
+              /* @__PURE__ */ a.jsx("option", { value: "event", children: "Only sends an event (Wall switch)" }),
+              /* @__PURE__ */ a.jsx("option", { value: "none", children: "Does nothing" })
+            ] }) }),
+            /* @__PURE__ */ a.jsx(X, { label: "After a power cut", children: /* @__PURE__ */ a.jsxs("select", { className: "inp", value: sr.boot ?? "restore", onChange: (m) => srv({ boot: m.target.value }), children: [
+              /* @__PURE__ */ a.jsx("option", { value: "restore", children: "Back as it was" }),
+              /* @__PURE__ */ a.jsx("option", { value: "off", children: "Off" }),
+              /* @__PURE__ */ a.jsx("option", { value: "on", children: "On" })
+            ] }) }),
+            /* @__PURE__ */ a.jsx("div", { className: "hint", children: "The switch's attributes show how the panel reaches the relay (method), and why if it can't (error)." })
+          ] })
+        ] })
+      ] });
+    })()
   ] });
 }
 // ---- Customer settings backup (4.8.1) ---------------------------------------------
@@ -11645,6 +11675,7 @@ function ArPrefsBackupCard({ hass: h, device: t, onChange: r }) {
 // 0 Screensaver, 1 Presence, 2 Licence, 3 Diagnostics, 4 Clock face,
 // 5 Auto-brightness, 6 Dashboard (Elegant), 7 Music Assistant, 8 Spotify,
 // 9 Customer settings (backup / restore of the gear choices)
+// 10 Live Photos (Residence), 11 Built-in relay (Shelly Wall Display only)
 const AR_DEV_TABS = [
   { key: "dash", title: "Dashboard", cards: [6] },
   { key: "live", title: "Live Photos", cards: [10] }, // Residence only (optional, 5.1.0)
@@ -11652,7 +11683,8 @@ const AR_DEV_TABS = [
   { key: "music", title: "Music", cards: [7, 8] },
   { key: "sensors", title: "Sensors", cards: [1] },
   { key: "custom", title: "Customer settings", cards: [9] },
-  { key: "about", title: "Licence & info", cards: [2, 3] }
+  { key: "about", title: "Licence & info", cards: [2, 3] },
+  { key: "relay", title: "Relay", cards: [11] } // Shelly Wall Display only (5.11.0)
 ];
 function ArDevTabs({ children: c }) {
   const [tab, setTab] = M.useState(() => {
@@ -11662,7 +11694,7 @@ function ArDevTabs({ children: c }) {
       return "dash";
     }
   });
-  const tabs = AR_DEV_TABS.filter((x) => x.key !== "live" || c[10]);
+  const tabs = AR_DEV_TABS.filter((x) => (x.key !== "live" || c[10]) && (x.key !== "relay" || c[11]));
   const cur = tabs.find((x) => x.key === tab) || tabs[0];
   const pick = (k) => {
     setTab(k);

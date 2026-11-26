@@ -42,6 +42,7 @@ from homeassistant.helpers.event import (
     async_track_time_interval,
 )
 from homeassistant.helpers.network import NoURLAvailableError, get_url
+from homeassistant.util import slugify
 
 from . import panel_config, licensing
 from . import residence_calendar
@@ -67,6 +68,7 @@ from .const import (
     ptz_button_id,
     signal_avail,
     signal_awake,
+    signal_relay,
     signal_info,
     signal_light,
     signal_media,
@@ -177,6 +179,9 @@ class PanelBridge:
         self.available: bool = False
         self.sys_info: dict[str, Any] = {}
         self.awake: dict[str, Any] | None = None
+        #: Shelly Wall Display built-in relay, as the panel reports it (sys/relay):
+        #: {enabled, on, ok, method, error, wall, watching, lastInput}
+        self.relay: dict[str, Any] | None = None
         self.light_raw: int | None = None
         self.motion: bool | None = None
         self.alarm: dict[str, Any] = {}
@@ -224,6 +229,8 @@ class PanelBridge:
         self.device_cfg = await panel_config.async_load_or_seed_device(
             self.hass, self.device_id
         )
+        # Shelly built-in relay first in Lights: mirrored and allowed like any light
+        self.device_cfg = relay_in_lights(self.device_cfg, self.relay_entity_id)
         self._index_config()
         self._resolve_auto_weather()
         self._register_device()
@@ -233,6 +240,7 @@ class PanelBridge:
             (topic_avail(self.device_id), self._on_avail),
             (topic_event(self.device_id), self._on_event),
             (topic_sys(self.device_id, "awake"), self._on_awake),
+            (topic_sys(self.device_id, "relay"), self._on_relay),
             (topic_sys(self.device_id, "info"), self._on_info),
             (topic_sys(self.device_id, "light"), self._on_light),
             (topic_sys(self.device_id, "motion"), self._on_motion),
@@ -715,6 +723,24 @@ class PanelBridge:
             ma_secrets["url"] = await self._panel_reachable_url(ma_secrets["url"])
         if ma_secrets:
             await self.async_cmd("ma_auth", ma_secrets)
+
+    @property
+    def relay_enabled(self) -> bool:
+        """The Shelly built-in relay is switched on in this panel's Device settings."""
+        sr = self.device_cfg.get("shellyRelay") if isinstance(self.device_cfg, dict) else None
+        return isinstance(sr, dict) and bool(sr.get("enabled"))
+
+    @property
+    def relay_entity_id(self) -> str:
+        """The relay's switch entity: the registry's (if renamed), else the fixed id."""
+        found = er.async_get(self.hass).async_get_entity_id("switch", DOMAIN, f"{self.device_id}_relay")
+        return found or relay_default_entity_id(self.device_id)
+
+    @callback
+    def _on_relay(self, msg: mqtt.ReceiveMessage) -> None:
+        data = _parse(msg.payload)
+        self.relay = data or None
+        async_dispatcher_send(self.hass, signal_relay(self.device_id), data)
 
     @callback
     def _on_awake(self, msg: mqtt.ReceiveMessage) -> None:
@@ -1933,6 +1959,8 @@ class PanelBridge:
             json.dumps(panels),
             retain=True,
         )
+        # Shelly built-in relay: first in the chosen room's Lights
+        public_cfg = relay_in_lights(public_cfg, self.relay_entity_id)
         await mqtt.async_publish(
             self.hass,
             topic_config_device(self.device_id),
@@ -2042,6 +2070,34 @@ def _parse(payload: str) -> dict[str, Any]:
 
 # "watch": Residence style only (a room's TVs); the other styles never list it
 ELEGANT_CATEGORIES = ("lights", "climate", "music", "cameras", "security", "shades", "scenes", "utilities", "presence", "watch")
+
+
+def relay_default_entity_id(device_id: str) -> str:
+    """The id the relay switch is created with: switch.<panel id>_relay."""
+    return f"switch.{slugify(device_id)}_relay"
+
+
+def relay_in_lights(cfg: dict[str, Any], entity_id: str) -> dict[str, Any]:
+    """Device settings with the Shelly built-in relay first in a room's Lights
+    (device.shellyRelay: enabled, firstLight (default on), room (index, default
+    the first)). Nothing changes when it is off. Returns a copy; the stored
+    settings are never touched, so switching it off takes it out again."""
+    sr = cfg.get("shellyRelay") if isinstance(cfg, dict) else None
+    if not isinstance(sr, dict) or not sr.get("enabled") or sr.get("firstLight") is False:
+        return cfg
+    el = cfg.get("elegant")
+    if not isinstance(el, dict):
+        return cfg
+    rooms = [r for r in el.get("rooms") or []]
+    if rooms and all(isinstance(r, dict) for r in rooms):
+        i = sr.get("room") if isinstance(sr.get("room"), int) else 0
+        i = i if 0 <= i < len(rooms) else 0
+        room = dict(rooms[i])
+        room["lights"] = [entity_id] + [e for e in _as_list(room.get("lights")) if e != entity_id]
+        rooms[i] = room
+        return {**cfg, "elegant": {**el, "rooms": rooms}}
+    # no rooms: the whole-home Lights list
+    return {**cfg, "elegant": {**el, "lights": [entity_id] + [e for e in _as_list(el.get("lights")) if e != entity_id]}}
 
 
 def _as_list(v: Any) -> list[str]:

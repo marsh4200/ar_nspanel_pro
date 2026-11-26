@@ -35,6 +35,7 @@ PLATFORMS: list[Platform] = [
     Platform.NOTIFY,
     Platform.SENSOR,
     Platform.SIREN,
+    Platform.SWITCH,
     Platform.UPDATE,
 ]
 

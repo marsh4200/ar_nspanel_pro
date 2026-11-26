@@ -191,6 +191,8 @@ class MainActivity : Activity(), SensorEventListener {
         hideReturnButton()
         immersive()
         Kiosk.lock(this) // only when HA made the app device owner
+        Shelly.holdScreen(this) // Shelly taken over: no Android auto-brightness / sleep timer
+        ShellyRelay.start(this) // Shelly: built-in relay after a power cut, wall switch (when on)
         emit("resume", "{}")
         engine.onResume()
         sensors?.let { sm ->
