@@ -709,6 +709,14 @@ export function mountResidence(a) {
     let ac = 0;
     (r.climate || []).forEach((e) => {
       const s = a.get(e);
+      if (e.split(".")[0] !== "climate") {
+        // a fan that is only a switch, picked under Comfort
+        if (!s.on) return;
+        ac++;
+        a.patch(e, { on: false });
+        a.send("dim", { entity: e, v: 0 });
+        return;
+      }
       if (s.value === "off") return;
       ac++;
       a.patch(e, { value: "off", on: false });

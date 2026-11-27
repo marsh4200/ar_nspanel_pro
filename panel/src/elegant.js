@@ -1700,16 +1700,53 @@ export function buildElegant(cfg, ctx, skin) {
 
   // climate
   let climIdx = 0;
+  // a room's Comfort list can also hold fans / heaters that are only a switch:
+  // the aircons get the dial, the switches an on / off row under the modes
+  const climOnly = () => (ents.climate || []).filter((x) => x.split(".")[0] === "climate");
+  const climFans = () => (ents.climate || []).filter((x) => x.split(".")[0] !== "climate");
+  function fanRows(box, cp, gap) {
+    const FN = climFans();
+    if (!FN.length) return;
+    const l = txt("div", "el-lbl", "Fans");
+    if (gap) l.style.marginTop = "14px";
+    box.appendChild(l);
+    FN.forEach((x) => {
+      const on = !!get(x).on;
+      const b = el("div", "el-mode", svg("fan") + "<span></span>");
+      b.lastChild.textContent = nameOf(x);
+      const sw = el("div", "el-sw" + (on ? " on" : ""));
+      sw.style.marginLeft = "auto";
+      sw.setAttribute("role", "switch");
+      sw.setAttribute("aria-checked", on ? "true" : "false");
+      b.appendChild(sw);
+      b.addEventListener("click", () => {
+        patch(x, { on: !on });
+        send("toggle", { entity: x });
+        cp.render();
+      });
+      box.appendChild(b);
+    });
+  }
   if (ents.climate) {
     const cp = mkPage("climate");
     cp.render = function () {
-      const e = ents.climate[climIdx] || ents.climate[0];
-      const s = get(e);
+      const CL = climOnly();
       const p = cp.el;
       p.innerHTML = "";
-      if (ents.climate.length > 1) {
+      if (!CL.length) {
+        const only = el("div", "el-climate");
+        const fb = el("div", "el-glass el-modes");
+        fb.style.gridColumn = "1/-1";
+        fanRows(fb, cp, false);
+        only.appendChild(fb);
+        p.appendChild(only);
+        return;
+      }
+      const e = CL[climIdx] || CL[0];
+      const s = get(e);
+      if (CL.length > 1) {
         const bar = el("div", "el-subbar");
-        ents.climate.forEach((x, i) => {
+        CL.forEach((x, i) => {
           const t = txt("div", "el-tab" + (i === climIdx ? " on" : ""), nameOf(x));
           t.addEventListener("click", () => {
             climIdx = i;
@@ -1719,7 +1756,7 @@ export function buildElegant(cfg, ctx, skin) {
         });
         p.appendChild(bar);
       }
-      const wrap = el("div", "el-climate" + (ents.climate.length > 1 ? " tabs" : ""));
+      const wrap = el("div", "el-climate" + (CL.length > 1 ? " tabs" : ""));
       const box = el("div", "el-glass el-dialbox");
       const down = el("div", "el-round", svg("minus"));
       const up = el("div", "el-round", svg("plus"));
@@ -1740,6 +1777,7 @@ export function buildElegant(cfg, ctx, skin) {
         });
         modes.appendChild(b);
       });
+      fanRows(modes, cp, true);
       wrap.appendChild(modes);
       p.appendChild(wrap);
       drawDial(dial, s);
@@ -4036,7 +4074,8 @@ export function buildElegant(cfg, ctx, skin) {
         return true;
       }
       if (current === "climate" && ents.climate) {
-        const e = ents.climate[climIdx];
+        const e = climOnly()[climIdx] || climOnly()[0];
+        if (!e) return true;
         const s0 = get(e);
         if (typeof s0.temp !== "number") return true;
         const step = typeof s0.step === "number" ? s0.step : 0.5;

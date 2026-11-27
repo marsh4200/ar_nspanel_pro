@@ -9298,10 +9298,12 @@ const EL_CATS = [
 function elList(v) {
   return (Array.isArray(v) ? v : typeof v === "string" && v ? [v] : []).filter((x) => typeof x === "string" && x.includes("."));
 }
-function ElPicker({ options: o, room: rm, label: lb, onAdd: add }) {
-  const [open, setOpen] = M.useState(!1), [q, setQ] = M.useState(""), [pick, setPick] = M.useState([]);
+function ElPicker({ options: o0, more: mo, room: rm, label: lb, onAdd: add }) {
+  const [open, setOpen] = M.useState(!1), [q, setQ] = M.useState(""), [pick, setPick] = M.useState([]), [sw, setSw] = M.useState(!1);
+  // Climate: the aircons, and (optional) the switches & fans for a fan that is only a switch
+  const o = sw && mo ? mo : o0;
   if (!open)
-    return /* @__PURE__ */ a.jsx("button", { className: "btn ghost", disabled: !o.length, onClick: () => (setPick([]), setQ(""), setOpen(!0)), children: o.length ? lb + "…" : "Nothing else to add" });
+    return /* @__PURE__ */ a.jsx("button", { className: "btn ghost", disabled: !o0.length && !(mo && mo.length), onClick: () => (setPick([]), setQ(""), setSw(!o0.length && !!(mo && mo.length)), setOpen(!0)), children: o0.length || (mo && mo.length) ? lb + "…" : "Nothing else to add" });
   const ql = q.trim().toLowerCase(), shown = o.filter((x) => !ql || x.name.toLowerCase().includes(ql) || x.id.toLowerCase().includes(ql));
   const limit = rm > 0 ? rm : 1e9, full = pick.length >= limit;
   const toggle = (id) => setPick(pick.includes(id) ? pick.filter((x) => x !== id) : full ? pick : pick.concat([id]));
@@ -9315,6 +9317,7 @@ function ElPicker({ options: o, room: rm, label: lb, onAdd: add }) {
         /* @__PURE__ */ a.jsx("span", { style: { display: "block", fontSize: 11.5, opacity: 0.6 }, children: x.id + (x.note ? " · " + x.note : "") })
       ] })
     ] }, x.id)) : /* @__PURE__ */ a.jsx("div", { className: "hint", style: { padding: 8 }, children: "No matches." }) }),
+    mo && /* @__PURE__ */ a.jsx("button", { className: "btn ghost", style: { marginBottom: 8 }, onClick: () => (setSw(!sw), setPick([]), setQ("")), children: sw ? "‹ Back to aircons" : "Show switches & fans (for a fan that’s just a switch)" }),
     /* @__PURE__ */ a.jsxs("div", { style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }, children: [
       /* @__PURE__ */ a.jsx("button", { className: "btn primary", disabled: !pick.length, onClick: () => (add(pick), setOpen(!1)), children: pick.length ? "Add " + pick.length + " selected" : "Tick the ones to add" }),
       rm <= 0 && shown.length > 0 && /* @__PURE__ */ a.jsx("button", { className: "btn ghost", onClick: () => setPick(Array.from(new Set(pick.concat(shown.map((x) => x.id))))), children: "Tick all shown" }),
@@ -10372,9 +10375,10 @@ const ezRoomIcon = (n) => {
   return /kitchen|scullery/.test(n) ? "pot" : /bed|suite|guest/.test(n) ? "bed" : /bath|shower|toilet|wc/.test(n) ? "bath" : /study|office|desk/.test(n) ? "desk" : /garden|outside|patio|pool|yard|braai/.test(n) ? "tree" : /garage|car/.test(n) ? "car" : /lounge|living|tv|family|den/.test(n) ? "sofa" : "star";
 };
 function EzPicker({ hass: h, cat: c, room: x, rooms, self, fname, ids, onAdd, onClose }) {
-  const [q, setQ] = M.useState(""), [pick, setPick] = M.useState(null);
+  const [q, setQ] = M.useState(""), [pick, setPick] = M.useState(null), [sw, setSw] = M.useState(!1);
   const base = ezCat(c.key);
-  let opts = ids(base.domains).filter((id) => !elList(x[c.key]).includes(id));
+  // Climate: the aircons, and (optional) the switches & fans for a fan that is only a switch
+  let opts = ids(sw && c.key === "climate" ? ["switch", "fan", "input_boolean"] : base.domains).filter((id) => !elList(x[c.key]).includes(id));
   if (c.key === "watch") opts = opts.filter((id) => ezIsTv(h, id)).concat(opts.filter((id) => !ezIsTv(h, id)));
   if (c.key === "music") opts = opts.filter((id) => !ezIsTv(h, id)).concat(opts.filter((id) => ezIsTv(h, id)));
   const nm = String(x.name || "").trim().toLowerCase();
@@ -10399,7 +10403,8 @@ function EzPicker({ hass: h, cat: c, room: x, rooms, self, fname, ids, onAdd, on
       ez("div", { className: "ezls" },
         here.length > 0 && ez("div", { className: "ezgr" }, "In the " + x.name + " area"), here.map(row),
         rest.length > 0 && ez("div", { className: "ezgr" }, here.length ? "Everything else" : "Your devices"), rest.map(row),
-        !shown.length && ez("div", { className: "hint", style: { padding: 10 } }, opts.length ? "No matches." : "Nothing else to add.")),
+        !shown.length && ez("div", { className: "hint", style: { padding: 10 } }, opts.length ? "No matches." : "Nothing else to add."),
+        c.key === "climate" && ez("button", { className: "btn ghost", style: { margin: "10px 0 4px" }, onClick: () => (setSw(!sw), setPick(sw ? null : []), setQ("")) }, sw ? "‹ Back to aircons" : "Show switches & fans (for a fan that’s just a switch)")),
       ez("footer", null, max < 1e9 && ez("span", { className: "hint", style: { marginRight: "auto" } }, "Up to " + max + " more"), ez("button", { className: "btn ghost", onClick: onClose }, "Cancel"), ez("button", { className: "btn primary", disabled: !sel.length, onClick: () => (onAdd(sel), onClose()) }, sel.length ? "Add " + sel.length : "Tick the ones to add"))));
 }
 function EasySetup({ hass: h, device: t, onChange: r, style, rooms, start, save, setRoom, fname, ids, styleEl, houseEl, lookEl, step, setStep }) {
@@ -10666,6 +10671,7 @@ function ElegantCard({ hass: h, device: t, onChange: r }) {
       ] }, id)) }),
       !full && /* @__PURE__ */ a.jsx(ElPicker, {
         options: ids(c.domains).filter((id) => !sel.includes(id)).map((id) => ({ id, name: fname(id), note: self >= 0 ? whereIs(id, self) : "" })),
+        more: c.key === "climate" ? ids(["switch", "fan", "input_boolean"]).filter((id) => !sel.includes(id)).map((id) => ({ id, name: fname(id), note: self >= 0 ? whereIs(id, self) : "" })) : void 0,
         room: c.max ? c.max - sel.length : 0,
         label: sel.length ? "Add more" : "Add",
         onAdd: (picked) => setSel(sel.concat(picked))
