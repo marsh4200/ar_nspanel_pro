@@ -128,6 +128,40 @@ class MainActivity : Activity(), SensorEventListener {
             StartupGuard.show(this, failed)
             return
         }
+        // HDL S57: let the panel finish installing / optimising before the
+        // browser engine starts (it froze the screen when started in the middle)
+        if (S57Gate.needed(this)) {
+            waitForS57()
+            return
+        }
+        startPanel()
+    }
+
+    /** Plain "Starting…" screen (no browser) until [S57Gate] says the S57 is quiet. */
+    private fun waitForS57() {
+        val d = resources.displayMetrics.density
+        val msg = android.widget.TextView(this).apply {
+            text = "Starting…"
+            setTextColor(Color.parseColor("#d0d0d0"))
+            textSize = 16f
+            gravity = android.view.Gravity.CENTER
+            setPadding((24 * d).toInt(), 0, (24 * d).toInt(), 0)
+        }
+        val waitRoot = FrameLayout(this)
+        waitRoot.setBackgroundColor(Color.BLACK)
+        waitRoot.addView(msg, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        setContentView(waitRoot)
+        Thread {
+            S57Gate.waitQuiet(this) { line -> main.post { msg.text = "Starting…\n\n$line" } }
+            main.post {
+                if (isFinishing || (Build.VERSION.SDK_INT >= 17 && isDestroyed)) return@post
+                startPanel()
+                if (panelResumed) resumePanel() // onResume already ran (and skipped the panel) while waiting
+            }
+        }.apply { name = "ar-s57-gate" }.start()
+    }
+
+    private fun startPanel() {
         StartupGuard.stage(this, "creating the ${Engines.BUILD} browser engine")
         bridge = NativeBridge(this)
         engine = Engines.create(this, bridge)
@@ -184,9 +218,16 @@ class MainActivity : Activity(), SensorEventListener {
         null
     }
 
+    private var panelResumed = false
+
     override fun onResume() {
         super.onResume()
-        if (!::engine.isInitialized) return // start-up report on screen
+        panelResumed = true
+        resumePanel()
+    }
+
+    private fun resumePanel() {
+        if (!::engine.isInitialized) return // start-up report / S57 "Starting…" on screen
         current = this
         hideReturnButton()
         immersive()
@@ -219,6 +260,7 @@ class MainActivity : Activity(), SensorEventListener {
     override fun onPause() {
         // A wall panel has nothing else to show; keep the sensors running even
         // if something briefly covers the activity (a system dialog).
+        panelResumed = false
         super.onPause()
     }
 
@@ -340,6 +382,7 @@ class MainActivity : Activity(), SensorEventListener {
 
     /** 0..1; 0 = backlight off (plus a black view so nothing leaks through). */
     fun applyBrightness(level: Float) {
+        if (!::blackout.isInitialized) return // S57 still on its "Starting…" screen
         if (::engine.isInitialized && engine.applyBrightness(level)) return // UI shown by another app (Chrome)
         val lp = window.attributes
         lp.screenBrightness = if (level <= 0f) 0.0f else level.coerceIn(0.01f, 1f)

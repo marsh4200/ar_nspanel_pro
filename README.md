@@ -80,6 +80,12 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## HDL S57: waits for the panel to finish installing before it starts
+
+- On the HDL S57 the app no longer starts its screen the moment Android boots. Its own install scripts (bootclone, precopy, boot_app, data_resume, rm_app) and Android's app optimising (WebView 106 among them) were still running, and starting the browser in the middle of that froze the screen.
+- The app now shows a plain *Starting…* screen until Android has booted, none of those is running any more, and it has stayed quiet for 20 s (90 s the first time a new app version starts). After 10 minutes it starts anyway.
+- S57 only (Android 6 with HDL's WallApp on it). Every other panel starts exactly as before.
+
 ## Shelly Wall Display X2i on firmware 2.6+: "AR on top" (5.12.0)
 
 From firmware 2.6.0, Shelly's app (`cloud.shelly.stargate`) is the panel's **device owner** and runs as
