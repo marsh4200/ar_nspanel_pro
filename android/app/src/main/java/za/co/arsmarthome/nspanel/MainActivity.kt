@@ -193,6 +193,7 @@ class MainActivity : Activity(), SensorEventListener {
         Kiosk.lock(this) // only when HA made the app device owner
         Shelly.holdScreen(this) // Shelly taken over: no Android auto-brightness / sleep timer
         ShellyRelay.start(this) // Shelly: built-in relay after a power cut, wall switch (when on)
+        BacklightGuard.start(this) // Shelly: put the backlight back when something else dims it
         emit("resume", "{}")
         engine.onResume()
         sensors?.let { sm ->
@@ -207,6 +208,7 @@ class MainActivity : Activity(), SensorEventListener {
     private val proximityOk: Boolean
         get() = !(Build.MODEL ?: "").contains("RK3566", ignoreCase = true)
     override fun onStop() {
+        BacklightGuard.stop()
         // nothing plays behind another app or a switched-off screen; the page
         // asks for its cameras again when it comes back ("resume")
         if (::rtsp.isInitialized) rtsp.hideAll()
@@ -297,6 +299,7 @@ class MainActivity : Activity(), SensorEventListener {
     private var shellyHolding = false
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.actionMasked == MotionEvent.ACTION_DOWN) BacklightGuard.touched(this)
         if (Shelly.isShelly(this)) {
             val corner = Shelly.CORNER_DP * resources.displayMetrics.density
             val inCorner = ev.pointerCount == 1 && ev.x <= corner && ev.y <= corner
@@ -341,6 +344,7 @@ class MainActivity : Activity(), SensorEventListener {
         lp.screenBrightness = if (level <= 0f) 0.0f else level.coerceIn(0.01f, 1f)
         window.attributes = lp
         blackout.visibility = if (level <= 0f) View.VISIBLE else View.GONE
+        BacklightGuard.applied(this, level) // Shelly: keep it there (something else writes the backlight)
     }
 
     fun keepOn(on: Boolean) {

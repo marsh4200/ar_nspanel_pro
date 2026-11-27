@@ -80,6 +80,19 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Shelly Wall Display X2i: the backlight stays put (5.11.1)
+
+- Shelly-style software writes the backlight file directly, past Android. Android only writes it again
+  when the panel asks for a different brightness, so the screen stayed dim: touching did nothing, and
+  only moving the brightness slider brought it back. On Shelly panels, the app now reads the backlight
+  every 1.5 s and on each touch. When something else has changed it, the app puts it back straight
+  away. Your own brightness and the panel's screensaver and night dimming are not affected.
+- Each time, the panel logs `ARBacklight … backlight changed by something else: <value> … put back`.
+  **Boot check** shows these lines under "screen / brightness", so the other software can be tracked
+  down.
+- **Use AR app (Shelly off)** now switches off every package with "shelly" in its name, not only
+  `cloud.shelly.*`.
+
 ## Shelly Wall Display X2i: the built-in relay (5.11.0)
 
 The relay on the back of a Shelly Wall Display, and the wall switch wired to its SW terminal, work while

@@ -309,7 +309,7 @@ def _shelly_state(device: Any) -> str:
 
 def _shelly_any_hidden(device: Any) -> bool:
     """Any Shelly package hidden by the device owner (not listed without -u)."""
-    shown = device.shell("pm list packages cloud.shelly") or ""
+    shown = device.shell("pm list packages shelly") or ""
     return any(f"package:{p}" not in shown.split() for p in _shelly_pkgs(device))
 
 
@@ -385,9 +385,18 @@ def _shelly_running(device: Any) -> list[str]:
 
 
 def _shelly_pkgs(device: Any) -> list[str]:
-    """Every Shelly package on the panel (hidden ones too), Stargate last."""
-    out = device.shell("pm list packages -u cloud.shelly") or ""
-    pkgs = sorted({ln.split(":", 1)[1].strip() for ln in out.splitlines() if ln.startswith("package:cloud.shelly")})
+    """Every Shelly package on the panel (hidden ones too), Stargate last: all
+    cloud.shelly.*, and any other package with "shelly" in its name (Shelly's
+    own services under another name, or a Shelly app someone installed: they
+    drive the backlight and the relay themselves)."""
+    out = device.shell("pm list packages -u shelly") or ""
+    pkgs = sorted(
+        {
+            p
+            for p in (ln.split(":", 1)[1].strip() for ln in out.splitlines() if ln.startswith("package:"))
+            if "shelly" in p.lower() and p != APP_PACKAGE
+        }
+    )
     return [p for p in pkgs if p != SHELLY_APP] + ([SHELLY_APP] if SHELLY_APP in pkgs or not pkgs else [])
 
 
