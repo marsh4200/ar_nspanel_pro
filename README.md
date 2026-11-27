@@ -80,6 +80,30 @@ Home Assistant), a speaker entity for TTS and `media_player.play_media`, a siren
 alarm clock, a screensaver with day/night auto-brightness, proximity wake, a motion sensor,
 remote screenshots, and remote taps.
 
+## Shelly Wall Display X2i on firmware 2.6+: "AR on top" (5.12.0)
+
+From firmware 2.6.0, Shelly's app (`cloud.shelly.stargate`) is the panel's **device owner** and runs as
+the system user. Android then won't let anything switch it off, hide it, stop it, or remove it as owner
+(`Cannot disable a protected package`, `Attempt to remove non-test admin`). Shelly also keeps itself
+as the only Home app. There is no root (`adbd cannot run as root in production builds`). So Shelly
+can't be switched off on this firmware, and earlier versions of the takeover reported success when it
+wasn't. **Use AR app (Shelly off)** now sees this and runs the panel **AR on top**:
+
+- **The Shelly icon is gone:** Shelly loses "draw over other apps" (`appops … SYSTEM_ALERT_WINDOW
+  deny`), which removes its floating windows: the top-right icon, and a see-through full-screen one.
+  The app re-applies this at every start through the panel's own ADB.
+- **The AR app stays in front.** A small foreground service (`ShellyWatch`) brings it back within
+  about 2 s whenever Shelly's screen comes up. It only reacts to Shelly, so Android Settings and other
+  apps opened on purpose are left alone. Shelly's firmware also reopens the last app after a reboot.
+- The app gets usage access (to see Shelly's screen come up), may start from the background, and is
+  exempt from battery optimisation (`deviceidle whitelist`).
+- Shelly keeps running underneath, so its relay and wall switch keep working through Home Assistant's
+  Shelly integration.
+- **Back to Shelly screen** (from Home Assistant or on the panel) gives Shelly back its floating
+  windows (`default`), makes it Home, and stops the AR app keeping itself in front.
+- Every Shelly package is named in the takeover log: switched off ✓, or "stays on (Shelly's firmware
+  protects it)".
+
 ## Shelly Wall Display X2i: the backlight stays put (5.11.1)
 
 - Shelly-style software writes the backlight file directly, past Android. Android only writes it again

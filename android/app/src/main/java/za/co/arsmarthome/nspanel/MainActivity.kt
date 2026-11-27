@@ -194,6 +194,7 @@ class MainActivity : Activity(), SensorEventListener {
         Shelly.holdScreen(this) // Shelly taken over: no Android auto-brightness / sleep timer
         ShellyRelay.start(this) // Shelly: built-in relay after a power cut, wall switch (when on)
         BacklightGuard.start(this) // Shelly: put the backlight back when something else dims it
+        ShellyWatch.start(this) // Shelly 2.6+: keep the panel in front of Shelly's screen
         emit("resume", "{}")
         engine.onResume()
         sensors?.let { sm ->

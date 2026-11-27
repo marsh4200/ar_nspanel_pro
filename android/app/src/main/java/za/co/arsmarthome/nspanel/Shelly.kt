@@ -49,6 +49,8 @@ object Shelly {
     const val ACTION_OFF = "za.co.arsmarthome.nspanel.SHELLY_OFF"
     const val ACTION_ON = "za.co.arsmarthome.nspanel.SHELLY_ON"
     const val ACTION_ADB_PAIR = "za.co.arsmarthome.nspanel.SHELLY_ADB_PAIR"
+    /** HA put Shelly back itself: stop holding the screen and keeping the panel in front. */
+    const val ACTION_BACK_DONE = "za.co.arsmarthome.nspanel.SHELLY_BACK_DONE"
 
     private fun prefs(c: Context) = c.applicationContext.getSharedPreferences("shelly", Context.MODE_PRIVATE)
     private fun dpm(c: Context) = c.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
@@ -111,6 +113,29 @@ object Shelly {
         )
     }
 
+    // --- "AR on top" (firmware 2.6+: Shelly's app can't be switched off) -----------------
+
+    /** Don't pull the panel back to the front before this (ms): Android Settings opened on purpose. */
+    @Volatile var pausedUntil = 0L
+
+    /** Taken over in "AR on top" mode: Shelly runs underneath, this app stays in front (ShellyWatch). */
+    fun onTop(c: Context): Boolean = takenOver(c) && prefs(c).getBoolean("onTop", false)
+
+    /**
+     * Shelly's floating windows (its icon) stay hidden: "draw over other apps"
+     * denied again through the panel's own ADB, in case Shelly switched it back.
+     * Only once the panel's ADB key is allowed (no prompt at every start). Blocking.
+     */
+    fun reassertOverlays(c: Context) {
+        val app = c.applicationContext
+        if (!takenOver(app) || !adbPaired(app)) return
+        val pkgs = overlayPackages(app)
+        if (pkgs.isEmpty()) return
+        val cmd = pkgs.joinToString("; ") { "appops set $it SYSTEM_ALERT_WINDOW deny" }
+        val r = LocalAdb.shell(app.filesDir, cmd, listOf(5555), authWaitMs = 5_000, readMs = 8_000)
+        Log.i(TAG, "overlays denied again (${pkgs.joinToString()}): ${if (r.ok) "ok" else r.error}")
+    }
+
     // --- the screen: only this app sets brightness and sleep -----------------------------
 
     private var screenObs: ContentObserver? = null
@@ -159,6 +184,14 @@ object Shelly {
         } catch (e: Exception) {
             Log.w(TAG, "enforce screen", e)
         }
+    }
+
+    /** Shelly is back in charge (HA did it): nothing more to hold or watch. */
+    fun backDone(c: Context) {
+        val app = c.applicationContext
+        releaseScreen(app)
+        prefs(app).edit().putBoolean("restored", true).commit()
+        setBootStart(app, false)
     }
 
     private fun releaseScreen(c: Context) {
@@ -279,7 +312,8 @@ object Shelly {
         val app = c.applicationContext
         val pkgs = offPackages(app)
         releaseScreen(app)
-        prefs(app).edit().putBoolean("restored", true).commit() // stop holding the screen settings
+        // stop holding the screen settings, and stop keeping the panel in front (ShellyWatch)
+        prefs(app).edit().putBoolean("restored", true).commit()
         say("Switching Shelly back on: ${pkgs.joinToString()}")
         if (AdbHelper.enable(app, false)) say("ADB switched on (so Home Assistant can reach the panel again).")
         val owner = Kiosk.isOwner(app)
@@ -463,10 +497,12 @@ object Shelly {
             }.start()
         }
         appSet.setOnClickListener {
+            pausedUntil = System.currentTimeMillis() + 10 * 60_000L // stay in Settings
             Kiosk.release(a, a)
             if (!openAppSettings(a)) say("Android didn't open Settings.")
         }
         homeSet.setOnClickListener {
+            pausedUntil = System.currentTimeMillis() + 10 * 60_000L
             Kiosk.release(a, a)
             if (!openHomeSettings(a)) say("Android didn't open Settings.")
         }
@@ -503,8 +539,10 @@ class ShellyControl : BroadcastReceiver() {
                 val pkgs = (intent.getStringExtra("pkgs") ?: Shelly.STOCK_APP).split(',').map { it.trim() }.filter { it.isNotEmpty() }
                 val overlays = (intent.getStringExtra("overlays") ?: "").split(',').map { it.trim() }.filter { it.isNotEmpty() }
                 Shelly.remember(app, pkgs, intent.getStringExtra("home"), overlays)
-                app.getSharedPreferences("shelly", Context.MODE_PRIVATE).edit().remove("restored").commit()
+                app.getSharedPreferences("shelly", Context.MODE_PRIVATE).edit().remove("restored")
+                    .putBoolean("onTop", intent.getBooleanExtra("onTop", false)).commit()
                 Shelly.holdScreen(app)
+                ShellyWatch.start(app) // "AR on top": Shelly can't be switched off on this firmware
                 Shelly.setBootStart(app, true)
                 val hidden = Shelly.hideAll(app, pkgs)
                 resultData = if (Kiosk.isOwner(app)) "hidden:" + hidden.joinToString(",") else "not_owner"
@@ -525,6 +563,10 @@ class ShellyControl : BroadcastReceiver() {
                     pending.resultData = (if (ok) "ok\n" else "failed\n") + sb
                     pending.finish()
                 }.start()
+            }
+            Shelly.ACTION_BACK_DONE -> {
+                Shelly.backDone(app)
+                resultData = "ok"
             }
             Shelly.ACTION_ADB_PAIR -> {
                 Thread {

@@ -20,6 +20,14 @@
          app open its screen from the boot receiver with this, which is how the
          panel starts after a reboot when another launcher (HDL) is Home. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Shelly Wall Display 2.6+ "AR on top" (ShellyWatch): a foreground service that
+         sees when Shelly's screen comes to the front (usage access, allowed by HA's
+         takeover with appops GET_USAGE_STATS) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
     <!-- Over-the-air updates (Updater.kt): the app installs its own new version.
          Silent when it is device owner (USB setup) or, on Android 12+, its own
          installer of record; otherwise Android asks once on screen. -->
@@ -100,6 +108,16 @@
             </intent-filter>
         </receiver>
 
+        <!-- Shelly Wall Display 2.6+: keeps the panel in front of Shelly's screen -->
+        <service
+            android:name=".ShellyWatch"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Wall panel kiosk: keeps the panel's own screen in front of the maker's app" />
+        </service>
+
         <!-- Shelly Wall Display: HA's "Use AR app (Shelly off)" / "Back to Shelly screen"
              over ADB. DUMP = only the ADB shell / system can send. -->
         <receiver
@@ -110,6 +128,7 @@
                 <action android:name="za.co.arsmarthome.nspanel.SHELLY_OFF" />
                 <action android:name="za.co.arsmarthome.nspanel.SHELLY_ON" />
                 <action android:name="za.co.arsmarthome.nspanel.SHELLY_ADB_PAIR" />
+                <action android:name="za.co.arsmarthome.nspanel.SHELLY_BACK_DONE" />
             </intent-filter>
         </receiver>
 

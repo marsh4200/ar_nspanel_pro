@@ -472,17 +472,35 @@ def _shelly_takeover(device: Any, port: int) -> list[str]:
     log.append(_set_home(device, f"{APP_PACKAGE}/{APP_ACTIVITY}", APP_PACKAGE, strict=False))
     device.shell(f"pm enable {_BOOT_RECEIVER}")
     device.shell("settings put global device_provisioned 1; settings put secure user_setup_complete 1")
-    # 3. what Shelly runs: every cloud.shelly.* package (Stargate last), and
-    # anything else drawing over the screen (Shelly's floating logo / back
-    # button). Overlays of other apps lose their "draw over apps" right only.
+    # 3. what Shelly runs: every Shelly package (Stargate last). On firmware
+    # 2.6+ Stargate is the device owner: Android protects it (it can't be
+    # switched off, hidden, stopped, or lose Home), so the panel runs
+    # "AR on top": Stargate stays underneath, its floating windows (the Shelly
+    # icon) lose "draw over other apps", and the app keeps itself in front
+    # (ShellyWatch). Other apps drawing over the screen lose that right too.
     pkgs = _shelly_pkgs(device)
-    overlays = [p for p in _overlay_owners(device) if p not in pkgs]
+    on_top = _kiosk_owner(device) in pkgs
+    overlays = [p for p in _overlay_owners(device) if p not in pkgs or on_top]
+    if on_top and SHELLY_APP not in overlays:
+        overlays.append(SHELLY_APP)
     if overlays:
         device.shell(f"echo '{','.join(overlays)}' > {_SHELLY_OVERLAYS}")
+    if on_top:
+        log.append(
+            f"This firmware protects Shelly's app ({SHELLY_APP} is device owner): it can't be switched off, "
+            "so the panel runs “AR on top”: Shelly stays underneath, the AR app stays in front."
+        )
+        # see Shelly's screen come up (usage access), start from the background, not be killed
+        device.shell(
+            f"appops set {APP_PACKAGE} GET_USAGE_STATS allow; appops set {APP_PACKAGE} SYSTEM_ALERT_WINDOW allow; "
+            f"dumpsys deviceidle whitelist +{APP_PACKAGE}"
+        )
     # 4. tell the app, hide them (owner) -- else disable them
     extra = f" --es home {home}" if home else ""
     if overlays:
         extra += f" --es overlays {','.join(overlays)}"
+    if on_top:
+        extra += " --ez onTop true"
     res = _broadcast_data(
         device.shell(f"am broadcast -a {_SHELLY_ACT}OFF -n {_SHELLY_CTRL} --es pkgs {','.join(pkgs)}{extra}")
     )
@@ -493,20 +511,32 @@ def _shelly_takeover(device: Any, port: int) -> list[str]:
         )
     hidden = res.split(":", 1)[-1].split(",") if res.startswith("hidden:") else []
     for pkg in pkgs:
-        device.shell(f"am force-stop {pkg}")
         if pkg in hidden:
+            device.shell(f"am force-stop {pkg}")
             log.append(f"{pkg}: hidden ✓")
+            continue
+        out = (device.shell(f"pm disable-user --user 0 {pkg} 2>&1") or "").strip()
+        if "new state" in out:
+            device.shell(f"am force-stop {pkg}")
+            log.append(f"{pkg}: switched off ✓")
+        elif "protected" in out.lower():
+            log.append(f"{pkg}: stays on (Shelly's firmware protects it)")
         else:
-            log.append(f"{pkg}: " + (device.shell(f"pm disable-user --user 0 {pkg}") or "").strip())
+            log.append(f"{pkg}: couldn't switch it off ({(out.splitlines() or ['no answer'])[-1][:120]})")
     for pkg in overlays:
-        device.shell(f"appops set {pkg} SYSTEM_ALERT_WINDOW deny; am force-stop {pkg}")
-        log.append(f"{pkg}: may no longer draw over the screen ✓")
-    left = [p for p in _overlay_owners(device) if p != APP_PACKAGE]
+        device.shell(f"appops set {pkg} SYSTEM_ALERT_WINDOW deny")
+        if pkg not in pkgs:
+            device.shell(f"am force-stop {pkg}")
+        log.append(
+            f"{pkg}: may no longer draw over the screen ✓"
+            + (" (the Shelly icon is gone)" if pkg == SHELLY_APP else "")
+        )
+    left = [p for p in _overlay_owners(device) if p != APP_PACKAGE and p not in overlays]
     if left:
         log.append("Still drawing over the screen: " + ", ".join(left) + " (send me this line).")
     log += _screen_hold(device)
     running = _shelly_running(device)
-    if running:
+    if running and not on_top:
         log.append("Shelly still running: " + ", ".join(running) + " (send me this line: it may change the brightness).")
     log.append(_set_home(device, f"{APP_PACKAGE}/{APP_ACTIVITY}", APP_PACKAGE, strict=False))
     device.shell(f"am start -n {APP_PACKAGE}/{APP_ACTIVITY}")
@@ -517,10 +547,20 @@ def _shelly_takeover(device: Any, port: int) -> list[str]:
             "ON THE PANEL: if “Allow USB debugging?” appears (key ar-panel@localhost), tick "
             "“Always allow” and tap Allow. That is what lets the panel put Shelly back by itself."
         )
-    try:
-        log.append(_home_and_save(device))
-    except Exception as err:  # noqa: BLE001
-        log.append(f"Couldn't check Home / save ({type(err).__name__}): run “Boot check” before rebooting.")
+    if on_top:
+        # Home stays Shelly's (the firmware insists): the AR app opens at boot and
+        # keeps itself in front instead
+        device.shell("sync")
+        log.append(
+            "Saved ✓. After a reboot the AR app opens by itself and comes back in front of Shelly's screen "
+            "within ~2 s whenever Shelly shows it. Shelly's own relay and wall switch keep working "
+            "(Home Assistant's Shelly integration)."
+        )
+    else:
+        try:
+            log.append(_home_and_save(device))
+        except Exception as err:  # noqa: BLE001
+            log.append(f"Couldn't check Home / save ({type(err).__name__}): run “Boot check” before rebooting.")
     log.append("Way back: hold the top-left corner (setup screen) → “Back to Shelly screen”. Keep holding for 10 s if the setup screen doesn't open.")
     return log
 
@@ -554,6 +594,9 @@ def _shelly_back(device: Any) -> list[str]:
         log.append(_set_home(device, home, SHELLY_APP, strict=False))
     if _installed(device, APP_PACKAGE):
         device.shell(f"pm disable {_BOOT_RECEIVER}")
+        # the app stops holding the screen and keeping itself in front (AR on top)
+        device.shell(f"am broadcast -a {_SHELLY_ACT}BACK_DONE -n {_SHELLY_CTRL}")
+        device.shell(f"dumpsys deviceidle whitelist -{APP_PACKAGE}")
     device.shell("settings put global adb_enabled 1; sync")
     if home:
         device.shell(f"am start -a android.intent.action.MAIN -c android.intent.category.HOME -n {home}")
